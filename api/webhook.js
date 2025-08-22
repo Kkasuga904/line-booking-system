@@ -1,5 +1,3 @@
-const line = require('@line/bot-sdk');
-
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,6 +15,9 @@ export default async function handler(req, res) {
   
   // Handle POST request (LINE Webhook)
   if (req.method === 'POST') {
+    // Dynamic import for LINE SDK
+    const line = await import('@line/bot-sdk');
+    
     const config = {
       channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
       channelSecret: process.env.LINE_CHANNEL_SECRET
