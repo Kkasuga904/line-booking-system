@@ -54,7 +54,7 @@ const SERVICES = {
 };
 
 // ===== Webhookエンドポイント =====
-app.post('/api/webhook', line.middleware(config), async (req, res) => {
+app.post('/webhook', line.middleware(config), async (req, res) => {
     console.log('Webhook受信:', new Date().toISOString());
     console.log('Events:', JSON.stringify(req.body.events, null, 2));
     
@@ -568,13 +568,13 @@ async function handleOrderConfirmation(event, session) {
     });
 }
 
-// ===== ヘルスチェック =====
+// ===== ヘルスチェック & LINE Verify対応 =====
 app.get('/api/webhook', (req, res) => {
-    res.json({ 
-        status: 'OK',
-        message: 'LINE Webhook Server is running on Vercel',
-        timestamp: new Date().toISOString()
-    });
+    res.status(200).send('OK');
+});
+
+app.get('/webhook', (req, res) => {
+    res.status(200).send('OK');
 });
 
 // ===== Vercel用エクスポート =====
