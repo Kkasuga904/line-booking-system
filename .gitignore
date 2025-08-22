@@ -1,0 +1,24 @@
+# 依存関係
+node_modules/
+package-lock.json
+
+# 環境変数（重要：秘密情報を含むため絶対にコミットしない）
+.env
+.env.local
+.env.production
+.env.smw
+
+# Vercel
+.vercel
+
+# ログファイル
+*.log
+npm-debug.log*
+
+# OS関連
+.DS_Store
+Thumbs.db
+
+# エディタ設定
+.vscode/
+.idea/
