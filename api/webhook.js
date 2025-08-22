@@ -16,7 +16,8 @@ export default async function handler(req, res) {
   // Handle POST request (LINE Webhook)
   if (req.method === 'POST') {
     // Dynamic import for LINE SDK
-    const line = await import('@line/bot-sdk');
+    const lineModule = await import('@line/bot-sdk');
+    const { Client, validateSignature } = lineModule;
     
     const config = {
       channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
@@ -29,14 +30,14 @@ export default async function handler(req, res) {
       return res.status(200).json({ error: 'Configuration error' });
     }
     
-    const client = new line.Client(config);
+    const client = new Client(config);
     
     try {
       // Validate signature
       const signature = req.headers['x-line-signature'];
       const body = JSON.stringify(req.body);
       
-      if (!line.validateSignature(body, config.channelSecret, signature)) {
+      if (!validateSignature(body, config.channelSecret, signature)) {
         return res.status(401).send('Invalid signature');
       }
       
