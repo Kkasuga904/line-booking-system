@@ -1,32 +1,6 @@
 {
-  "functions": {
-    "api/webhook.js": {
-      "maxDuration": 10
-    },
-    "api/webhook-simple.js": {
-      "maxDuration": 10
-    },
-    "api/booking.js": {
-      "maxDuration": 10
-    },
-    "api/echo.js": {
-      "maxDuration": 10
-    },
-    "api/ping.js": {
-      "maxDuration": 10
-    },
-    "api/health.js": {
-      "maxDuration": 10
-    },
-    "api/admin-broadcast.js": {
-      "maxDuration": 10
-    },
-    "api/restaurant-booking.js": {
-      "maxDuration": 10
-    }
-  },
-  "public": true,
-  "github": {
-    "silent": true
-  }
+  "version": 2,
+  "rewrites": [
+    { "source": "/webhook", "destination": "/api/webhook-with-reply" }
+  ]
 }
