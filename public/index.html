@@ -226,7 +226,7 @@
         
         async function loadReservations() {
             try {
-                const response = await fetch('/api/admin?store_id=restaurant-001');
+                const response = await fetch('/api/admin-simple?store_id=restaurant-001');
                 const data = await response.json();
                 
                 reservations = Array.isArray(data) ? data : [];
