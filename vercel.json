@@ -1,6 +1,6 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/webhook", "destination": "/api/webhook-debug-full" }
+    { "source": "/webhook", "destination": "/api/webhook-with-reply" }
   ]
 }
