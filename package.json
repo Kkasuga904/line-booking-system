@@ -1,0 +1,29 @@
+{
+  "name": "line-booking-system",
+  "version": "2.0.0",
+  "description": "LINE予約システム（マルチテナント対応）",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "admin": "node server.js",
+    "new-store": "node scripts/new-store.js",
+    "deploy": "node scripts/deploy-store.js",
+    "list": "node scripts/list-stores.js",
+    "setup": "npm install && mkdir -p config deployments",
+    "backup": "cp -r config/ backup/config-$(date +%Y%m%d)/ && cp -r deployments/ backup/deployments-$(date +%Y%m%d)/"
+  },
+  "dependencies": {
+    "@line/bot-sdk": "^10.1.2"
+  },
+  "keywords": [
+    "line",
+    "bot",
+    "booking",
+    "reservation",
+    "multi-tenant",
+    "saas"
+  ],
+  "author": "",
+  "license": "MIT"
+}

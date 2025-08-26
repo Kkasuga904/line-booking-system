@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE Bot 管理ダッシュボード</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .header .subtitle {
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card .label {
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-card .value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .stat-card.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .stat-card.primary .label {
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .stat-card.primary .value {
+            color: white;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        
+        .reservation-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .reservation-item {
+            border-bottom: 1px solid #eee;
+            padding: 20px 0;
+            transition: background 0.3s;
+        }
+        
+        .reservation-item:hover {
+            background: #f8f9fa;
+            margin: 0 -20px;
+            padding: 20px;
+        }
+        
+        .reservation-item:last-child {
+            border-bottom: none;
+        }
+        
+        .reservation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .reservation-id {
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .reservation-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-confirmed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .reservation-details {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .quick-actions {
+            margin-bottom: 30px;
+        }
+        
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .action-btn {
+            padding: 20px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .action-btn:hover {
+            background: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+        
+        .action-btn .icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .action-btn .text {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        .refresh-info {
+            color: #999;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            display: none;
+            animation: slideIn 0.3s;
+        }
+        
+        .toast.show {
+            display: block;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+            }
+            to {
+                transform: translateX(0);
+            }
+        }
+        
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <div class="header">
+            <h1>📊 管理ダッシュボード</h1>
+            <div class="subtitle">LINE Bot 予約システム管理画面</div>
+        </div>
+        
+        <!-- 統計カード -->
+        <div class="stats-grid">
+            <div class="stat-card primary">
+                <div class="label">本日の予約</div>
+                <div class="value" id="todayCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">全予約数</div>
+                <div class="value" id="totalCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">確定済み</div>
+                <div class="value" id="confirmedCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">キャンセル</div>
+                <div class="value" id="cancelledCount">0</div>
+            </div>
+        </div>
+        
+        <!-- メインコンテンツ -->
+        <div class="main-content">
+            <!-- 予約一覧 -->
+            <div class="panel">
+                <h2>📋 予約一覧</h2>
+                <div class="reservation-list" id="reservationList">
+                    <div class="loading">読み込み中...</div>
+                </div>
+                <div class="refresh-info">
+                    自動更新: 30秒ごと | 最終更新: <span id="lastUpdate">-</span>
+                </div>
+            </div>
+            
+            <!-- サイドパネル -->
+            <div>
+                <!-- クイックアクション -->
+                <div class="panel quick-actions">
+                    <h2>⚡ クイックアクション</h2>
+                    <div class="action-grid">
+                        <div class="action-btn" onclick="sendBroadcast()">
+                            <div class="icon">📢</div>
+                            <div class="text">お知らせ送信</div>
+                        </div>
+                        <div class="action-btn" onclick="exportData()">
+                            <div class="icon">📥</div>
+                            <div class="text">データ出力</div>
+                        </div>
+                        <div class="action-btn" onclick="refreshData()">
+                            <div class="icon">🔄</div>
+                            <div class="text">更新</div>
+                        </div>
+                        <div class="action-btn" onclick="clearAll()">
+                            <div class="icon">🗑️</div>
+                            <div class="text">全削除</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 設定 -->
+                <div class="panel">
+                    <h2>⚙️ 設定</h2>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 8px; color: #666;">API URL</label>
+                        <input type="text" id="apiUrl" value="https://line-booking-system-seven.vercel.app" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 8px; color: #666;">管理者パスワード</label>
+                        <input type="password" id="adminPassword" placeholder="パスワード" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()" style="width: 100%;">設定を保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- トースト通知 -->
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        // グローバル変数
+        let reservations = [];
+        let apiBaseUrl = localStorage.getItem('apiUrl') || 'https://line-booking-system-seven.vercel.app';
+        let adminPassword = localStorage.getItem('adminPassword') || '';
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('apiUrl').value = apiBaseUrl;
+            document.getElementById('adminPassword').value = adminPassword;
+            loadReservations();
+            setInterval(loadReservations, 30000); // 30秒ごとに更新
+        });
+        
+        // 予約データ読み込み（モック）
+        async function loadReservations() {
+            try {
+                // 本来はAPIから取得
+                // const response = await fetch(`${apiBaseUrl}/api/admin/reservations`);
+                // const data = await response.json();
+                
+                // モックデータ
+                const mockData = generateMockData();
+                updateDashboard(mockData);
+                
+                // 最終更新時刻
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('ja-JP');
+            } catch (error) {
+                console.error('Error loading reservations:', error);
+                showToast('データの読み込みに失敗しました', 'error');
+            }
+        }
+        
+        // モックデータ生成
+        function generateMockData() {
+            const statuses = ['confirmed', 'cancelled', 'pending'];
+            const users = ['User123', 'User456', 'User789', 'User012', 'User345'];
+            const today = new Date();
+            
+            return Array.from({ length: 10 }, (_, i) => {
+                const date = new Date(today);
+                date.setHours(date.getHours() - Math.random() * 72);
+                
+                return {
+                    id: Date.now() - i * 100000,
+                    userId: users[Math.floor(Math.random() * users.length)],
+                    timestamp: date.toISOString(),
+                    status: statuses[Math.floor(Math.random() * statuses.length)],
+                    userName: `ユーザー${i + 1}`,
+                    message: i % 3 === 0 ? '特別な要望があります' : null
+                };
+            });
+        }
+        
+        // ダッシュボード更新
+        function updateDashboard(data) {
+            reservations = data;
+            
+            // 統計更新
+            const today = new Date().toDateString();
+            const todayReservations = data.filter(r => 
+                new Date(r.timestamp).toDateString() === today
+            );
+            
+            document.getElementById('todayCount').textContent = todayReservations.length;
+            document.getElementById('totalCount').textContent = data.length;
+            document.getElementById('confirmedCount').textContent = 
+                data.filter(r => r.status === 'confirmed').length;
+            document.getElementById('cancelledCount').textContent = 
+                data.filter(r => r.status === 'cancelled').length;
+            
+            // 予約リスト更新
+            const listContainer = document.getElementById('reservationList');
+            
+            if (data.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <div>予約がありません</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            listContainer.innerHTML = data.map(reservation => `
+                <div class="reservation-item">
+                    <div class="reservation-header">
+                        <div class="reservation-id">予約 #${reservation.id}</div>
+                        <div class="reservation-status status-${reservation.status}">
+                            ${getStatusText(reservation.status)}
+                        </div>
+                    </div>
+                    <div class="reservation-details">
+                        <div>👤 ${reservation.userName || reservation.userId}</div>
+                        <div>📅 ${new Date(reservation.timestamp).toLocaleString('ja-JP')}</div>
+                        ${reservation.message ? `<div>💬 ${reservation.message}</div>` : ''}
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-secondary" onclick="viewDetails('${reservation.id}')">
+                            詳細
+                        </button>
+                        ${reservation.status === 'confirmed' ? `
+                            <button class="btn btn-danger" onclick="cancelReservation('${reservation.id}')">
+                                キャンセル
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // ステータステキスト取得
+        function getStatusText(status) {
+            const statusMap = {
+                confirmed: '確定',
+                cancelled: 'キャンセル',
+                pending: '保留中'
+            };
+            return statusMap[status] || status;
+        }
+        
+        // 詳細表示
+        function viewDetails(id) {
+            const reservation = reservations.find(r => r.id == id);
+            if (reservation) {
+                alert(`予約詳細\n\nID: ${reservation.id}\nユーザー: ${reservation.userName || reservation.userId}\n日時: ${new Date(reservation.timestamp).toLocaleString('ja-JP')}\nステータス: ${getStatusText(reservation.status)}`);
+            }
+        }
+        
+        // 予約キャンセル
+        async function cancelReservation(id) {
+            if (!confirm('この予約をキャンセルしますか？')) return;
+            
+            try {
+                // APIコール（実装時）
+                // await fetch(`${apiBaseUrl}/api/admin/cancel`, {
+                //     method: 'POST',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     body: JSON.stringify({ id, password: adminPassword })
+                // });
+                
+                showToast('予約をキャンセルしました');
+                loadReservations();
+            } catch (error) {
+                showToast('キャンセルに失敗しました', 'error');
+            }
+        }
+        
+        // ブロードキャスト送信
+        function sendBroadcast() {
+            const message = prompt('送信するメッセージを入力してください：');
+            if (!message) return;
+            
+            if (confirm(`以下のメッセージを全ユーザーに送信しますか？\n\n${message}`)) {
+                // API送信処理
+                showToast('メッセージを送信しました');
+            }
+        }
+        
+        // データエクスポート
+        function exportData() {
+            const csv = [
+                ['予約ID', 'ユーザーID', '日時', 'ステータス'],
+                ...reservations.map(r => [
+                    r.id,
+                    r.userId,
+                    new Date(r.timestamp).toLocaleString('ja-JP'),
+                    getStatusText(r.status)
+                ])
+            ].map(row => row.join(',')).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reservations_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            
+            showToast('データをエクスポートしました');
+        }
+        
+        // データ更新
+        function refreshData() {
+            loadReservations();
+            showToast('データを更新しました');
+        }
+        
+        // 全削除
+        function clearAll() {
+            if (!confirm('すべての予約データを削除しますか？\nこの操作は取り消せません。')) return;
+            if (!confirm('本当によろしいですか？')) return;
+            
+            // API削除処理
+            showToast('すべてのデータを削除しました');
+            loadReservations();
+        }
+        
+        // 設定保存
+        function saveSettings() {
+            apiBaseUrl = document.getElementById('apiUrl').value;
+            adminPassword = document.getElementById('adminPassword').value;
+            
+            localStorage.setItem('apiUrl', apiBaseUrl);
+            localStorage.setItem('adminPassword', adminPassword);
+            
+            showToast('設定を保存しました');
+        }
+        
+        // トースト表示
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show';
+            
+            if (type === 'error') {
+                toast.style.background = '#dc3545';
+            } else {
+                toast.style.background = '#333';
+            }
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

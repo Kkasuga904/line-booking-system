@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>サービス提供フロー | LINE予約管理システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* ヘッダー */
+        .header {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .title-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .main-title {
+            font-size: 28px;
+            font-weight: 300;
+            color: #333;
+            letter-spacing: 2px;
+        }
+        
+        .sub-title {
+            font-size: 20px;
+            color: #666;
+            padding-left: 20px;
+            border-left: 2px solid #ddd;
+        }
+        
+        .logo {
+            height: 40px;
+        }
+        
+        /* メインコンテンツ */
+        .main-container {
+            flex: 1;
+            max-width: 1400px;
+            margin: 60px auto;
+            padding: 0 40px;
+            width: 100%;
+        }
+        
+        /* フローチャート */
+        .flow-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 40px;
+            margin-bottom: 80px;
+        }
+        
+        .flow-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+        
+        .flow-icon {
+            width: 180px;
+            height: 180px;
+            margin: 0 auto 30px;
+            background: white;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .flow-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(79, 172, 254, 0.1), transparent);
+            transform: rotate(45deg);
+            transition: all 0.5s ease;
+        }
+        
+        .flow-icon:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        
+        .flow-icon:hover::before {
+            animation: shine 0.5s ease;
+        }
+        
+        @keyframes shine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+        
+        .flow-icon svg {
+            width: 100px;
+            height: 100px;
+            z-index: 1;
+        }
+        
+        .flow-arrow {
+            position: absolute;
+            top: 90px;
+            right: -50px;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .flow-arrow svg {
+            width: 40px;
+            height: 40px;
+            fill: #999;
+        }
+        
+        .flow-label {
+            font-size: 24px;
+            font-weight: 500;
+            color: #2c5aa0;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+        
+        .flow-description {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            position: relative;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .flow-description::before {
+            content: '';
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 15px solid white;
+        }
+        
+        .flow-description p {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #555;
+        }
+        
+        /* アイコンのカラー */
+        .icon-blue { color: #4facfe; }
+        .icon-green { color: #43e97b; }
+        .icon-orange { color: #fa709a; }
+        
+        /* フッター */
+        .footer {
+            background: #f8f9fa;
+            padding: 30px 0;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .footer-text {
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .company-name {
+            font-weight: 500;
+            color: #666;
+        }
+        
+        /* レスポンシブ */
+        @media (max-width: 1024px) {
+            .flow-container {
+                flex-direction: column;
+                gap: 60px;
+            }
+            
+            .flow-arrow {
+                top: auto;
+                bottom: -50px;
+                right: 50%;
+                transform: translateX(50%) rotate(90deg);
+            }
+            
+            .flow-step:last-child .flow-arrow {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .title-section {
+                flex-direction: column;
+            }
+            
+            .sub-title {
+                border-left: none;
+                border-top: 2px solid #ddd;
+                padding-left: 0;
+                padding-top: 15px;
+            }
+            
+            .main-title {
+                font-size: 24px;
+            }
+            
+            .sub-title {
+                font-size: 18px;
+            }
+            
+            .flow-icon {
+                width: 150px;
+                height: 150px;
+            }
+            
+            .flow-icon svg {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .flow-label {
+                font-size: 20px;
+            }
+            
+            .flow-description p {
+                font-size: 14px;
+            }
+        }
+        
+        /* アニメーション */
+        .fade-in {
+            animation: fadeIn 1s ease forwards;
+            opacity: 0;
+        }
+        
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+        
+        .flow-step:nth-child(1) { animation-delay: 0.2s; }
+        .flow-step:nth-child(2) { animation-delay: 0.4s; }
+        .flow-step:nth-child(3) { animation-delay: 0.6s; }
+        
+        /* ナビゲーションボタン */
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 60px;
+        }
+        
+        .nav-button {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .nav-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .nav-button.secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .nav-button.secondary:hover {
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="title-section">
+                <h1 class="main-title">横型フローチャート</h1>
+                <h2 class="sub-title">サービス提供フロー</h2>
+            </div>
+            <div class="logo-section">
+                <span style="color: #4facfe; font-size: 24px; font-weight: bold;">c-slide</span>
+            </div>
+        </div>
+    </header>
+    
+    <main class="main-container">
+        <div class="flow-container">
+            <!-- ステップ1: 戦略立案 -->
+            <div class="flow-step fade-in">
+                <div class="flow-icon">
+                    <svg class="icon-blue" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z" />
+                        <circle cx="9.5" cy="9.5" r="2" />
+                        <path d="M3,2 L3,7 M3,2 L7,2 M21,22 L21,17 M21,22 L17,22 M21,2 L21,7 M21,2 L17,2 M3,22 L3,17 M3,22 L7,22" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.5"/>
+                    </svg>
+                    <div class="flow-arrow">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                        </svg>
+                    </div>
+                </div>
+                <h3 class="flow-label">戦略立案</h3>
+                <div class="flow-description">
+                    <p>実行中の施策、実行予定の施策<br>のヒアリングを行います。</p>
+                </div>
+            </div>
+            
+            <!-- ステップ2: コンテンツ案企画 -->
+            <div class="flow-step fade-in">
+                <div class="flow-icon">
+                    <svg class="icon-green" viewBox="0 0 24 24" fill="currentColor">
+                        <g>
+                            <circle cx="9" cy="9" r="2"/>
+                            <circle cx="15" cy="9" r="2"/>
+                            <circle cx="12" cy="14" r="2"/>
+                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z" opacity="0.3"/>
+                            <path d="M17,2L20,5L17,8M7,2L4,5L7,8" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.5"/>
+                        </g>
+                    </svg>
+                    <div class="flow-arrow">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                        </svg>
+                    </div>
+                </div>
+                <h3 class="flow-label">コンテンツ案企画</h3>
+                <div class="flow-description">
+                    <p>戦略を基に、必要なコンテンツ<br>の企画・構成案を作成します。</p>
+                </div>
+            </div>
+            
+            <!-- ステップ3: 施策実行 -->
+            <div class="flow-step fade-in">
+                <div class="flow-icon">
+                    <svg class="icon-orange" viewBox="0 0 24 24" fill="currentColor">
+                        <g>
+                            <rect x="4" y="6" width="16" height="12" rx="2" opacity="0.3"/>
+                            <rect x="8" y="10" width="8" height="4" rx="1"/>
+                            <circle cx="18" cy="8" r="1"/>
+                            <path d="M7,3 L10,3 M14,3 L17,3 M7,21 L10,21 M14,21 L17,21" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+                            <path d="M20,10 L22,10 M20,14 L22,14 M2,10 L4,10 M2,14 L4,14" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+                        </g>
+                    </svg>
+                </div>
+                <h3 class="flow-label">施策実行</h3>
+                <div class="flow-description">
+                    <p>作成した構成案を基に<br>施策を実行します。</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="nav-buttons">
+            <button class="nav-button secondary" onclick="window.location.href='/restaurant-admin.html'">
+                管理画面へ戻る
+            </button>
+            <button class="nav-button" onclick="window.location.href='/seat-config.html'">
+                席配置設定へ
+            </button>
+        </div>
+    </main>
+    
+    <footer class="footer">
+        <p class="footer-text">© 2024 <span class="company-name">COME inc.</span></p>
+    </footer>
+    
+    <script>
+        // ページ読み込み時のアニメーション
+        document.addEventListener('DOMContentLoaded', () => {
+            const elements = document.querySelectorAll('.fade-in');
+            elements.forEach(el => {
+                el.style.opacity = '0';
+                el.classList.add('fade-in');
+            });
+        });
+        
+        // スクロールアニメーション
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                }
+            });
+        }, observerOptions);
+        
+        document.querySelectorAll('.flow-step').forEach(step => {
+            observer.observe(step);
+        });
+    </script>
+</body>
+</html>

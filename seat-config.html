@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>席配置設定 - レストラン管理システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header .subtitle {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .config-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .config-panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+        
+        .seat-section {
+            margin-bottom: 30px;
+        }
+        
+        .seat-section h3 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .seat-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .seat-item {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        
+        .seat-item:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+        
+        .seat-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .seat-id {
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .seat-capacity {
+            background: #6c757d;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        
+        .seat-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        
+        .btn-icon:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        
+        .btn-icon.edit {
+            color: #007bff;
+        }
+        
+        .btn-icon.delete {
+            color: #dc3545;
+        }
+        
+        .add-seat-form {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 15px;
+            background: #f0f8ff;
+            border-radius: 8px;
+            border: 2px dashed #007bff;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .form-group label {
+            font-size: 12px;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .form-group input,
+        .form-group select {
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .actions-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+        
+        .store-selector {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .store-selector label {
+            font-weight: 600;
+            color: #856404;
+        }
+        
+        .store-selector select {
+            padding: 8px 15px;
+            border: 2px solid #ffc107;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .preview-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+        }
+        
+        .preview-section h3 {
+            margin-bottom: 15px;
+            color: #495057;
+        }
+        
+        .seat-preview {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .preview-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .preview-seat {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border: 2px solid #28a745;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .modal-header {
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            color: #333;
+        }
+        
+        .success-message {
+            display: none;
+            padding: 15px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 6px;
+            color: #155724;
+            margin-bottom: 20px;
+        }
+        
+        .success-message.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>⚙️ 席配置設定</h1>
+            <div class="subtitle">店舗ごとの席レイアウトをカスタマイズ</div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- 店舗選択 -->
+        <div class="config-panel">
+            <div class="store-selector">
+                <label>店舗を選択:</label>
+                <select id="storeSelect" onchange="loadStoreLayout()">
+                    <option value="default">デフォルト設定</option>
+                    <option value="store001">渋谷店</option>
+                    <option value="store002">新宿店</option>
+                    <option value="store003">池袋店</option>
+                    <option value="new">+ 新規店舗追加</option>
+                </select>
+                <span id="storeStatus" style="color: #28a745; font-size: 14px;"></span>
+            </div>
+        </div>
+        
+        <!-- 成功メッセージ -->
+        <div id="successMessage" class="success-message">
+            ✅ 設定を保存しました！
+        </div>
+        
+        <!-- 席配置設定 -->
+        <div class="config-panel">
+            <h2>席配置設定</h2>
+            
+            <!-- カウンター席 -->
+            <div class="seat-section">
+                <h3>🪑 カウンター席</h3>
+                <div id="counterSeats" class="seat-list">
+                    <!-- JavaScriptで動的生成 -->
+                </div>
+                <div class="add-seat-form">
+                    <div class="form-group">
+                        <label>席番号</label>
+                        <input type="text" id="counterSeatId" placeholder="例: C1">
+                    </div>
+                    <div class="form-group">
+                        <label>定員</label>
+                        <select id="counterCapacity">
+                            <option value="1">1名</option>
+                            <option value="2">2名</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="addSeat('counter')">+ 席を追加</button>
+                </div>
+            </div>
+            
+            <!-- テーブル席 -->
+            <div class="seat-section">
+                <h3>🍽️ テーブル席</h3>
+                <div id="tableSeats" class="seat-list">
+                    <!-- JavaScriptで動的生成 -->
+                </div>
+                <div class="add-seat-form">
+                    <div class="form-group">
+                        <label>席番号</label>
+                        <input type="text" id="tableSeatId" placeholder="例: T1">
+                    </div>
+                    <div class="form-group">
+                        <label>定員</label>
+                        <select id="tableCapacity">
+                            <option value="2">2名</option>
+                            <option value="4" selected>4名</option>
+                            <option value="6">6名</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="addSeat('table')">+ 席を追加</button>
+                </div>
+            </div>
+            
+            <!-- 個室 -->
+            <div class="seat-section">
+                <h3>🚪 個室</h3>
+                <div id="privateSeats" class="seat-list">
+                    <!-- JavaScriptで動的生成 -->
+                </div>
+                <div class="add-seat-form">
+                    <div class="form-group">
+                        <label>席番号</label>
+                        <input type="text" id="privateSeatId" placeholder="例: P1">
+                    </div>
+                    <div class="form-group">
+                        <label>定員</label>
+                        <select id="privateCapacity">
+                            <option value="4">4名</option>
+                            <option value="6" selected>6名</option>
+                            <option value="8">8名</option>
+                            <option value="10">10名</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="addSeat('private')">+ 席を追加</button>
+                </div>
+            </div>
+            
+            <!-- プレビュー -->
+            <div class="preview-section">
+                <h3>📋 レイアウトプレビュー</h3>
+                <div class="seat-preview">
+                    <div class="preview-row" id="previewCounter"></div>
+                    <div class="preview-row" id="previewTable"></div>
+                    <div class="preview-row" id="previewPrivate"></div>
+                </div>
+            </div>
+            
+            <!-- アクションボタン -->
+            <div class="actions-row">
+                <button class="btn btn-success" onclick="saveLayout()">💾 設定を保存</button>
+                <button class="btn btn-secondary" onclick="resetLayout()">🔄 デフォルトに戻す</button>
+                <button class="btn btn-danger" onclick="clearLayout()">🗑️ 全席削除</button>
+                <button class="btn btn-primary" onclick="window.location.href='/restaurant-admin.html'">📊 管理画面へ</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 編集モーダル -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">席の編集</h2>
+            </div>
+            <div class="form-group">
+                <label>席番号</label>
+                <input type="text" id="editSeatId">
+            </div>
+            <div class="form-group">
+                <label>定員</label>
+                <select id="editCapacity">
+                    <option value="1">1名</option>
+                    <option value="2">2名</option>
+                    <option value="4">4名</option>
+                    <option value="6">6名</option>
+                    <option value="8">8名</option>
+                    <option value="10">10名</option>
+                </select>
+            </div>
+            <div class="actions-row">
+                <button class="btn btn-primary" onclick="updateSeat()">更新</button>
+                <button class="btn btn-secondary" onclick="closeEditModal()">キャンセル</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 現在の店舗ID
+        let currentStoreId = 'default';
+        
+        // 席データ（店舗ごとに管理）
+        let seatLayouts = {};
+        
+        // デフォルトレイアウト
+        const defaultLayout = {
+            counter: [
+                { id: 'C1', capacity: 1 },
+                { id: 'C2', capacity: 1 },
+                { id: 'C3', capacity: 1 },
+                { id: 'C4', capacity: 1 }
+            ],
+            table: [
+                { id: 'T1', capacity: 4 },
+                { id: 'T2', capacity: 4 },
+                { id: 'T3', capacity: 4 }
+            ],
+            private: [
+                { id: 'P1', capacity: 6 },
+                { id: 'P2', capacity: 8 }
+            ]
+        };
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLayouts();
+            loadStoreLayout();
+        });
+        
+        // レイアウトを読み込み
+        function loadLayouts() {
+            const saved = localStorage.getItem('seatLayouts');
+            if (saved) {
+                seatLayouts = JSON.parse(saved);
+            } else {
+                seatLayouts = { default: defaultLayout };
+            }
+        }
+        
+        // 店舗レイアウトを読み込み
+        function loadStoreLayout() {
+            const storeId = document.getElementById('storeSelect').value;
+            
+            if (storeId === 'new') {
+                const newStoreName = prompt('新しい店舗名を入力してください:');
+                if (newStoreName) {
+                    const newStoreId = 'store_' + Date.now();
+                    const option = document.createElement('option');
+                    option.value = newStoreId;
+                    option.textContent = newStoreName;
+                    
+                    const select = document.getElementById('storeSelect');
+                    select.insertBefore(option, select.lastElementChild);
+                    select.value = newStoreId;
+                    
+                    currentStoreId = newStoreId;
+                    seatLayouts[newStoreId] = JSON.parse(JSON.stringify(defaultLayout));
+                } else {
+                    document.getElementById('storeSelect').value = currentStoreId;
+                    return;
+                }
+            } else {
+                currentStoreId = storeId;
+            }
+            
+            if (!seatLayouts[currentStoreId]) {
+                seatLayouts[currentStoreId] = JSON.parse(JSON.stringify(defaultLayout));
+            }
+            
+            renderSeats();
+            updatePreview();
+        }
+        
+        // 席をレンダリング
+        function renderSeats() {
+            const layout = seatLayouts[currentStoreId];
+            
+            // カウンター席
+            renderSeatSection('counterSeats', layout.counter, 'counter');
+            
+            // テーブル席
+            renderSeatSection('tableSeats', layout.table, 'table');
+            
+            // 個室
+            renderSeatSection('privateSeats', layout.private, 'private');
+        }
+        
+        // 席セクションをレンダリング
+        function renderSeatSection(containerId, seats, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = seats.map(seat => `
+                <div class="seat-item">
+                    <div class="seat-info">
+                        <span class="seat-id">${seat.id}</span>
+                        <span class="seat-capacity">${seat.capacity}名</span>
+                    </div>
+                    <div class="seat-actions">
+                        <button class="btn-icon edit" onclick="editSeat('${type}', '${seat.id}')">✏️</button>
+                        <button class="btn-icon delete" onclick="deleteSeat('${type}', '${seat.id}')">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 席を追加
+        function addSeat(type) {
+            const idInput = document.getElementById(`${type}SeatId`);
+            const capacityInput = document.getElementById(`${type}Capacity`);
+            
+            const seatId = idInput.value.trim().toUpperCase();
+            const capacity = parseInt(capacityInput.value);
+            
+            if (!seatId) {
+                alert('席番号を入力してください');
+                return;
+            }
+            
+            const layout = seatLayouts[currentStoreId];
+            
+            // 重複チェック
+            const exists = layout[type].some(s => s.id === seatId);
+            if (exists) {
+                alert('この席番号は既に存在します');
+                return;
+            }
+            
+            layout[type].push({ id: seatId, capacity: capacity });
+            
+            idInput.value = '';
+            renderSeats();
+            updatePreview();
+        }
+        
+        // 席を削除
+        function deleteSeat(type, seatId) {
+            if (confirm(`席 ${seatId} を削除しますか？`)) {
+                const layout = seatLayouts[currentStoreId];
+                layout[type] = layout[type].filter(s => s.id !== seatId);
+                renderSeats();
+                updatePreview();
+            }
+        }
+        
+        // 席を編集
+        let editingType = null;
+        let editingId = null;
+        
+        function editSeat(type, seatId) {
+            const layout = seatLayouts[currentStoreId];
+            const seat = layout[type].find(s => s.id === seatId);
+            
+            if (seat) {
+                editingType = type;
+                editingId = seatId;
+                
+                document.getElementById('editSeatId').value = seat.id;
+                document.getElementById('editCapacity').value = seat.capacity;
+                document.getElementById('editModal').classList.add('show');
+            }
+        }
+        
+        // 席を更新
+        function updateSeat() {
+            const newId = document.getElementById('editSeatId').value.trim().toUpperCase();
+            const newCapacity = parseInt(document.getElementById('editCapacity').value);
+            
+            if (!newId) {
+                alert('席番号を入力してください');
+                return;
+            }
+            
+            const layout = seatLayouts[currentStoreId];
+            const seat = layout[editingType].find(s => s.id === editingId);
+            
+            if (seat) {
+                seat.id = newId;
+                seat.capacity = newCapacity;
+                renderSeats();
+                updatePreview();
+                closeEditModal();
+            }
+        }
+        
+        // 編集モーダルを閉じる
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('show');
+            editingType = null;
+            editingId = null;
+        }
+        
+        // プレビューを更新
+        function updatePreview() {
+            const layout = seatLayouts[currentStoreId];
+            
+            // カウンター席
+            document.getElementById('previewCounter').innerHTML = layout.counter.map(seat => `
+                <div class="preview-seat">
+                    <div>${seat.id}</div>
+                    <div style="font-size: 10px;">${seat.capacity}名</div>
+                </div>
+            `).join('');
+            
+            // テーブル席
+            document.getElementById('previewTable').innerHTML = layout.table.map(seat => `
+                <div class="preview-seat" style="border-color: #007bff;">
+                    <div>${seat.id}</div>
+                    <div style="font-size: 10px;">${seat.capacity}名</div>
+                </div>
+            `).join('');
+            
+            // 個室
+            document.getElementById('previewPrivate').innerHTML = layout.private.map(seat => `
+                <div class="preview-seat" style="border-color: #dc3545;">
+                    <div>${seat.id}</div>
+                    <div style="font-size: 10px;">${seat.capacity}名</div>
+                </div>
+            `).join('');
+        }
+        
+        // レイアウトを保存
+        function saveLayout() {
+            localStorage.setItem('seatLayouts', JSON.stringify(seatLayouts));
+            
+            // サーバーにも保存
+            fetch('/api/seat-layout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    storeId: currentStoreId,
+                    layout: seatLayouts[currentStoreId]
+                })
+            }).then(() => {
+                // 成功メッセージを表示
+                const message = document.getElementById('successMessage');
+                message.classList.add('show');
+                setTimeout(() => {
+                    message.classList.remove('show');
+                }, 3000);
+                
+                document.getElementById('storeStatus').textContent = '✅ 保存済み';
+            }).catch(err => {
+                console.error('保存エラー:', err);
+                alert('保存に失敗しました');
+            });
+        }
+        
+        // デフォルトに戻す
+        function resetLayout() {
+            if (confirm('デフォルトの席配置に戻しますか？')) {
+                seatLayouts[currentStoreId] = JSON.parse(JSON.stringify(defaultLayout));
+                renderSeats();
+                updatePreview();
+            }
+        }
+        
+        // 全席削除
+        function clearLayout() {
+            if (confirm('すべての席を削除しますか？')) {
+                seatLayouts[currentStoreId] = {
+                    counter: [],
+                    table: [],
+                    private: []
+                };
+                renderSeats();
+                updatePreview();
+            }
+        }
+    </script>
+</body>
+</html>

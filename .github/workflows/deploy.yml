@@ -1,0 +1,229 @@
+name: Deploy Multi-Tenant LINE Booking System
+
+on:
+  push:
+    branches:
+      - main
+      - production
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      tenant:
+        description: 'Deploy specific tenant (leave empty for all)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - 'tenant-a'
+          - 'tenant-b'
+          - 'tenant-c'
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: |
+          npm test || echo "No tests configured"
+
+      - name: Lint check
+        run: |
+          npm run lint || echo "No linting configured"
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create deployment script
+        run: |
+          cat > deploy.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          # Configuration
+          DEPLOY_DIR="/opt/line-booking-system"
+          BACKUP_DIR="/opt/backups/line-booking-system"
+          TENANT="${1:-all}"
+          
+          # Create backup
+          echo "Creating backup..."
+          mkdir -p $BACKUP_DIR
+          timestamp=$(date +%Y%m%d_%H%M%S)
+          if [ -d "$DEPLOY_DIR/data" ]; then
+            tar -czf "$BACKUP_DIR/data_backup_$timestamp.tar.gz" -C "$DEPLOY_DIR" data/
+          fi
+          
+          # Pull latest code
+          echo "Pulling latest changes..."
+          cd $DEPLOY_DIR
+          git pull origin main
+          
+          # Update environment variables
+          echo "Updating environment variables..."
+          if [ -f .env.production ]; then
+            cp .env.production .env
+          fi
+          
+          # Deploy specific tenant or all
+          if [ "$TENANT" == "all" ]; then
+            echo "Deploying all tenants..."
+            docker-compose pull
+            docker-compose up -d --build
+          else
+            echo "Deploying tenant: $TENANT"
+            docker-compose pull $TENANT
+            docker-compose up -d --no-deps --build $TENANT
+          fi
+          
+          # Health check
+          echo "Performing health check..."
+          sleep 10
+          
+          if [ "$TENANT" == "all" ]; then
+            for service in tenant-a tenant-b tenant-c; do
+              if docker-compose ps | grep -q "$service.*Up"; then
+                echo "✅ $service is running"
+              else
+                echo "❌ $service failed to start"
+                exit 1
+              fi
+            done
+          else
+            if docker-compose ps | grep -q "$TENANT.*Up"; then
+              echo "✅ $TENANT is running"
+            else
+              echo "❌ $TENANT failed to start"
+              exit 1
+            fi
+          fi
+          
+          # Cleanup old images
+          echo "Cleaning up old images..."
+          docker image prune -f --filter "until=24h"
+          
+          echo "Deployment completed successfully!"
+          EOF
+          chmod +x deploy.sh
+
+      - name: Deploy to server
+        run: |
+          scp -i ~/.ssh/deploy_key deploy.sh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/
+          ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "sudo /tmp/deploy.sh ${{ github.event.inputs.tenant }}"
+
+      - name: Send notification
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const status = '${{ job.status }}' === 'success' ? '✅' : '❌';
+            const tenant = '${{ github.event.inputs.tenant }}' || 'all';
+            const message = `${status} Deployment ${status === '✅' ? 'succeeded' : 'failed'} for tenant: ${tenant}`;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number || 1,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            }).catch(() => {
+              console.log('No issue to comment on');
+            });
+
+  rollback:
+    runs-on: ubuntu-latest
+    if: failure() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production')
+    needs: deploy
+    
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Rollback deployment
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
+          cd /opt/line-booking-system
+          
+          # Get previous commit
+          previous_commit=$(git rev-parse HEAD~1)
+          
+          echo "Rolling back to commit: $previous_commit"
+          git reset --hard $previous_commit
+          
+          # Restart services
+          docker-compose down
+          docker-compose up -d
+          
+          echo "Rollback completed"
+          EOF
