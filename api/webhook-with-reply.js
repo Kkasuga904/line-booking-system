@@ -141,7 +141,7 @@ export default async function handler(req, res) {
     
     return res.status(200).json({
       status: 'active with quick reply',
-      webhook_url: 'https://line-booking-account2.vercel.app/webhook',
+      webhook_url: 'https://line-booking-system-seven.vercel.app/webhook',
       recent_reservations: data || []
     });
   }
