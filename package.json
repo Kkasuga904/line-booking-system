@@ -14,7 +14,8 @@
     "backup": "cp -r config/ backup/config-$(date +%Y%m%d)/ && cp -r deployments/ backup/deployments-$(date +%Y%m%d)/"
   },
   "dependencies": {
-    "@line/bot-sdk": "^10.1.2"
+    "@line/bot-sdk": "^10.1.2",
+    "@supabase/supabase-js": "^2.39.0"
   },
   "keywords": [
     "line",
