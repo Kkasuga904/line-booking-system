@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE Bot 管理者メッセージ送信</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        
+        select {
+            cursor: pointer;
+        }
+        
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        
+        .radio-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .radio-label input {
+            width: auto;
+            margin-right: 8px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info-box {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .user-id-group {
+            display: none;
+        }
+        
+        .user-id-group.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📨 メッセージ送信</h1>
+        <p class="subtitle">LINE Bot 管理者用送信ツール</p>
+        
+        <div class="info-box">
+            ⚠️ ブロードキャスト送信は月1000通まで無料。超過分は従量課金されます。
+        </div>
+        
+        <form id="broadcastForm">
+            <div class="form-group">
+                <label for="apiUrl">API URL</label>
+                <input 
+                    type="url" 
+                    id="apiUrl" 
+                    placeholder="https://your-domain.vercel.app/api/admin-broadcast"
+                    required
+                    value="https://line-booking-system-seven.vercel.app/api/admin-broadcast"
+                >
+            </div>
+            
+            <div class="form-group">
+                <label for="password">管理者パスワード</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    placeholder="パスワードを入力"
+                    required
+                >
+            </div>
+            
+            <div class="form-group">
+                <label>送信タイプ</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input 
+                            type="radio" 
+                            name="type" 
+                            value="all" 
+                            checked
+                            onchange="toggleUserIdField()"
+                        >
+                        全員に送信
+                    </label>
+                    <label class="radio-label">
+                        <input 
+                            type="radio" 
+                            name="type" 
+                            value="push"
+                            onchange="toggleUserIdField()"
+                        >
+                        特定ユーザーに送信
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-group user-id-group" id="userIdGroup">
+                <label for="userId">ユーザーID（LINE ID）</label>
+                <input 
+                    type="text" 
+                    id="userId" 
+                    placeholder="U1234567890abcdef..."
+                >
+                <small style="color: #666; margin-top: 5px; display: block;">
+                    ※ユーザーIDはWebhookのログから確認できます
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="message">メッセージ内容</label>
+                <textarea 
+                    id="message" 
+                    placeholder="送信するメッセージを入力してください&#10;&#10;例：&#10;【お知らせ】&#10;明日は臨時休業とさせていただきます。&#10;ご迷惑をおかけしますが、よろしくお願いいたします。"
+                    required
+                ></textarea>
+            </div>
+            
+            <button type="submit" id="sendButton">
+                送信する
+            </button>
+        </form>
+        
+        <div id="result" class="result"></div>
+    </div>
+    
+    <script>
+        function toggleUserIdField() {
+            const type = document.querySelector('input[name="type"]:checked').value;
+            const userIdGroup = document.getElementById('userIdGroup');
+            const userIdInput = document.getElementById('userId');
+            
+            if (type === 'push') {
+                userIdGroup.classList.add('show');
+                userIdInput.required = true;
+            } else {
+                userIdGroup.classList.remove('show');
+                userIdInput.required = false;
+                userIdInput.value = '';
+            }
+        }
+        
+        document.getElementById('broadcastForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const button = document.getElementById('sendButton');
+            const resultDiv = document.getElementById('result');
+            
+            // ボタンを無効化
+            button.disabled = true;
+            button.textContent = '送信中...';
+            
+            // 前回の結果をクリア
+            resultDiv.style.display = 'none';
+            resultDiv.className = 'result';
+            
+            // フォームデータを取得
+            const apiUrl = document.getElementById('apiUrl').value;
+            const password = document.getElementById('password').value;
+            const message = document.getElementById('message').value;
+            const type = document.querySelector('input[name="type"]:checked').value;
+            const userId = document.getElementById('userId').value;
+            
+            // リクエストボディを構築
+            const requestBody = {
+                password,
+                message,
+                type
+            };
+            
+            if (type === 'push') {
+                requestBody.userId = userId;
+            }
+            
+            try {
+                // APIにリクエスト送信
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // 成功
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        ✅ 送信成功！<br>
+                        ${type === 'all' ? '全ユーザー' : `ユーザー ${userId}`} にメッセージを送信しました。
+                    `;
+                    
+                    // フォームをリセット
+                    document.getElementById('message').value = '';
+                    if (type === 'push') {
+                        document.getElementById('userId').value = '';
+                    }
+                } else {
+                    // エラー
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        ❌ エラー<br>
+                        ${data.error || 'メッセージの送信に失敗しました'}
+                    `;
+                }
+            } catch (error) {
+                // ネットワークエラー等
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    ❌ 通信エラー<br>
+                    ${error.message}
+                `;
+            } finally {
+                // ボタンを有効化
+                button.disabled = false;
+                button.textContent = '送信する';
+                resultDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

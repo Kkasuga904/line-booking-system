@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # Nginxリバースプロキシ
+  nginx:
+    image: nginx:alpine
+    container_name: line-booking-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - tenant-a
+      - tenant-b
+      - tenant-c
+    restart: always
+    networks:
+      - line-booking-network
+
+  # テナントA（店舗A）
+  tenant-a:
+    build: .
+    container_name: line-booking-tenant-a
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - TENANT_ID=tenant-a
+      - LINE_CHANNEL_ACCESS_TOKEN=${TENANT_A_CHANNEL_ACCESS_TOKEN}
+      - LINE_CHANNEL_SECRET=${TENANT_A_CHANNEL_SECRET}
+      - DATABASE_URL=${TENANT_A_DATABASE_URL}
+      - WEBHOOK_PATH=/tenant-a/webhook
+    volumes:
+      - ./data/tenant-a:/app/data
+      - ./logs/tenant-a:/app/logs
+    restart: always
+    networks:
+      - line-booking-network
+
+  # テナントB（店舗B）
+  tenant-b:
+    build: .
+    container_name: line-booking-tenant-b
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - TENANT_ID=tenant-b
+      - LINE_CHANNEL_ACCESS_TOKEN=${TENANT_B_CHANNEL_ACCESS_TOKEN}
+      - LINE_CHANNEL_SECRET=${TENANT_B_CHANNEL_SECRET}
+      - DATABASE_URL=${TENANT_B_DATABASE_URL}
+      - WEBHOOK_PATH=/tenant-b/webhook
+    volumes:
+      - ./data/tenant-b:/app/data
+      - ./logs/tenant-b:/app/logs
+    restart: always
+    networks:
+      - line-booking-network
+
+  # テナントC（店舗C）
+  tenant-c:
+    build: .
+    container_name: line-booking-tenant-c
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - TENANT_ID=tenant-c
+      - LINE_CHANNEL_ACCESS_TOKEN=${TENANT_C_CHANNEL_ACCESS_TOKEN}
+      - LINE_CHANNEL_SECRET=${TENANT_C_CHANNEL_SECRET}
+      - DATABASE_URL=${TENANT_C_DATABASE_URL}
+      - WEBHOOK_PATH=/tenant-c/webhook
+    volumes:
+      - ./data/tenant-c:/app/data
+      - ./logs/tenant-c:/app/logs
+    restart: always
+    networks:
+      - line-booking-network
+
+networks:
+  line-booking-network:
+    driver: bridge

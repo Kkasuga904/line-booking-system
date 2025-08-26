@@ -1,0 +1,55 @@
+{
+  "stores": [
+    {
+      "id": "store-001",
+      "name": "美容室 Elegance",
+      "subdomain": "elegance",
+      "webhook_path": "/webhook",
+      "admin_url": "https://elegance.line-booking.jp/admin",
+      "line_config": {
+        "channel_access_token": "ELEGANCE_CHANNEL_TOKEN",
+        "channel_secret": "ELEGANCE_CHANNEL_SECRET",
+        "webhook_url": "https://elegance.line-booking.jp/webhook"
+      },
+      "features": ["booking", "reminder", "cancel", "reschedule"],
+      "plan": "premium",
+      "created_at": "2025-01-15T10:00:00Z"
+    },
+    {
+      "id": "store-002", 
+      "name": "レストラン La Cuisine",
+      "subdomain": "lacuisine",
+      "webhook_path": "/webhook",
+      "admin_url": "https://lacuisine.line-booking.jp/admin",
+      "line_config": {
+        "channel_access_token": "LACUISINE_CHANNEL_TOKEN",
+        "channel_secret": "LACUISINE_CHANNEL_SECRET",
+        "webhook_url": "https://lacuisine.line-booking.jp/webhook"
+      },
+      "features": ["booking", "reminder", "cancel"],
+      "plan": "standard",
+      "created_at": "2025-01-20T14:30:00Z"
+    },
+    {
+      "id": "store-003",
+      "name": "整体院 健康堂",
+      "subdomain": "kenkodo",
+      "webhook_path": "/webhook",
+      "admin_url": "https://kenkodo.line-booking.jp/admin",
+      "line_config": {
+        "channel_access_token": "KENKODO_CHANNEL_TOKEN",
+        "channel_secret": "KENKODO_CHANNEL_SECRET",
+        "webhook_url": "https://kenkodo.line-booking.jp/webhook"
+      },
+      "features": ["booking", "reminder"],
+      "plan": "basic",
+      "created_at": "2025-02-01T09:00:00Z"
+    }
+  ],
+  "deployment": {
+    "provider": "vercel",
+    "domain": "line-booking.jp",
+    "ssl": true,
+    "cdn": true
+  }
+}

@@ -1,0 +1,338 @@
+<!-- ハンバーガーメニューコンポーネント -->
+<!-- 各HTMLファイルにこのコードをコピー＆ペーストして使用 -->
+
+<style>
+    .hamburger-menu {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 10000;
+    }
+    
+    .menu-toggle {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transition: all 0.3s;
+    }
+    
+    .menu-toggle:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+    
+    .menu-toggle span {
+        width: 24px;
+        height: 3px;
+        background: white;
+        border-radius: 2px;
+        transition: all 0.3s;
+    }
+    
+    .menu-toggle.active span:nth-child(1) {
+        transform: rotate(45deg) translate(5px, 5px);
+    }
+    
+    .menu-toggle.active span:nth-child(2) {
+        opacity: 0;
+    }
+    
+    .menu-toggle.active span:nth-child(3) {
+        transform: rotate(-45deg) translate(7px, -6px);
+    }
+    
+    .menu-sidebar {
+        position: fixed;
+        top: 0;
+        left: -320px;
+        width: 300px;
+        height: 100vh;
+        background: white;
+        box-shadow: 2px 0 20px rgba(0,0,0,0.1);
+        transition: all 0.3s;
+        z-index: 9999;
+        overflow-y: auto;
+    }
+    
+    .menu-sidebar.active {
+        left: 0;
+    }
+    
+    .menu-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px 20px;
+    }
+    
+    .menu-header h2 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: bold;
+    }
+    
+    .menu-header p {
+        margin: 5px 0 0 0;
+        opacity: 0.9;
+        font-size: 14px;
+    }
+    
+    .menu-section {
+        padding: 20px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .menu-section-title {
+        font-size: 12px;
+        color: #999;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+    
+    .menu-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        margin-bottom: 8px;
+        border-radius: 10px;
+        text-decoration: none;
+        color: #333;
+        transition: all 0.3s;
+        cursor: pointer;
+        background: #f8f9fa;
+    }
+    
+    .menu-item:hover {
+        background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+        transform: translateX(5px);
+    }
+    
+    .menu-item.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .menu-item-icon {
+        font-size: 20px;
+        margin-right: 15px;
+        width: 30px;
+        text-align: center;
+    }
+    
+    .menu-item-text {
+        flex: 1;
+        font-size: 15px;
+        font-weight: 500;
+    }
+    
+    .menu-item-badge {
+        background: #ff6b6b;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    .menu-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s;
+        z-index: 9998;
+    }
+    
+    .menu-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .menu-footer {
+        padding: 20px;
+        background: #f8f9fa;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+    
+    .menu-footer-text {
+        font-size: 12px;
+        color: #999;
+        text-align: center;
+    }
+    
+    @media (max-width: 480px) {
+        .menu-sidebar {
+            width: 280px;
+            left: -300px;
+        }
+    }
+</style>
+
+<div class="hamburger-menu">
+    <button class="menu-toggle" id="menuToggle" onclick="toggleMenu()">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+</div>
+
+<div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+
+<div class="menu-sidebar" id="menuSidebar">
+    <div class="menu-header">
+        <h2>🚀 管理システム</h2>
+        <p>LINE Bot Management</p>
+    </div>
+    
+    <div class="menu-section">
+        <div class="menu-section-title">メイン機能</div>
+        <a href="/" class="menu-item" id="menu-dashboard">
+            <span class="menu-item-icon">📊</span>
+            <span class="menu-item-text">ダッシュボード</span>
+        </a>
+        <a href="/restaurant-admin.html" class="menu-item" id="menu-restaurant">
+            <span class="menu-item-icon">🍽️</span>
+            <span class="menu-item-text">飲食店席管理</span>
+            <span class="menu-item-badge">NEW</span>
+        </a>
+        <a href="/admin-send.html" class="menu-item" id="menu-message">
+            <span class="menu-item-icon">📨</span>
+            <span class="menu-item-text">メッセージ送信</span>
+        </a>
+    </div>
+    
+    <div class="menu-section">
+        <div class="menu-section-title">店舗管理</div>
+        <div class="menu-item" onclick="runCommand('new-store')">
+            <span class="menu-item-icon">➕</span>
+            <span class="menu-item-text">新規店舗追加</span>
+        </div>
+        <div class="menu-item" onclick="runCommand('list-stores')">
+            <span class="menu-item-icon">📋</span>
+            <span class="menu-item-text">店舗一覧</span>
+        </div>
+        <div class="menu-item" onclick="runCommand('deploy')">
+            <span class="menu-item-icon">🚀</span>
+            <span class="menu-item-text">デプロイ</span>
+        </div>
+    </div>
+    
+    <div class="menu-section">
+        <div class="menu-section-title">API & データ</div>
+        <a href="/api/stores" target="_blank" class="menu-item">
+            <span class="menu-item-icon">🏪</span>
+            <span class="menu-item-text">店舗API</span>
+        </a>
+        <a href="/api/reservations" target="_blank" class="menu-item">
+            <span class="menu-item-icon">📝</span>
+            <span class="menu-item-text">予約API</span>
+        </a>
+        <a href="/api/stats" target="_blank" class="menu-item">
+            <span class="menu-item-icon">📈</span>
+            <span class="menu-item-text">統計API</span>
+        </a>
+    </div>
+    
+    <div class="menu-section">
+        <div class="menu-section-title">ツール</div>
+        <div class="menu-item" onclick="exportData()">
+            <span class="menu-item-icon">📥</span>
+            <span class="menu-item-text">データエクスポート</span>
+        </div>
+        <div class="menu-item" onclick="showSettings()">
+            <span class="menu-item-icon">⚙️</span>
+            <span class="menu-item-text">設定</span>
+        </div>
+        <div class="menu-item" onclick="showHelp()">
+            <span class="menu-item-icon">❓</span>
+            <span class="menu-item-text">ヘルプ</span>
+        </div>
+    </div>
+    
+    <div class="menu-footer">
+        <div class="menu-footer-text">
+            LINE Bot System v2.0<br>
+            Server: http://localhost:3001
+        </div>
+    </div>
+</div>
+
+<script>
+    // メニューの開閉
+    function toggleMenu() {
+        const toggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('menuSidebar');
+        const overlay = document.getElementById('menuOverlay');
+        
+        toggle.classList.toggle('active');
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+    }
+    
+    // 現在のページをハイライト
+    document.addEventListener('DOMContentLoaded', () => {
+        const currentPath = window.location.pathname;
+        
+        if (currentPath === '/' || currentPath === '/index.html' || currentPath === '/admin-dashboard.html') {
+            document.getElementById('menu-dashboard')?.classList.add('active');
+        } else if (currentPath === '/restaurant-admin.html' || currentPath === '/restaurant') {
+            document.getElementById('menu-restaurant')?.classList.add('active');
+        } else if (currentPath === '/admin-send.html') {
+            document.getElementById('menu-message')?.classList.add('active');
+        }
+    });
+    
+    // コマンド実行
+    function runCommand(command) {
+        alert(`コマンド実行: npm run ${command}\nターミナルで実行してください`);
+    }
+    
+    // データエクスポート
+    function exportData() {
+        if (typeof window.exportData === 'function') {
+            window.exportData();
+        } else {
+            alert('データをエクスポートします');
+        }
+    }
+    
+    // 設定表示
+    function showSettings() {
+        alert('設定画面を表示');
+    }
+    
+    // ヘルプ表示
+    function showHelp() {
+        alert('ヘルプ:\n\n' +
+            '📊 ダッシュボード: 全体の統計情報\n' +
+            '🍽️ 飲食店席管理: 席の状態をリアルタイム管理\n' +
+            '📨 メッセージ送信: LINEユーザーへ一斉送信\n\n' +
+            'キーボードショートカット:\n' +
+            'Ctrl+M: メニュー開閉');
+    }
+    
+    // キーボードショートカット
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === 'm') {
+            e.preventDefault();
+            toggleMenu();
+        }
+    });
+</script>
