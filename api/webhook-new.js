@@ -51,7 +51,7 @@ export default async function handler(req, res) {
   }
 }
 
-// Fetchを使用したLINE返信（ES Module対応）
+// HTTPSを直接使用したLINE返信（確実動作版）
 async function sendReplyWithFetch(replyToken, text) {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   if (!token) {
@@ -59,42 +59,10 @@ async function sendReplyWithFetch(replyToken, text) {
     return;
   }
   
-  console.log('Token found, sending reply with fetch...');
+  console.log('Token found, sending reply with HTTPS...');
   
-  const payload = {
-    replyToken: replyToken,
-    messages: [{
-      type: 'text',
-      text: text
-    }]
-  };
-  
-  try {
-    const response = await fetch('https://api.line.me/v2/bot/message/reply', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-    
-    console.log('LINE Response Status:', response.status);
-    
-    if (response.ok) {
-      console.log('✅ Reply sent successfully with fetch!');
-    } else {
-      const errorText = await response.text();
-      console.error('❌ LINE API Error:', response.status);
-      console.error('Response:', errorText);
-    }
-    
-  } catch (error) {
-    console.error('❌ Fetch Error:', error.message);
-    // フォールバック: Node.js httpsモジュールを試す
-    console.log('🔄 Falling back to HTTPS module...');
-    await sendReplyWithHttps(replyToken, text);
-  }
+  // 直接httpsモジュールを使用
+  await sendReplyWithHttps(replyToken, text);
 }
 
 // HTTPS モジュールを使ったフォールバック（ES Module対応）
