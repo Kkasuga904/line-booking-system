@@ -749,6 +749,3 @@ export default async function handler(req, res) {
   // GET/POST/OPTIONS以外のHTTPメソッドは拒否
   return res.status(405).json({ error: 'Method not allowed' });
 }
-
-// Vercel用のハンドラーエクスポート
-export default handler;
