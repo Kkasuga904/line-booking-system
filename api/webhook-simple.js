@@ -1,7 +1,4 @@
-/**
- * 最小限のLINE Webhook - 確実に動作する版
- */
-
+// Account 1 Simple Webhook with proper messages
 export default async function handler(req, res) {
   console.log('=== Webhook Simple Start ===');
   console.log('Method:', req.method);
