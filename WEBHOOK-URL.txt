@@ -1,0 +1,5 @@
+LINE Developers Console で設定するWebhook URL:
+
+https://line-booking-system-seven.vercel.app/api/webhook-supabase
+
+※ 最後は /api/webhook-supabase です（/webhook ではない）
