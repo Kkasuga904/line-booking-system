@@ -1,0 +1,136 @@
+# Gitleaks 設定 - 機密情報検出
+# https://github.com/zricethezav/gitleaks
+
+[allowlist]
+description = "許可リスト"
+paths = [
+    '''node_modules''',
+    '''.git''',
+    '''package-lock.json''',
+]
+
+[[rules]]
+id = "line-channel-access-token"
+description = "LINE Channel Access Token"
+regex = '''[a-zA-Z0-9+/]{100,}={0,2}'''
+tags = ["key", "LINE"]
+severity = "HIGH"
+
+[[rules]]
+id = "line-channel-secret"
+description = "LINE Channel Secret"
+regex = '''[a-f0-9]{32}'''
+tags = ["secret", "LINE"]
+severity = "HIGH"
+
+[[rules]]
+id = "supabase-key"
+description = "Supabase API Key"
+regex = '''eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+'''
+tags = ["key", "Supabase"]
+severity = "HIGH"
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key"
+regex = '''(?i)(api[_\-\s]*key|apikey)[_\-\s]*[:=][_\-\s]*['\"]?[a-zA-Z0-9]{20,}['\"]?'''
+tags = ["key", "API"]
+severity = "MEDIUM"
+
+[[rules]]
+id = "generic-secret"
+description = "Generic Secret"
+regex = '''(?i)(secret|password|passwd|pwd)[_\-\s]*[:=][_\-\s]*['\"]?[a-zA-Z0-9]{8,}['\"]?'''
+tags = ["secret", "password"]
+severity = "HIGH"
+
+[[rules]]
+id = "private-key"
+description = "Private Key"
+regex = '''-----BEGIN (RSA |EC |OPENSSH |DSA |ED25519 )?PRIVATE KEY-----'''
+tags = ["key", "private"]
+severity = "CRITICAL"
+
+[[rules]]
+id = "japanese-personal-info"
+description = "Japanese Personal Information"
+regex = '''(?:氏名|名前|住所|電話番号|メールアドレス|生年月日)[：:]\s*[^\s]+'''
+tags = ["PII", "Japanese"]
+severity = "HIGH"
+
+[[rules]]
+id = "store-business-names"
+description = "Store and Business Names"
+regex = '''(?:店舗名|企業名|会社名|ビジネス名|サロン名|レストラン|美容室|クリニック|病院)[：:]\s*[^\s]+'''
+tags = ["Business", "Confidential"]
+severity = "MEDIUM"
+
+[[rules]]
+id = "specific-business-names"
+description = "Specific Business Names Pattern"
+regex = '''(?:株式会社|有限会社|合同会社|合資会社)[\s・]*[\u4e00-\u9fa5\u30a1-\u30f4]+'''
+tags = ["Business", "Company"]
+severity = "MEDIUM"
+
+[[rules]]
+id = "email-address"
+description = "Email Address"
+regex = '''[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'''
+tags = ["PII", "email"]
+severity = "MEDIUM"
+
+[[rules]]
+id = "japanese-phone"
+description = "Japanese Phone Number"
+regex = '''(?:0\d{1,4}-?\d{1,4}-?\d{4}|0[789]0-?\d{4}-?\d{4})'''
+tags = ["PII", "phone"]
+severity = "MEDIUM"
+
+[[rules]]
+id = "credit-card"
+description = "Credit Card Number"
+regex = '''\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|6(?:011|5[0-9]{2})[0-9]{12})\b'''
+tags = ["PII", "financial"]
+severity = "CRITICAL"
+
+[[rules]]
+id = "jwt-token"
+description = "JWT Token"
+regex = '''eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+'''
+tags = ["token", "JWT"]
+severity = "HIGH"
+
+[[rules]]
+id = "database-url"
+description = "Database Connection String"
+regex = '''(?i)(postgres|mysql|mongodb|redis|sqlite):\/\/[^\s]+'''
+tags = ["database", "credentials"]
+severity = "HIGH"
+
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key"
+regex = '''(?i)AKIA[0-9A-Z]{16}'''
+tags = ["AWS", "key"]
+severity = "CRITICAL"
+
+[[rules]]
+id = "slack-webhook"
+description = "Slack Webhook"
+regex = '''https://hooks\.slack\.com/services/T[a-zA-Z0-9_]+/B[a-zA-Z0-9_]+/[a-zA-Z0-9_]+'''
+tags = ["webhook", "Slack"]
+severity = "MEDIUM"
+
+[[rules]]
+id = "github-token"
+description = "GitHub Personal Access Token"
+regex = '''ghp_[a-zA-Z0-9]{36}'''
+tags = ["GitHub", "token"]
+severity = "HIGH"
+
+[[rules]]
+id = "vercel-token"
+description = "Vercel Token"
+regex = '''(?i)vercel[_\-]?token[_\-\s]*[:=][_\-\s]*['\"]?[a-zA-Z0-9]{24}['\"]?'''
+tags = ["Vercel", "token"]
+severity = "HIGH"

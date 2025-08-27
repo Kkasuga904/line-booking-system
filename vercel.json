@@ -1,6 +1,12 @@
 {
   "version": 2,
+  "functions": {
+    "api/*.js": {
+      "maxDuration": 10
+    }
+  },
   "rewrites": [
-    { "source": "/webhook", "destination": "/api/webhook-with-reply" }
+    { "source": "/webhook", "destination": "/api/webhook-supabase" },
+    { "source": "/admin", "destination": "/admin.html" }
   ]
 }

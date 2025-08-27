@@ -10,14 +10,14 @@ taskkill /F /IM node.exe 2>nul
 timeout /t 2 /nobreak > nul
 
 REM アカウント1を起動
-echo [1/2] テストアカウント1 を起動中...
-start "Account1" cmd /k "cd /d %~dp0 && set STORE_ID=test-account-1&& set STORE_NAME=テストアカウント1&& set PORT=3001&& set BASE_URL=http://localhost:3001&& set LINE_CHANNEL_ACCESS_TOKEN=dummy_token_1&& set LINE_CHANNEL_SECRET=dummy_secret_1&& node store-instance-server.js"
+echo [1/2] Store Instance 1 を起動中...
+start "Account1" cmd /k "cd /d %~dp0 && set STORE_ID=test-account-1&& set STORE_NAME=Store Instance 1&& set PORT=3001&& set BASE_URL=http://localhost:3001&& set LINE_CHANNEL_ACCESS_TOKEN=dummy_token_1&& set LINE_CHANNEL_SECRET=dummy_secret_1&& node store-instance-server.js"
 
 timeout /t 3 /nobreak > nul
 
 REM アカウント2を起動
-echo [2/2] テストアカウント2 を起動中...
-start "Account2" cmd /k "cd /d %~dp0 && set STORE_ID=test-account-2&& set STORE_NAME=テストアカウント2&& set PORT=3002&& set BASE_URL=http://localhost:3002&& set LINE_CHANNEL_ACCESS_TOKEN=dummy_token_2&& set LINE_CHANNEL_SECRET=dummy_secret_2&& node store-instance-server.js"
+echo [2/2] Store Instance 2 を起動中...
+start "Account2" cmd /k "cd /d %~dp0 && set STORE_ID=test-account-2&& set STORE_NAME=Store Instance 2&& set PORT=3002&& set BASE_URL=http://localhost:3002&& set LINE_CHANNEL_ACCESS_TOKEN=dummy_token_2&& set LINE_CHANNEL_SECRET=dummy_secret_2&& node store-instance-server.js"
 
 timeout /t 3 /nobreak > nul
 

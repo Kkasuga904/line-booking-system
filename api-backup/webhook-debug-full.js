@@ -38,6 +38,7 @@ async function testSupabase() {
   const key = process.env.SUPABASE_ANON_KEY;
   
   debugLog.push(`Supabase URL: ${url}`);
+  debugLog.push(`Supabase URL first chars: ${url ? url.substring(0, 30) : 'undefined'}`);
   debugLog.push(`Supabase key exists: ${!!key}`);
   
   if (!url || !key) {

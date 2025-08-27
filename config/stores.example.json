@@ -1,0 +1,18 @@
+{
+  "stores": [
+    {
+      "id": "store-001",
+      "name": "Your Store Name Here",
+      "description": "Store description",
+      "features": ["booking", "reminder", "cancel"],
+      "webhook": "https://your-domain.vercel.app/api/webhook"
+    },
+    {
+      "id": "store-002",
+      "name": "Another Store Name",
+      "description": "Store description",
+      "features": ["booking", "reminder"],
+      "webhook": "https://your-domain2.vercel.app/api/webhook"
+    }
+  ]
+}

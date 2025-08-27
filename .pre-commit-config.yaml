@@ -1,0 +1,77 @@
+# Pre-commit hooks 設定
+# 顧客情報が誤ってコミットされるのを防ぐ
+
+repos:
+  # Gitleaks - 機密情報検出
+  - repo: https://github.com/zricethezav/gitleaks
+    rev: v8.18.0
+    hooks:
+      - id: gitleaks
+        name: 機密情報スキャン
+        entry: gitleaks detect --source . --verbose
+        language: golang
+        pass_filenames: false
+
+  # ファイルサイズチェック
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-added-large-files
+        name: 大きなファイルチェック
+        args: ['--maxkb=1000']
+        
+      - id: check-json
+        name: JSON構文チェック
+        
+      - id: check-yaml
+        name: YAML構文チェック
+        
+      - id: detect-private-key
+        name: 秘密鍵検出
+        
+      - id: no-commit-to-branch
+        name: mainブランチ直接コミット防止
+        args: ['--branch', 'main']
+
+  # カスタムスクリプト - 日本語個人情報チェック
+  - repo: local
+    hooks:
+      - id: check-japanese-pii
+        name: 日本語個人情報チェック
+        entry: scripts/check-pii.sh
+        language: script
+        pass_filenames: true
+        
+      - id: check-env-files
+        name: 環境変数ファイルチェック
+        entry: bash -c 'if git diff --cached --name-only | grep -E "\.env|\.key|\.pem"; then echo "環境変数ファイルはコミットできません！"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        
+      - id: check-database-files
+        name: データベースファイルチェック
+        entry: bash -c 'if git diff --cached --name-only | grep -E "\.db|\.sql|\.sqlite"; then echo "データベースファイルはコミットできません！"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        
+      - id: check-log-files
+        name: ログファイルチェック
+        entry: bash -c 'if git diff --cached --name-only | grep -E "\.log"; then echo "ログファイルはコミットできません！"; exit 1; fi'
+        language: system
+        pass_filenames: false
+
+  # セキュリティスキャン
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: シークレット検出
+        args: ['--baseline', '.secrets.baseline']
+        exclude: package-lock.json
+
+# 設定
+default_language_version:
+  python: python3
+  
+fail_fast: true
+exclude: '^node_modules/|^\.git/'
