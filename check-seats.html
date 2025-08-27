@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>席データ確認</title>
+</head>
+<body>
+    <h1>席データ状態確認</h1>
+    <button onclick="checkSeats()">データ確認</button>
+    <div id="result"></div>
+    
+    <script>
+        async function checkSeats() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '確認中...';
+            
+            try {
+                const response = await fetch('https://line-booking-system-seven.vercel.app/api/seats-manage');
+                const data = await response.json();
+                
+                if (data.success && data.seats) {
+                    let html = `
+                        <h2>席データ: ${data.seats.length}件</h2>
+                        <table border="1">
+                            <tr>
+                                <th>席名</th>
+                                <th>タイプ</th>
+                                <th>定員</th>
+                                <th>ロック状態</th>
+                                <th>有効</th>
+                            </tr>
+                    `;
+                    
+                    data.seats.forEach(seat => {
+                        html += `
+                            <tr>
+                                <td>${seat.name}</td>
+                                <td>${seat.seat_type}</td>
+                                <td>${seat.capacity}</td>
+                                <td>${seat.is_locked ? 'ロック中' : '利用可能'}</td>
+                                <td>${seat.is_active ? '有効' : '無効'}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += '</table>';
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = 'データなし';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = 'エラー: ' + error.message;
+            }
+        }
+        
+        // ページ読み込み時に自動実行
+        checkSeats();
+    </script>
+</body>
+</html>

@@ -42,11 +42,12 @@ export default async function handler(req, res) {
             });
         }
         
-        // データベースに保存（Account 1は必ずaccount-001を使用）
+        // データベースに保存（環境変数のSTORE_IDまたはdefault-storeを使用）
+        const storeId = store_id || process.env.STORE_ID || 'default-store';
         const { data: reservation, error } = await supabase
             .from('reservations')
             .insert([{
-                store_id: 'account-001',  // Account 1は必ずaccount-001
+                store_id: storeId.trim(),  // 環境変数または指定されたstore_idを使用
                 user_id: user_id || 'liff-user',
                 customer_name: customer_name || 'ゲスト',
                 message: message || `カレンダー予約: ${date} ${time}`,
