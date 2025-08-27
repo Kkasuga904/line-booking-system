@@ -705,11 +705,18 @@
             for (let i = 0; i < 7; i++) {
                 const date = new Date(currentWeekStart);
                 date.setDate(currentWeekStart.getDate() + i);
+                date.setHours(0, 0, 0, 0);
                 
-                const isToday = date.getTime() === today.getTime();
+                const isToday = date.toDateString() === today.toDateString();
                 const className = isToday ? 'today' : '';
                 
-                html += `<th class="${className}" data-date="${date.toISOString().split('T')[0]}">
+                // ローカル日付を使用（タイムゾーンを考慮）
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                
+                html += `<th class="${className}" data-date="${dateStr}">
                     <div class="day-header">${days[i]}</div>
                     <div class="day-date">${date.getDate()}</div>
                 </th>`;
@@ -732,7 +739,13 @@
                 for (let day = 0; day < 7; day++) {
                     const date = new Date(currentWeekStart);
                     date.setDate(currentWeekStart.getDate() + day);
-                    const dateStr = date.toISOString().split('T')[0];
+                    date.setHours(0, 0, 0, 0);
+                    
+                    // ローカル日付を使用（タイムゾーンを考慮）
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const dayStr = String(date.getDate()).padStart(2, '0');
+                    const dateStr = `${year}-${month}-${dayStr}`;
                     
                     html += `<td data-date="${dateStr}" data-hour="${hour}" data-day="${day}" 
                                 onclick="showAddReservationModal('${dateStr}', ${hour})"></td>`;
@@ -798,8 +811,15 @@
             for (let i = 0; i < 7; i++) {
                 const date = new Date(currentWeekStart);
                 date.setDate(currentWeekStart.getDate() + i);
-                const dateStr = date.toISOString().split('T')[0];
-                const isToday = date.getTime() === today.getTime();
+                date.setHours(0, 0, 0, 0);
+                
+                // ローカル日付を使用
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const dayStr = String(date.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${dayStr}`;
+                
+                const isToday = date.toDateString() === today.toDateString();
                 
                 html += `
                     <div class="mobile-day-section">
@@ -835,8 +855,18 @@
             
             // 今週の予約をフィルタリング
             const weekReservations = allReservations.filter(r => {
-                const resDate = new Date(r.date);
-                return resDate >= currentWeekStart && resDate < weekEnd;
+                // ローカル日付文字列を生成して比較
+                const startYear = currentWeekStart.getFullYear();
+                const startMonth = String(currentWeekStart.getMonth() + 1).padStart(2, '0');
+                const startDay = String(currentWeekStart.getDate()).padStart(2, '0');
+                const startDateStr = `${startYear}-${startMonth}-${startDay}`;
+                
+                const endYear = weekEnd.getFullYear();
+                const endMonth = String(weekEnd.getMonth() + 1).padStart(2, '0');
+                const endDay = String(weekEnd.getDate()).padStart(2, '0');
+                const endDateStr = `${endYear}-${endMonth}-${endDay}`;
+                
+                return r.date >= startDateStr && r.date < endDateStr;
             });
             
             // 時間とセルごとに予約をグループ化
@@ -941,8 +971,18 @@
             
             // 今週の予約をフィルタリング
             const weekReservations = allReservations.filter(r => {
-                const resDate = new Date(r.date);
-                return resDate >= currentWeekStart && resDate < weekEnd;
+                // ローカル日付文字列を生成して比較
+                const startYear = currentWeekStart.getFullYear();
+                const startMonth = String(currentWeekStart.getMonth() + 1).padStart(2, '0');
+                const startDay = String(currentWeekStart.getDate()).padStart(2, '0');
+                const startDateStr = `${startYear}-${startMonth}-${startDay}`;
+                
+                const endYear = weekEnd.getFullYear();
+                const endMonth = String(weekEnd.getMonth() + 1).padStart(2, '0');
+                const endDay = String(weekEnd.getDate()).padStart(2, '0');
+                const endDateStr = `${endYear}-${endMonth}-${endDay}`;
+                
+                return r.date >= startDateStr && r.date < endDateStr;
             });
             
             // 日付ごとにグループ化
