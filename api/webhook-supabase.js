@@ -53,12 +53,18 @@ function createMenuMessage() {
   const storeName = encodeURIComponent(process.env.STORE_NAME || '店舗');
   
   // 方法1: LINE LoginチャネルのLIFF IDがある場合
-  const liffId = process.env.LIFF_ID || '';
+  const liffId = (process.env.LIFF_ID || '').trim(); // trimで改行除去
   
-  // 方法2: 通常のWebページとして開く（LIFF不要・今すぐ使える！）
-  const calendarUrl = liffId && liffId !== 'YOUR-LIFF-ID'
-    ? `https://liff.line.me/${liffId}?store_id=${storeId}&store_name=${storeName}`
-    : `https://line-booking-system-seven.vercel.app/liff-calendar.html?store_id=${storeId}&store_name=${storeName}`;
+  // URLを1行で生成（改行が入らないように）
+  let calendarUrl;
+  if (liffId && liffId !== 'YOUR-LIFF-ID') {
+    calendarUrl = `https://liff.line.me/${liffId}?store_id=${storeId}&store_name=${storeName}`;
+  } else {
+    calendarUrl = `https://line-booking-system-seven.vercel.app/liff-calendar.html?store_id=${storeId}&store_name=${storeName}`;
+  }
+  
+  // 改行を除去（念のため）
+  calendarUrl = calendarUrl.replace(/\r?\n/g, '');
   
   console.log('Calendar URL:', calendarUrl); // デバッグログ
   
