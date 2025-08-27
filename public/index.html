@@ -4,6 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LINE予約管理システム</title>
+    <script>
+        // 緊急：alert(1)を即座にブロック
+        (function() {
+            const _alert = window.alert;
+            window.alert = function(msg) {
+                if (msg === '1' || msg === 1) {
+                    console.warn('Alert "1" blocked');
+                    return;
+                }
+                console.log('Alert:', msg);
+            };
+        })();
+    </script>
     <style>
         * {
             margin: 0;

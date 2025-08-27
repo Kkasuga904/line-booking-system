@@ -258,9 +258,14 @@
                         <option value="cancelled">キャンセル</option>
                     </select>
                 </div>
-                <button class="refresh-btn" onclick="loadReservations()">
-                    🔄 更新
-                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button style="background: #667eea;" onclick="window.location.href='/admin-calendar'">
+                        📅 カレンダー表示
+                    </button>
+                    <button class="refresh-btn" onclick="loadReservations()">
+                        🔄 更新
+                    </button>
+                </div>
             </div>
             
             <div class="table-wrapper">
@@ -279,6 +284,7 @@
                             <th>メッセージ</th>
                             <th>ステータス</th>
                             <th>作成日時</th>
+                            <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="reservationsBody">
@@ -294,6 +300,18 @@
     <script>
         // グローバル変数：全予約データを保持
         let allReservations = [];
+        
+        // XSS対策: HTMLエスケープ関数
+        function escapeHtml(unsafe) {
+            if (unsafe === null || unsafe === undefined) return '-';
+            return String(unsafe)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#x27;')
+                .replace(/\//g, '&#x2F;');
+        }
         
         // 日付フォーマット関数（YYYY-MM-DD → 日本語表示）
         // @param {string} dateStr - ISO形式の日付文字列
@@ -418,17 +436,36 @@
             // 各予約データを行として追加
             reservations.forEach(reservation => {
                 const row = tbody.insertRow();
-                // テンプレートリテラルでHTML生成
-                row.innerHTML = `
-                    <td>${reservation.id}</td>
-                    <td>${reservation.customer_name || 'ゲスト'}様</td>
-                    <td>${formatDate(reservation.date)}</td>
-                    <td>${formatTime(reservation.time)}</td>
-                    <td>${reservation.people}名</td>
-                    <td>${reservation.message || '-'}</td>
-                    <td>${getStatusBadge(reservation.status)}</td>
-                    <td>${formatDateTime(reservation.created_at)}</td>
-                `;
+                
+                // XSS対策: 各セルを安全に作成
+                const cells = [
+                    escapeHtml(reservation.id),
+                    escapeHtml(reservation.customer_name || 'ゲスト') + '様',
+                    formatDate(reservation.date),
+                    formatTime(reservation.time),
+                    escapeHtml(reservation.people) + '名',
+                    escapeHtml(reservation.message || '-'),
+                    getStatusBadge(reservation.status), // HTMLバッジ（信頼できる）
+                    formatDateTime(reservation.created_at)
+                ];
+                
+                cells.forEach((content, index) => {
+                    const cell = row.insertCell(index);
+                    // ステータスバッジのみHTML許可
+                    if (index === 6) {
+                        cell.innerHTML = content;
+                    } else {
+                        cell.textContent = content;
+                    }
+                });
+                
+                // 操作列を追加（削除ボタン）
+                const actionCell = row.insertCell(8);
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '🗑️ 削除';
+                deleteBtn.style.cssText = 'padding: 5px 10px; background: #ef5350; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;';
+                deleteBtn.onclick = () => deleteReservation(reservation);
+                actionCell.appendChild(deleteBtn);
             });
         }
         
@@ -488,6 +525,39 @@
             } finally {
                 // ローディング非表示（成功・失敗どちらでも実行）
                 loading.style.display = 'none';
+            }
+        }
+        
+        // 予約削除機能
+        async function deleteReservation(reservation) {
+            // 確認ダイアログ表示
+            const confirmMessage = `予約ID: #${reservation.id}\n${reservation.customer_name || 'ゲスト'}様\n${reservation.date} ${reservation.time.substring(0, 5)}\n\nこの予約を削除しますか？`;
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            try {
+                // 削除APIを呼び出し
+                const response = await fetch(`/api/admin-delete?id=${reservation.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    alert('予約を削除しました');
+                    // データ再読み込み
+                    loadReservations();
+                } else {
+                    alert(`削除に失敗しました: ${result.error || '不明なエラー'}`);
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('削除処理中にエラーが発生しました');
             }
         }
         

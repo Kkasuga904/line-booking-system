@@ -1,0 +1,13 @@
+{
+  "name": "line-booking-system-tests",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node test-runner.js",
+    "test:local": "TEST_URL=http://localhost:3000 node test-runner.js",
+    "test:prod": "TEST_URL=https://line-booking-system-seven.vercel.app node test-runner.js"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}

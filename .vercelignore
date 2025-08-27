@@ -1,0 +1,53 @@
+# テストファイルを除外
+test/
+**/*.test.*
+**/__tests__/**
+**/test-runner.*
+tests/
+*.test.js
+test-*.js
+**/test-*
+
+# 開発用ファイルを除外
+*.md
+*.sql
+*.bat
+*.sh
+docker-compose.yml
+Dockerfile
+.git/
+.github/
+
+# 設定ファイルテンプレート
+*.example
+*.example.*
+env.example
+
+# バックアップとドキュメント
+backup/
+docs/
+api-backup/
+
+# ローカル開発サーバー
+server.js
+*-server.js
+multi-tenant-server.js
+
+# ローカル設定
+.env.local
+.env.development
+test-*.env
+stores/*.env
+
+# ビルド時に不要なファイル
+node_modules/
+coverage/
+.husky/
+
+# SQLファイル
+sql/
+*.sql
+
+# デバッグ用
+debug-*
+*-debug.*

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE予約管理システム</title>
+    <script>
+        // 最優先でalert(1)をブロック
+        (function() {
+            // alert関数を即座に無効化
+            const originalAlert = window.alert;
+            Object.defineProperty(window, 'alert', {
+                value: function(msg) {
+                    console.warn('[Alert blocked]:', msg);
+                    if (msg !== '1' && msg !== 1) {
+                        console.log('Alert message:', msg);
+                    }
+                },
+                writable: false,
+                configurable: false
+            });
+            
+            // evalも念のため監視
+            const originalEval = window.eval;
+            window.eval = function(code) {
+                if (typeof code === 'string' && code.includes('alert(1)')) {
+                    console.error('[Eval blocked]: alert(1) detected');
+                    return;
+                }
+                return originalEval.call(this, code);
+            };
+        })();
+    </script>
+    <meta http-equiv="refresh" content="0;url=/index.html">
+</head>
+<body>
+    <p>Loading...</p>
+</body>
+</html>

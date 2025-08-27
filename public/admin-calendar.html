@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約管理カレンダー | LINE予約システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            line-height: 1.5;
+        }
+        
+        /* ヘッダー */
+        .header {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .store-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .store-name {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .view-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .view-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .view-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .view-btn:hover:not(.active) {
+            background: #f5f5f7;
+        }
+        
+        /* カレンダーナビゲーション */
+        .calendar-nav {
+            background: white;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .nav-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .month-selector {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .nav-arrow {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #e0e0e0;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .nav-arrow:hover {
+            background: #f5f5f7;
+            transform: scale(1.05);
+        }
+        
+        .current-month {
+            font-size: 24px;
+            font-weight: 600;
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        .today-btn {
+            padding: 8px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .today-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+        
+        /* メインコンテナ */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px 20px;
+        }
+        
+        /* タイムラインビュー */
+        .timeline-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .timeline-header {
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+            box-sizing: border-box;
+        }
+        
+        .time-label {
+            padding: 15px 10px;
+            text-align: center;
+            font-weight: 600;
+            color: #666;
+            font-size: 13px;
+            border-right: 1px solid #e0e0e0;
+            box-sizing: border-box;
+        }
+        
+        .day-header {
+            padding: 15px;
+            text-align: center;
+            border-right: 1px solid #e0e0e0;
+            box-sizing: border-box;
+        }
+        
+        .day-header:last-child {
+            border-right: none;
+        }
+        
+        .day-name {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .day-date {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .day-header.today {
+            background: #667eea;
+            color: white;
+        }
+        
+        .day-header.today .day-name {
+            color: rgba(255,255,255,0.9);
+        }
+        
+        /* タイムグリッド */
+        .timeline-body {
+            position: relative;
+            max-height: 600px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        .time-grid {
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+            position: relative;
+            box-sizing: border-box;
+        }
+        
+        .time-slot {
+            border-right: 1px solid #e0e0e0;
+            border-bottom: 1px solid #f0f0f0;
+            min-height: 60px;
+            height: 60px;
+            position: relative;
+            box-sizing: border-box;
+        }
+        
+        .time-slot:nth-child(8n+1) {
+            background: #fafafa;
+            padding: 8px;
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+            box-sizing: border-box;
+        }
+        
+        .time-slot:nth-child(8n) {
+            border-right: none;
+        }
+        
+        /* 日ごとの予約コンテナ */
+        .day-column {
+            position: relative;
+            min-height: 100%;
+        }
+        
+        /* 予約カード */
+        .reservation-card {
+            position: absolute;
+            left: 5px;
+            right: 5px;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 10;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin: 2px;
+            width: calc(100% - 14px);
+        }
+        
+        .reservation-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            z-index: 20;
+        }
+        
+        .reservation-card.pending {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .reservation-card.confirmed {
+            background: linear-gradient(135deg, #06c755, #00b74a);
+            color: white;
+        }
+        
+        .reservation-card.cancelled {
+            background: linear-gradient(135deg, #ef5350, #e91e63);
+            color: white;
+            opacity: 0.7;
+        }
+        
+        .card-time {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        
+        .card-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+        
+        .card-people {
+            font-size: 11px;
+            opacity: 0.9;
+        }
+        
+        /* 統計サマリー */
+        .summary-bar {
+            background: white;
+            padding: 15px 20px;
+            margin: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .summary-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        
+        .summary-item {
+            text-align: center;
+        }
+        
+        .summary-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .summary-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+        
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            .timeline-header,
+            .time-grid {
+                grid-template-columns: 60px repeat(7, 1fr);
+            }
+            
+            .day-date {
+                font-size: 16px;
+            }
+            
+            .reservation-card {
+                font-size: 11px;
+                padding: 6px;
+            }
+            
+            .summary-content {
+                flex-wrap: wrap;
+                gap: 20px;
+            }
+            
+            .summary-item {
+                flex: 1 1 40%;
+            }
+        }
+        
+        /* ローディング */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+            color: #666;
+        }
+        
+        .loading::after {
+            content: '';
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 詳細モーダル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 400px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .modal-subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .detail-row {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .detail-label {
+            flex: 0 0 100px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .detail-value {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .modal-close {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .modal-close:hover {
+            background: #5a6fd8;
+        }
+    </style>
+</head>
+<body>
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="header-content">
+            <div class="store-info">
+                <span class="store-name" id="storeName">予約管理システム</span>
+                <span style="color: #666; font-size: 14px;">カレンダービュー</span>
+            </div>
+            <div class="view-controls">
+                <button class="view-btn active" onclick="switchView('week')">週表示</button>
+                <button class="view-btn" onclick="switchView('day')">日表示</button>
+                <button class="view-btn" onclick="window.location.href='/admin'">📋 リスト表示</button>
+            </div>
+        </div>
+    </header>
+    
+    <!-- カレンダーナビゲーション -->
+    <div class="calendar-nav">
+        <div class="nav-content">
+            <div class="month-selector">
+                <button class="nav-arrow" onclick="navigateWeek(-1)">←</button>
+                <div class="current-month" id="currentPeriod">2025年1月27日 - 2月2日</div>
+                <button class="nav-arrow" onclick="navigateWeek(1)">→</button>
+            </div>
+            <button class="today-btn" onclick="goToToday()">今日</button>
+        </div>
+    </div>
+    
+    <!-- 統計サマリー -->
+    <div class="summary-bar">
+        <div class="summary-content">
+            <div class="summary-item">
+                <div class="summary-label">本日の予約</div>
+                <div class="summary-value" id="todayCount">0</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">今週の予約</div>
+                <div class="summary-value" id="weekCount">0</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">予約率</div>
+                <div class="summary-value" id="occupancyRate">0%</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">平均人数</div>
+                <div class="summary-value" id="avgPeople">0名</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- メインコンテナ -->
+    <div class="main-container">
+        <div class="timeline-container">
+            <!-- タイムラインヘッダー -->
+            <div class="timeline-header" id="timelineHeader">
+                <div class="time-label">時間</div>
+                <!-- 曜日ヘッダーは動的生成 -->
+            </div>
+            
+            <!-- タイムラインボディ -->
+            <div class="timeline-body" id="timelineBody">
+                <div class="time-grid" id="timeGrid">
+                    <!-- タイムスロットは動的生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 詳細モーダル -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">予約詳細</div>
+                <div class="modal-subtitle" id="modalSubtitle">予約ID: #123</div>
+            </div>
+            <div id="modalDetails">
+                <!-- 詳細情報は動的生成 -->
+            </div>
+            <button class="modal-close" onclick="closeModal()">閉じる</button>
+        </div>
+    </div>
+    
+    <script>
+        // グローバル変数
+        let currentWeekStart = new Date();
+        let allReservations = [];
+        let viewMode = 'week';
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeCalendar();
+            loadReservations();
+            setInterval(loadReservations, 30000); // 30秒ごとに自動更新
+        });
+        
+        // カレンダー初期化
+        function initializeCalendar() {
+            // 週の開始を月曜日に設定
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            currentWeekStart = new Date(today);
+            currentWeekStart.setDate(today.getDate() + diff);
+            currentWeekStart.setHours(0, 0, 0, 0);
+            
+            renderCalendar();
+        }
+        
+        // カレンダー描画
+        function renderCalendar() {
+            renderHeader();
+            renderTimeGrid();
+            updatePeriodDisplay();
+        }
+        
+        // ヘッダー描画
+        function renderHeader() {
+            const header = document.getElementById('timelineHeader');
+            const days = ['月', '火', '水', '木', '金', '土', '日'];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // 既存のヘッダーをクリア（時間ラベルは残す）
+            while (header.children.length > 1) {
+                header.lastChild.remove();
+            }
+            
+            // 7日分のヘッダーを生成
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(currentWeekStart);
+                date.setDate(currentWeekStart.getDate() + i);
+                
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'day-header';
+                
+                // 今日の日付をハイライト
+                if (date.getTime() === today.getTime()) {
+                    dayHeader.classList.add('today');
+                }
+                
+                dayHeader.innerHTML = `
+                    <div class="day-name">${days[i]}</div>
+                    <div class="day-date">${date.getDate()}</div>
+                `;
+                
+                dayHeader.dataset.date = date.toISOString().split('T')[0];
+                header.appendChild(dayHeader);
+            }
+        }
+        
+        // タイムグリッド描画
+        function renderTimeGrid() {
+            const grid = document.getElementById('timeGrid');
+            grid.innerHTML = '';
+            
+            // 10:00から22:00まで1時間刻み
+            for (let hour = 10; hour <= 22; hour++) {
+                // 時間ラベル
+                const timeLabel = document.createElement('div');
+                timeLabel.className = 'time-slot';
+                timeLabel.textContent = `${hour}:00`;
+                grid.appendChild(timeLabel);
+                
+                // 7日分のスロット
+                for (let day = 0; day < 7; day++) {
+                    const slot = document.createElement('div');
+                    slot.className = 'time-slot';
+                    slot.dataset.hour = hour;
+                    slot.dataset.day = day;
+                    grid.appendChild(slot);
+                }
+            }
+        }
+        
+        // 期間表示更新
+        function updatePeriodDisplay() {
+            const endDate = new Date(currentWeekStart);
+            endDate.setDate(currentWeekStart.getDate() + 6);
+            
+            const startStr = `${currentWeekStart.getFullYear()}年${currentWeekStart.getMonth() + 1}月${currentWeekStart.getDate()}日`;
+            const endStr = `${endDate.getMonth() + 1}月${endDate.getDate()}日`;
+            
+            document.getElementById('currentPeriod').textContent = `${startStr} - ${endStr}`;
+        }
+        
+        // 週ナビゲーション
+        function navigateWeek(direction) {
+            currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
+            renderCalendar();
+            displayReservations();
+        }
+        
+        // 今日に移動
+        function goToToday() {
+            initializeCalendar();
+            displayReservations();
+        }
+        
+        // ビュー切り替え
+        function switchView(mode) {
+            viewMode = mode;
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // TODO: 日表示の実装
+            if (mode === 'day') {
+                alert('日表示は準備中です');
+            }
+        }
+        
+        // 予約データ読み込み
+        async function loadReservations() {
+            try {
+                const response = await fetch('/api/admin-supabase');
+                const data = await response.json();
+                
+                if (data.reservations) {
+                    allReservations = data.reservations;
+                    displayReservations();
+                    updateStatistics();
+                }
+            } catch (error) {
+                console.error('Error loading reservations:', error);
+            }
+        }
+        
+        // 予約表示
+        function displayReservations() {
+            // 既存の予約カードをクリア
+            document.querySelectorAll('.reservation-card').forEach(card => card.remove());
+            
+            const weekEnd = new Date(currentWeekStart);
+            weekEnd.setDate(currentWeekStart.getDate() + 7);
+            
+            // 現在の週の予約のみフィルタリング
+            const weekReservations = allReservations.filter(r => {
+                const resDate = new Date(r.date);
+                return resDate >= currentWeekStart && resDate < weekEnd;
+            });
+            
+            // 予約をカレンダーに配置
+            weekReservations.forEach(reservation => {
+                createAndPlaceReservationCard(reservation);
+            });
+        }
+        
+        // 予約カード作成と配置
+        function createAndPlaceReservationCard(reservation) {
+            const resDate = new Date(reservation.date);
+            const dayIndex = Math.floor((resDate - currentWeekStart) / (1000 * 60 * 60 * 24));
+            
+            if (dayIndex < 0 || dayIndex >= 7) return;
+            
+            // 時間から位置を計算
+            const timeParts = reservation.time.split(':');
+            const hour = parseInt(timeParts[0]);
+            const minute = parseInt(timeParts[1]);
+            
+            if (hour < 10 || hour > 22) return;
+            
+            // 対象のセルを特定（行番号 = 時間 - 10、列番号 = 日 + 1）
+            const rowIndex = hour - 10;
+            const colIndex = dayIndex + 1;
+            const cellIndex = rowIndex * 8 + colIndex;
+            
+            const timeSlots = document.querySelectorAll('.time-slot');
+            const targetCell = timeSlots[cellIndex];
+            
+            if (!targetCell) return;
+            
+            // 予約カード作成
+            const card = document.createElement('div');
+            card.className = `reservation-card ${reservation.status}`;
+            
+            // セル内での相対位置設定
+            const topOffset = minute; // 分を直接ピクセルとして使用
+            card.style.top = `${topOffset + 2}px`;
+            card.style.height = '54px'; // セルの高さ - マージン
+            
+            card.innerHTML = `
+                <div class="card-time">${timeParts[0]}:${timeParts[1]}</div>
+                <div class="card-name">${reservation.customer_name || 'ゲスト'}様</div>
+                <div class="card-people">${reservation.people}名</div>
+            `;
+            
+            card.onclick = () => showReservationDetail(reservation);
+            
+            // セルに追加
+            targetCell.appendChild(card);
+        }
+        
+        // 予約詳細表示
+        function showReservationDetail(reservation) {
+            const modal = document.getElementById('detailModal');
+            const title = document.getElementById('modalTitle');
+            const subtitle = document.getElementById('modalSubtitle');
+            const details = document.getElementById('modalDetails');
+            
+            title.textContent = `${reservation.customer_name || 'ゲスト'}様のご予約`;
+            subtitle.textContent = `予約ID: #${reservation.id}`;
+            
+            const statusText = {
+                'pending': '予約確定',
+                'confirmed': '確認済み',
+                'cancelled': 'キャンセル'
+            };
+            
+            details.innerHTML = `
+                <div class="detail-row">
+                    <div class="detail-label">日付</div>
+                    <div class="detail-value">${reservation.date}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">時間</div>
+                    <div class="detail-value">${reservation.time.substring(0, 5)}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">人数</div>
+                    <div class="detail-value">${reservation.people}名</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">ステータス</div>
+                    <div class="detail-value">${statusText[reservation.status] || reservation.status}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">メッセージ</div>
+                    <div class="detail-value">${reservation.message || '-'}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">作成日時</div>
+                    <div class="detail-value">${new Date(reservation.created_at).toLocaleString('ja-JP')}</div>
+                </div>
+            `;
+            
+            modal.classList.add('show');
+        }
+        
+        // モーダル閉じる
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('show');
+        }
+        
+        // 統計更新
+        function updateStatistics() {
+            const today = new Date().toISOString().split('T')[0];
+            const weekEnd = new Date(currentWeekStart);
+            weekEnd.setDate(currentWeekStart.getDate() + 7);
+            
+            // 本日の予約数
+            const todayReservations = allReservations.filter(r => 
+                r.date === today && r.status !== 'cancelled'
+            );
+            document.getElementById('todayCount').textContent = todayReservations.length;
+            
+            // 今週の予約数
+            const weekReservations = allReservations.filter(r => {
+                const resDate = new Date(r.date);
+                return resDate >= currentWeekStart && resDate < weekEnd && r.status !== 'cancelled';
+            });
+            document.getElementById('weekCount').textContent = weekReservations.length;
+            
+            // 予約率（仮に1日最大50予約として計算）
+            const maxReservations = 7 * 50; // 週7日 × 50予約
+            const occupancy = Math.round((weekReservations.length / maxReservations) * 100);
+            document.getElementById('occupancyRate').textContent = `${occupancy}%`;
+            
+            // 平均人数
+            if (weekReservations.length > 0) {
+                const totalPeople = weekReservations.reduce((sum, r) => sum + r.people, 0);
+                const avgPeople = (totalPeople / weekReservations.length).toFixed(1);
+                document.getElementById('avgPeople').textContent = `${avgPeople}名`;
+            } else {
+                document.getElementById('avgPeople').textContent = '0名';
+            }
+        }
+        
+        // モーダル外クリックで閉じる
+        window.onclick = function(event) {
+            const modal = document.getElementById('detailModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>

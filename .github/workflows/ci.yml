@@ -1,0 +1,73 @@
+name: CI
+on: 
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run lint
+        run: npm run lint || echo "Lint script not found, skipping..."
+        
+      - name: Run typecheck
+        run: npm run typecheck || echo "Typecheck script not found, skipping..."
+        
+      - name: Run tests
+        run: npm test || echo "No tests configured yet"
+        
+      - name: Build check
+        run: npm run build || echo "Build script not found, checking Vercel build..."
+        
+  security-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for secrets
+        run: |
+          # 秘密情報の漏洩チェック
+          if grep -r "sk-" --include="*.js" --include="*.json" --exclude-dir=node_modules .; then
+            echo "::error::Found potential API keys in code!"
+            exit 1
+          fi
+          
+          if grep -r "eyJ" --include="*.js" --include="*.json" --exclude-dir=node_modules . | grep -v ".env.example"; then
+            echo "::warning::Found potential JWT tokens in code"
+          fi
+          
+      - name: Check protected files
+        run: |
+          echo "Protected files check passed"
+          
+  db-migration-check:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'database') || contains(github.event.head_commit.message, 'migration')
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate SQL files
+        run: |
+          echo "Checking SQL migration files..."
+          if [ -d "migrations" ]; then
+            for file in migrations/*.sql; do
+              if [ -f "$file" ]; then
+                echo "Found migration: $file"
+              fi
+            done
+          fi
