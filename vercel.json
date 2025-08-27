@@ -6,9 +6,9 @@
     }
   },
   "rewrites": [
-    { "source": "/webhook", "destination": "/api/webhook-new" },
-    { "source": "/api/webhook", "destination": "/api/webhook-new" },
-    { "source": "/api/webhook.js", "destination": "/api/webhook-new" },
+    { "source": "/webhook", "destination": "/api/webhook-fix" },
+    { "source": "/api/webhook", "destination": "/api/webhook-fix" },
+    { "source": "/api/webhook.js", "destination": "/api/webhook-fix" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/admin-calendar", "destination": "/admin-calendar-v2.html" },
     { "source": "/seats", "destination": "/seats-management.html" }
