@@ -125,6 +125,36 @@
             font-size: 14px;
         }
         
+        /* ビュー切り替え */
+        .view-toggle {
+            display: flex;
+            gap: 5px;
+            background: #f0f0f0;
+            padding: 3px;
+            border-radius: 8px;
+        }
+        
+        .view-btn {
+            padding: 6px 16px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #666;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .view-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .view-btn.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
         /* 統計サマリー */
         .summary-bar {
             background: white;
@@ -594,10 +624,14 @@
     <!-- カレンダーナビゲーション -->
     <div class="calendar-nav">
         <div class="nav-content">
+            <div class="view-toggle">
+                <button class="view-btn active" id="weekViewBtn" onclick="setViewMode('week')">週</button>
+                <button class="view-btn" id="dayViewBtn" onclick="setViewMode('day')">日</button>
+            </div>
             <div class="month-selector">
-                <button class="nav-arrow" onclick="navigateWeek(-1)">←</button>
+                <button class="nav-arrow" onclick="navigate(-1)">←</button>
                 <div class="current-month" id="currentPeriod">読み込み中...</div>
-                <button class="nav-arrow" onclick="navigateWeek(1)">→</button>
+                <button class="nav-arrow" onclick="navigate(1)">→</button>
             </div>
             <button class="today-btn" onclick="goToToday()">今日</button>
         </div>
@@ -661,6 +695,8 @@
     <script>
         // グローバル変数
         let currentWeekStart = new Date();
+        let currentDate = new Date();
+        let viewMode = 'week'; // 'week' or 'day'
         let allReservations = [];
         let currentReservation = null; // モーダルで表示中の予約
         let allSeats = []; // 利用可能な席リスト
@@ -676,6 +712,9 @@
         // カレンダー初期化
         function initializeCalendar() {
             const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            currentDate = new Date(today);
+            
             const dayOfWeek = today.getDay();
             const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
             currentWeekStart = new Date(today);
@@ -685,12 +724,84 @@
             renderCalendar();
         }
         
+        // ビューモード切り替え
+        function setViewMode(mode) {
+            viewMode = mode;
+            document.getElementById('weekViewBtn').classList.toggle('active', mode === 'week');
+            document.getElementById('dayViewBtn').classList.toggle('active', mode === 'day');
+            renderCalendar();
+            displayReservations();
+        }
+        
+        // ナビゲーション
+        function navigate(direction) {
+            if (viewMode === 'week') {
+                currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
+            } else {
+                currentDate.setDate(currentDate.getDate() + direction);
+                // 週の開始も更新
+                const dayOfWeek = currentDate.getDay();
+                const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+                currentWeekStart = new Date(currentDate);
+                currentWeekStart.setDate(currentDate.getDate() + diff);
+                currentWeekStart.setHours(0, 0, 0, 0);
+            }
+            renderCalendar();
+            displayReservations();
+        }
+        
         // カレンダー描画
         function renderCalendar() {
-            renderHeader();
-            renderBody();
+            if (viewMode === 'week') {
+                renderWeekView();
+            } else {
+                renderDayView();
+            }
             renderMobileView();
             updatePeriodDisplay();
+        }
+        
+        // 週表示
+        function renderWeekView() {
+            renderHeader();
+            renderBody();
+        }
+        
+        // 日表示
+        function renderDayView() {
+            const header = document.getElementById('calendarHeader');
+            const body = document.getElementById('calendarBody');
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            const dayOfWeek = currentDate.getDay();
+            
+            // ヘッダー
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentDate.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            
+            header.innerHTML = `
+                <tr>
+                    <th>時間</th>
+                    <th class="today" data-date="${dateStr}">
+                        <div class="day-header">${days[dayOfWeek]}</div>
+                        <div class="day-date">${currentDate.getDate()}</div>
+                    </th>
+                </tr>
+            `;
+            
+            // ボディ
+            let html = '';
+            for (let hour = 10; hour <= 22; hour++) {
+                html += `
+                    <tr>
+                        <td>${hour}:00</td>
+                        <td data-date="${dateStr}" data-hour="${hour}" 
+                            onclick="showAddReservationModal('${dateStr}', ${hour})"></td>
+                    </tr>
+                `;
+            }
+            body.innerHTML = html;
         }
         
         // ヘッダー描画
@@ -759,25 +870,38 @@
         
         // 期間表示更新
         function updatePeriodDisplay() {
-            const endDate = new Date(currentWeekStart);
-            endDate.setDate(currentWeekStart.getDate() + 6);
-            
-            const startStr = `${currentWeekStart.getFullYear()}年${currentWeekStart.getMonth() + 1}月${currentWeekStart.getDate()}日`;
-            const endStr = `${endDate.getMonth() + 1}月${endDate.getDate()}日`;
-            
-            document.getElementById('currentPeriod').textContent = `${startStr} - ${endStr}`;
-        }
-        
-        // 週ナビゲーション
-        function navigateWeek(direction) {
-            currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
-            renderCalendar();
-            displayReservations();
+            if (viewMode === 'week') {
+                const endDate = new Date(currentWeekStart);
+                endDate.setDate(currentWeekStart.getDate() + 6);
+                
+                const startStr = `${currentWeekStart.getFullYear()}年${currentWeekStart.getMonth() + 1}月${currentWeekStart.getDate()}日`;
+                const endStr = `${endDate.getMonth() + 1}月${endDate.getDate()}日`;
+                
+                document.getElementById('currentPeriod').textContent = `${startStr} - ${endStr}`;
+            } else {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth() + 1;
+                const date = currentDate.getDate();
+                const days = ['日', '月', '火', '水', '木', '金', '土'];
+                const dayOfWeek = days[currentDate.getDay()];
+                
+                document.getElementById('currentPeriod').textContent = `${year}年${month}月${date}日 (${dayOfWeek})`;
+            }
         }
         
         // 今日へ移動
         function goToToday() {
-            initializeCalendar();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            currentDate = new Date(today);
+            
+            const dayOfWeek = today.getDay();
+            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            currentWeekStart = new Date(today);
+            currentWeekStart.setDate(today.getDate() + diff);
+            currentWeekStart.setHours(0, 0, 0, 0);
+            
+            renderCalendar();
             displayReservations();
         }
         
@@ -838,10 +962,80 @@
         
         // 予約表示
         function displayReservations() {
-            // PC用表示
-            displayPCReservations();
-            // モバイル用表示
-            displayMobileReservations();
+            if (viewMode === 'week') {
+                // PC用表示
+                displayPCReservations();
+                // モバイル用表示
+                displayMobileReservations();
+            } else {
+                // 日表示
+                displayDayReservations();
+            }
+        }
+        
+        // 日表示の予約表示
+        function displayDayReservations() {
+            // 既存の予約をクリア
+            document.querySelectorAll('.time-slot-reservations').forEach(container => container.remove());
+            document.querySelectorAll('.reservation-card').forEach(card => card.remove());
+            
+            // 現在の日付をフォーマット
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentDate.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            
+            // 該当日の予約をフィルタリング
+            const dayReservations = allReservations.filter(r => r.date === dateStr);
+            
+            // 時間ごとにグループ化
+            const reservationsByHour = {};
+            dayReservations.forEach(reservation => {
+                const hour = parseInt(reservation.time.split(':')[0]);
+                if (!reservationsByHour[hour]) {
+                    reservationsByHour[hour] = [];
+                }
+                reservationsByHour[hour].push(reservation);
+            });
+            
+            // 各時間帯に予約を配置
+            Object.entries(reservationsByHour).forEach(([hour, reservations]) => {
+                const cell = document.querySelector(
+                    `td[data-date="${dateStr}"][data-hour="${hour}"]`
+                );
+                
+                if (cell) {
+                    const container = document.createElement('div');
+                    container.className = 'time-slot-reservations';
+                    container.style.width = '100%';
+                    
+                    reservations.forEach(reservation => {
+                        const timeParts = reservation.time.split(':');
+                        const card = document.createElement('div');
+                        card.className = `reservation-card ${reservation.status}`;
+                        card.style.width = 'auto';
+                        card.style.marginRight = '0';
+                        
+                        const seatInfo = reservation.seat_name ? 
+                            `<div class="card-seat">📍${reservation.seat_name}</div>` : '';
+                        
+                        card.innerHTML = `
+                            <div class="card-content">
+                                <div class="card-time">${timeParts[0]}:${timeParts[1]}</div>
+                                <div class="card-name">${reservation.customer_name || 'ゲスト'}様</div>
+                                <div class="card-people">${reservation.people}名</div>
+                                ${seatInfo}
+                                ${reservation.message ? `<div class="card-message" style="font-size: 10px; color: #999; margin-top: 3px;">${reservation.message}</div>` : ''}
+                            </div>
+                        `;
+                        
+                        card.onclick = () => showReservationDetail(reservation);
+                        container.appendChild(card);
+                    });
+                    
+                    cell.appendChild(container);
+                }
+            });
         }
         
         // PC用予約表示
