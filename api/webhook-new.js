@@ -1,125 +1,87 @@
-// LINE Webhook Handler - Version 2.0.0 - ES Module with HTTPS
+// LINE Webhook Handler - Version 1.0.8 - COMMONJS ONLY - FINAL FIX
 // Deploy Date: 2025-08-27
-// Fixed ES Module compatibility
-import https from 'https';
+// ⚠️ CRITICAL: DO NOT CHANGE TO ES MODULES - CAUSES FUNCTION_INVOCATION_FAILED
+const https = require('https');
 
-const WEBHOOK_VERSION = '2.0.0';
+const WEBHOOK_VERSION = '1.0.8';
 const DEPLOY_DATE = '2025-08-27';
 
-// メインハンドラー関数（ES Module形式）
-export default async function handler(req, res) {
-  console.log(`=== Webhook v${WEBHOOK_VERSION} Start (${DEPLOY_DATE}) ===`);
+// CommonJS export - DO NOT CHANGE
+exports.default = async function handler(req, res) {
+  console.log(`=== Account1 Webhook v${WEBHOOK_VERSION} Start ===`);
   
-  // 即座に200を返す（重要！）
+  // 即座に200を返す
   res.status(200).end();
   
-  // バックグラウンドで処理
-  processWebhook(req.body).catch(err => {
-    console.error('Background process error:', err);
-  });
-};
-
-// Webhookイベントを処理する非同期関数
-async function processWebhook(body) {
+  // バックグラウンド処理
   try {
-    console.log('Body:', JSON.stringify(body));
+    console.log('Body:', JSON.stringify(req.body));
     
-    if (!body?.events?.[0]) {
+    if (!req.body?.events?.[0]) {
       console.log('No events');
       return;
     }
     
-    const event = body.events[0];
+    const event = req.body.events[0];
     
     if (event.type === 'message' && event.message?.type === 'text') {
-      const messageText = event.message.text.toLowerCase();
       console.log('Message:', event.message.text);
       console.log('User:', event.source?.userId || 'unknown');
       
-      let replyText = '';
-      
-      if (messageText.includes('予約')) {
-        replyText = `ご予約はこちらから：\nhttps://liff.line.me/2006487876-xd1A5qJB\n\nまたは以下のリンクから：\nhttps://line-booking-system-seven.vercel.app/`;
-      } else if (messageText.includes('確認') || messageText.includes('変更') || messageText.includes('キャンセル')) {
-        replyText = '予約の確認・変更・キャンセルはこちら：\nhttps://line-booking-system-seven.vercel.app/manage';
-      } else {
-        replyText = `メッセージありがとうございます！\n\n【ご予約】\nhttps://liff.line.me/2006487876-xd1A5qJB\n\n【予約確認・変更】\nhttps://line-booking-system-seven.vercel.app/manage\n\nお気軽にご利用ください。`;
+      const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+      if (!token) {
+        console.error('NO TOKEN!');
+        return;
       }
       
-      await sendReplyWithHttps(event.replyToken, replyText);
-    }
-    
-    if (event.type === 'follow') {
-      console.log('New follower:', event.source?.userId);
-      const welcomeText = `友だち追加ありがとうございます！\n\n【ご予約はこちら】\nhttps://liff.line.me/2006487876-xd1A5qJB\n\n予約の確認・変更・キャンセルも承っております。`;
-      await sendReplyWithHttps(event.replyToken, welcomeText);
+      console.log('Token found, sending reply...');
+      
+      const postData = JSON.stringify({
+        replyToken: event.replyToken,
+        messages: [{
+          type: 'text',
+          text: `メッセージありがとうございます！\n\n【ご予約】\nhttps://liff.line.me/2006487876-xd1A5qJB\n\n【予約確認・変更】\nhttps://line-booking-system-seven.vercel.app/manage\n\nお気軽にご利用ください。`
+        }]
+      });
+      
+      const options = {
+        hostname: 'api.line.me',
+        port: 443,
+        path: '/v2/bot/message/reply',
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        }
+      };
+      
+      const req2 = https.request(options, (res2) => {
+        console.log('LINE Response Status:', res2.statusCode);
+        
+        let data = '';
+        res2.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        res2.on('end', () => {
+          if (res2.statusCode === 200) {
+            console.log('✅ SUCCESS!');
+          } else {
+            console.error('❌ ERROR:', res2.statusCode, data);
+          }
+        });
+      });
+      
+      req2.on('error', (e) => {
+        console.error('Request error:', e);
+      });
+      
+      req2.write(postData);
+      req2.end();
     }
     
   } catch (err) {
     console.error('Process error:', err);
   }
-}
-
-// HTTPSモジュールを使用したLINE返信（fetch禁止！）
-function sendReplyWithHttps(replyToken, text) {
-  return new Promise((resolve, reject) => {
-    const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-    if (!token) {
-      console.error('NO TOKEN!');
-      reject(new Error('No LINE token'));
-      return;
-    }
-    
-    console.log('Token found, preparing reply...');
-    
-    const postData = JSON.stringify({
-      replyToken: replyToken,
-      messages: [{
-        type: 'text',
-        text: text
-      }]
-    });
-    
-    const options = {
-      hostname: 'api.line.me',
-      port: 443,
-      path: '/v2/bot/message/reply',
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    };
-    
-    console.log('Sending HTTPS request to LINE...');
-    
-    const req = https.request(options, (res) => {
-      console.log('LINE Response Status:', res.statusCode);
-      
-      let data = '';
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-      
-      res.on('end', () => {
-        if (res.statusCode === 200) {
-          console.log('✅ Reply sent successfully!');
-          resolve(data);
-        } else {
-          console.error('❌ LINE API Error:', res.statusCode);
-          console.error('Response:', data);
-          reject(new Error(`LINE API Error: ${res.statusCode}`));
-        }
-      });
-    });
-    
-    req.on('error', (e) => {
-      console.error('HTTPS Error:', e);
-      reject(e);
-    });
-    
-    req.write(postData);
-    req.end();
-  });
-}
+};
