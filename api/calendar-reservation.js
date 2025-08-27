@@ -42,11 +42,11 @@ export default async function handler(req, res) {
             });
         }
         
-        // データベースに保存
+        // データベースに保存（Account 1は必ずaccount-001を使用）
         const { data: reservation, error } = await supabase
             .from('reservations')
             .insert([{
-                store_id: (store_id || process.env.STORE_ID || 'default').trim(),
+                store_id: 'account-001',  // Account 1は必ずaccount-001
                 user_id: user_id || 'liff-user',
                 customer_name: customer_name || 'ゲスト',
                 message: message || `カレンダー予約: ${date} ${time}`,
@@ -54,7 +54,8 @@ export default async function handler(req, res) {
                 date: date,
                 time: time,
                 status: status || 'pending',
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
             }])
             .select()
             .single();
