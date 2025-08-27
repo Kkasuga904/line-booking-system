@@ -48,11 +48,11 @@ export default async function handler(req, res) {
         
         // メッセージ内容に応じた返信
         if (userMessage.includes('予約')) {
-          replyText = `ご予約はこちらから：\nhttps://liff.line.me/2006487876-xd1A5qJB\n\nまたは以下のリンクから：\nhttps://line-booking-system-seven.vercel.app/`;
+          replyText = `ご予約はこちらから：\nhttps://liff.line.me/2006487876-xd1A5qJB\n\nまたは管理画面から：\nhttps://line-booking-system-seven.vercel.app/admin-calendar`;
         } else if (userMessage.includes('確認') || userMessage.includes('変更') || userMessage.includes('キャンセル')) {
-          replyText = `予約の確認・変更・キャンセルはこちら：\nhttps://line-booking-system-seven.vercel.app/manage`;
+          replyText = `予約の確認・変更・キャンセルはこちら：\nhttps://line-booking-system-seven.vercel.app/admin-calendar\n\n予約一覧：\nhttps://line-booking-system-seven.vercel.app/`;
         } else {
-          replyText = `メッセージありがとうございます！\n\n【ご予約】\nhttps://liff.line.me/2006487876-xd1A5qJB\n\n【予約確認・変更】\nhttps://line-booking-system-seven.vercel.app/manage\n\nお気軽にご利用ください。`;
+          replyText = `メッセージありがとうございます！\n\n【ご予約】\nhttps://liff.line.me/2006487876-xd1A5qJB\n\n【予約管理】\nhttps://line-booking-system-seven.vercel.app/admin-calendar\n\nお気軽にご利用ください。`;
         }
         
         try {
