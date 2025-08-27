@@ -1,1 +1,187 @@
+# =====================================
+# 顧客情報保護設定
+# Customer Data Protection Settings
+# =====================================
+
+# 環境変数（API keys, secrets）
+.env
+.env.*
+.env.local
+.env.production
+.env.development
+*.env
+.env.store*
+.env-store*
+
+# Vercel設定
 .vercel
+
+# データベース関連
+*.sql
+*.db
+*.sqlite
+*.sqlite3
+backups/
+db-backups/
+database-dumps/
+
+# ログファイル（顧客情報が含まれる可能性）
+*.log
+logs/
+*.log.*
+access.log
+error.log
+request.log
+
+# 顧客データファイル
+data/
+customer-data/
+user-data/
+private/
+confidential/
+store-data/
+store-info/
+business-data/
+client-info/
+*.csv
+*.xlsx
+*.xls
+*.json
+!package.json
+!vercel.json
+!tsconfig.json
+!*.example.json
+
+# バックアップファイル
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# セッション/キャッシュ
+sessions/
+cache/
+*.session
+*.cache
+
+# SSL証明書
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+certs/
+certificates/
+
+# IDE/エディタ設定
+.vscode/
+.idea/
+*.sublime-*
+.DS_Store
+Thumbs.db
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+.yarn/
+
+# テスト結果（顧客データが含まれる可能性）
+coverage/
+*.coverage
+test-results/
+*.test-results
+
+# 監査レポート
+audit/
+security-reports/
+*.audit
+
+# デプロイメント設定
+deploy-config/
+deployment-secrets/
+
+# モニタリングデータ
+metrics/
+monitoring-data/
+*.metrics
+
+# 一時ファイル
+temp/
+tmp/
+.tmp/
+
+# アップロードファイル
+uploads/
+upload/
+files/
+attachments/
+
+# 管理者用ファイル
+admin/
+admin-panel/
+admin-data/
+
+# WebHookデータ
+webhook-logs/
+webhook-data/
+
+# LINE関連の秘密情報
+line-secrets/
+line-tokens/
+channel-secret*
+channel-token*
+
+# Supabase関連
+supabase-keys/
+supabase/.env
+supabase/config.toml
+.supabase/
+
+# ビルド成果物
+dist/
+build/
+out/
+.next/
+
+# OS固有ファイル
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+desktop.ini
+
+# カスタムスクリプトの出力
+scripts/output/
+scripts/*.output
+scripts/*.result
+
+# 店舗名・企業情報
+*-store-names.json
+*-business-info.json
+store-names.txt
+business-names.txt
+client-list.*
+customer-list.*
+*.client-data
+*.business-data
+config/stores.json
+config/*.store.json
+config/*-store.json
+*.store.config.json
+store-config/
+stores/
+store-settings/
+*.店舗名.*
+*.企業名.*
+*.顧客.*

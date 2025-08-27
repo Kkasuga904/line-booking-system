@@ -1,0 +1,144 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *' # 毎日午前2時に定期チェック
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  # セキュリティスキャン
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run security audit
+        run: npm audit --audit-level=moderate
+        
+      - name: Run Snyk Security Scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+          
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          
+  # コード品質チェック
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run ESLint
+        run: npm run lint
+        
+      - name: Check code formatting
+        run: npx prettier --check "**/*.{js,json,md}"
+        
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        
+  # テスト実行
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-type: [unit, integration]
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run ${{ matrix.test-type }} tests
+        run: npm run test:${{ matrix.test-type }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_CHANNEL_SECRET: ${{ secrets.LINE_CHANNEL_SECRET }}
+          
+      - name: Upload coverage
+        if: matrix.test-type == 'unit'
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          
+  # パフォーマンステスト
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v9
+        with:
+          urls: |
+            https://line-booking-system-seven.vercel.app/
+            https://line-booking-system-seven.vercel.app/admin.html
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          
+  # デプロイ（main ブランチのみ）
+  deploy:
+    needs: [security-scan, code-quality, test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-args: '--prod'
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          
+      - name: Verify deployment
+        run: |
+          sleep 30
+          curl -f https://line-booking-system-seven.vercel.app/api/webhook || exit 1
+          
+      - name: Send deployment notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'Deployment completed for LINE Booking System'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          
+  # データベース バックアップ
+  backup:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 2 * * *'
+    steps:
+      - name: Backup Supabase Database
+        run: |
+          curl -X POST https://api.supabase.com/v1/projects/${{ secrets.SUPABASE_PROJECT_ID }}/backups \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/json"

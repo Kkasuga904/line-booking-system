@@ -4,18 +4,38 @@
   "description": "LINE予約システム（マルチテナント対応）",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js",
-    "admin": "node server.js",
-    "new-store": "node scripts/new-store.js",
-    "deploy": "node scripts/deploy-store.js",
-    "list": "node scripts/list-stores.js",
-    "setup": "npm install && mkdir -p config deployments",
-    "backup": "cp -r config/ backup/config-$(date +%Y%m%d)/ && cp -r deployments/ backup/deployments-$(date +%Y%m%d)/"
+    "dev": "vercel dev",
+    "deploy": "vercel --prod",
+    "test": "jest",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
+    "lint": "eslint api/**/*.js",
+    "admin": "node server.js"
   },
   "dependencies": {
     "@line/bot-sdk": "^10.1.2",
     "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.4"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "api/**/*.js",
+      "!api/**/*.test.js"
+    ],
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "verbose": true,
+    "testTimeout": 10000
   },
   "keywords": [
     "line",

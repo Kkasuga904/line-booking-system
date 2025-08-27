@@ -2,6 +2,11 @@
 let reservations = [];
 let nextId = 1;
 
+// 他のAPIから予約データを取得できるようにエクスポート
+export function getReservations() {
+  return reservations;
+}
+
 // LINE返信メッセージ送信
 async function replyMessage(replyToken, messages) {
   const accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
