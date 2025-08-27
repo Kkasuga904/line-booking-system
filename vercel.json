@@ -3,15 +3,12 @@
   "functions": {
     "api/*.js": {
       "maxDuration": 10
-    },
-    "api/*.cjs": {
-      "maxDuration": 10
     }
   },
   "rewrites": [
-    { "source": "/webhook", "destination": "/api/webhook-new.cjs" },
-    { "source": "/api/webhook", "destination": "/api/webhook-new.cjs" },
-    { "source": "/api/webhook.js", "destination": "/api/webhook-new.cjs" },
+    { "source": "/webhook", "destination": "/api/webhook-new" },
+    { "source": "/api/webhook", "destination": "/api/webhook-new" },
+    { "source": "/api/webhook.js", "destination": "/api/webhook-new" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/admin-calendar", "destination": "/admin-calendar-v2.html" },
     { "source": "/seats", "destination": "/seats-management.html" }
