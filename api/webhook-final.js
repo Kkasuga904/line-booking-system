@@ -1,16 +1,14 @@
-// Account 1 - Final webhook with await-based reply
-// Version: FINAL-1.0
+// Account 1 - Complete webhook with reservation features
+// Version: FINAL-2.0
 // Store: account-001
 
 export default async function handler(req, res) {
-  console.log('=== Account 1 Webhook FINAL v1.0 START ===');
+  console.log('=== Account 1 Webhook FINAL v2.0 START ===');
   
   try {
     const body = req.body;
     const event = body?.events?.[0];
     
-    console.log('Event received:', JSON.stringify(event, null, 2));
-
     // 返信不要なイベントは即200
     if (!event || event.type !== 'message' || !event.replyToken) {
       console.log('Skipping non-message event');
@@ -18,7 +16,6 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Account 1用のトークン
     const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
     
     if (!token) {
@@ -27,22 +24,111 @@ export default async function handler(req, res) {
       return;
     }
 
-    console.log('Token exists, length:', token.length);
-    console.log('Reply token:', event.replyToken.substring(0, 20) + '...');
-    console.log('Message text:', event.message?.text);
+    console.log('Message received:', event.message?.text);
+    
+    // メッセージ内容に応じて返信を作成
+    const userMessage = event.message?.text || '';
+    let replyText = '';
+    
+    if (userMessage.includes('予約')) {
+      replyText = `📅 ご予約を承ります！
 
-    // ---- awaitで同期的に送信（バックグラウンドにしない） ----
+下記リンクから詳細をご入力ください：
+https://liff.line.me/2008001308-gDrXL5Y1
+
+【営業時間】
+月〜金: 10:00-20:00
+土日祝: 10:00-18:00
+
+お待ちしております！
+[Account 1 - Store: account-001]`;
+    } else if (userMessage.includes('キャンセル')) {
+      replyText = `❌ 予約のキャンセルをご希望ですね。
+
+恐れ入りますが、予約番号とお名前を
+このメッセージに返信してお知らせください。
+
+確認後、キャンセル処理をさせていただきます。
+[Account 1 - Store: account-001]`;
+    } else if (userMessage.includes('変更')) {
+      replyText = `✏️ 予約の変更をご希望ですね。
+
+恐れ入りますが、予約番号とご希望の
+変更内容をこのメッセージに返信して
+お知らせください。
+
+確認後、変更処理をさせていただきます。
+[Account 1 - Store: account-001]`;
+    } else if (userMessage.includes('確認')) {
+      replyText = `📋 予約の確認をご希望ですね。
+
+恐れ入りますが、予約番号またはお名前を
+このメッセージに返信してお知らせください。
+
+予約内容を確認させていただきます。
+[Account 1 - Store: account-001]`;
+    } else if (userMessage.includes('営業') || userMessage.includes('時間')) {
+      replyText = `🕐 営業時間のご案内
+
+【通常営業】
+月〜金: 10:00-20:00
+土日祝: 10:00-18:00
+
+【定休日】
+年末年始（12/31-1/3）
+
+ご予約は営業時間内で承っております。
+[Account 1 - Store: account-001]`;
+    } else if (userMessage.includes('場所') || userMessage.includes('アクセス')) {
+      replyText = `📍 アクセス情報
+
+【住所】
+東京都渋谷区〇〇1-2-3
+〇〇ビル 5F
+
+【最寄駅】
+JR渋谷駅 徒歩5分
+東京メトロ〇〇駅 徒歩3分
+
+Googleマップ:
+https://maps.google.com/example
+
+[Account 1 - Store: account-001]`;
+    } else if (userMessage.toLowerCase().includes('hello') || userMessage.includes('こんにちは')) {
+      replyText = `こんにちは！Account 1へようこそ 😊
+
+ご利用いただきありがとうございます。
+以下のメニューからお選びください：
+
+📅 「予約」- 新規予約
+❌ 「キャンセル」- 予約取消
+✏️ 「変更」- 予約変更
+📋 「確認」- 予約確認
+🕐 「営業時間」- 営業時間案内
+📍 「アクセス」- 場所案内
+
+お気軽にメッセージをお送りください！
+[Account 1 - Store: account-001]`;
+    } else {
+      replyText = `メッセージありがとうございます。
+
+ご希望の内容をお選びください：
+
+📅 「予約」- 新規予約
+❌ 「キャンセル」- 予約取消
+✏️ 「変更」- 予約変更
+📋 「確認」- 予約確認
+🕐 「営業時間」- 営業時間案内
+📍 「アクセス」- 場所案内
+
+その他のお問い合わせは、
+お電話（03-XXXX-XXXX）でも承っております。
+
+[Account 1 - Store: account-001]`;
+    }
+    
+    // awaitで同期的に送信
     console.log('Sending reply to LINE API...');
-    
-    const replyBody = JSON.stringify({
-      replyToken: event.replyToken,
-      messages: [{
-        type: 'text',
-        text: `[Account 1] メッセージを受信しました: ${event.message?.text || 'unknown'}\nStore: account-001\n時刻: ${new Date().toISOString()}`
-      }]
-    });
-    
-    console.log('Request body:', replyBody);
     
     const r = await fetch('https://api.line.me/v2/bot/message/reply', {
       method: 'POST',
@@ -50,34 +136,20 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: replyBody
+      body: JSON.stringify({
+        replyToken: event.replyToken,
+        messages: [{
+          type: 'text',
+          text: replyText
+        }]
+      })
     });
 
     const responseText = await r.text();
-    console.log('LINE API Response Status:', r.status);
-    console.log('LINE API Response Headers:', JSON.stringify(Object.fromEntries(r.headers), null, 2));
-    console.log('LINE API Response Body:', responseText);
-
+    
     if (!r.ok) {
-      // エラー詳細をログ出力
-      console.error('LINE API Error:', {
-        status: r.status,
-        statusText: r.statusText,
-        body: responseText
-      });
-      
-      // 典型的なエラー
-      if (r.status === 400) {
-        console.error('400 Bad Request - Invalid reply token or expired');
-      } else if (r.status === 401) {
-        console.error('401 Unauthorized - Token invalid or wrong account');
-      }
-      
-      res.status(200).json({ 
-        ok: false, 
-        lineStatus: r.status, 
-        lineError: responseText 
-      });
+      console.error('LINE API Error:', r.status, responseText);
+      res.status(200).json({ ok: false, lineStatus: r.status });
       return;
     }
 
@@ -86,10 +158,8 @@ export default async function handler(req, res) {
     
   } catch (e) {
     console.error('Webhook error:', e);
-    console.error('Stack trace:', e.stack);
-    // LINE側の再送を避けるため200を返す
     res.status(200).json({ ok: false, error: e.message });
   }
   
-  console.log('=== Account 1 Webhook FINAL END ===');
+  console.log('=== Account 1 Webhook FINAL v2.0 END ===');
 }
