@@ -935,12 +935,20 @@
             document.getElementById('storeName').textContent = storeName;
             document.getElementById('businessHours').textContent = `営業時間: ${openHour}:00〜${closeHour}:00`;
             
-            // LIFF初期化（オプション）
+            // LIFF初期化
             if (typeof liff !== 'undefined') {
                 try {
-                    await liff.init({ liffId: urlParams.get('liff_id') || '0000000000-xxxxxxxx' });
+                    // LIFF IDは環境変数またはURLパラメータから取得
+                    const liffId = urlParams.get('liff_id') || '2006487876-xd1A5qJB';
+                    await liff.init({ liffId: liffId });
+                    console.log('LIFF initialized with ID:', liffId);
+                    
+                    // ログイン状態確認
+                    if (!liff.isLoggedIn() && liff.isInClient()) {
+                        liff.login();
+                    }
                 } catch (error) {
-                    console.log('LIFF init skipped:', error);
+                    console.log('LIFF init error:', error);
                 }
             }
             
@@ -1205,7 +1213,7 @@
         }
         
         // 成功画面表示
-        function showSuccess(reservation) {
+        async function showSuccess(reservation) {
             document.getElementById('confirmStep').style.display = 'none';
             document.getElementById('successStep').style.display = 'block';
             
@@ -1218,6 +1226,28 @@
                 step.classList.add('completed');
                 step.classList.remove('active');
             });
+            
+            // LIFFで予約完了メッセージを送信
+            try {
+                if (typeof liff !== 'undefined' && liff.isLoggedIn()) {
+                    const messageText = `✅ 予約が完了しました！\n\n` +
+                        `予約番号: #${reservation.id}\n` +
+                        `日時: ${formatDate(selectedDate)} ${selectedTime}\n` +
+                        `人数: ${peopleCount}名\n` +
+                        `お名前: ${reservation.customer_name || 'ゲスト'}\n\n` +
+                        `ご来店お待ちしております！`;
+                    
+                    await liff.sendMessages([{
+                        type: 'text',
+                        text: messageText
+                    }]);
+                    
+                    console.log('予約完了メッセージを送信しました');
+                }
+            } catch (error) {
+                console.error('メッセージ送信エラー:', error);
+                // エラーでも予約は完了しているので続行
+            }
         }
         
         // LIFF閉じる
