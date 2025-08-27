@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "description": "LINE予約システム（マルチテナント対応）",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "dev": "vercel dev",
     "validate": "node scripts/validate-modules.js",
