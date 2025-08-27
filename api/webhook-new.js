@@ -1,9 +1,9 @@
-// LINE Webhook Handler - Version 1.0.5 - CommonJS ONLY
+// LINE Webhook Handler - Version 1.0.6 - CommonJS ONLY
 // Deploy Date: 2025-08-27
 // IMPORTANT: DO NOT CHANGE TO ES MODULES - WILL CAUSE FETCH ERROR
 const https = require('https');
 
-const WEBHOOK_VERSION = '1.0.5';
+const WEBHOOK_VERSION = '1.0.6';
 const DEPLOY_DATE = '2025-08-27';
 
 // メインハンドラー関数（CommonJS形式 - 変更禁止！）
