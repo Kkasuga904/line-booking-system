@@ -193,6 +193,33 @@
             font-size: 12px;
             margin-left: 20px;
         }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-right: 20px;
+        }
+        
+        .nav-btn {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .nav-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -202,6 +229,11 @@
                 📅 <span>LINE予約管理システム</span>
             </div>
             <div style="display: flex; align-items: center;">
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="window.location.href='/admin-calendar'">📊 カレンダー</button>
+                    <button class="nav-btn" onclick="window.location.href='/admin'">📋 管理画面</button>
+                    <button class="nav-btn" onclick="window.location.href='/seats'">🪑 席管理</button>
+                </div>
                 <span class="update-time">自動更新: 30秒</span>
                 <button class="refresh-btn" onclick="loadReservations()">🔄 更新</button>
             </div>
