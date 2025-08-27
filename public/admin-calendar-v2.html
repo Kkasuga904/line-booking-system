@@ -1672,6 +1672,61 @@
             }
         }
         
+        // 新規予約を送信
+        async function submitNewReservation(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                // 予約を作成
+                const response = await fetch('/api/admin-create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.reservation) {
+                    // 確認メッセージを送信（メールアドレスがある場合のみ）
+                    if (data.email || data.phone) {
+                        try {
+                            const confirmResponse = await fetch('/api/send-confirmation', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    reservationId: result.reservation.id,
+                                    // メールまたはSMSで送信する場合の処理（将来的な拡張）
+                                })
+                            });
+                            
+                            const confirmResult = await confirmResponse.json();
+                            console.log('Confirmation sent:', confirmResult);
+                        } catch (error) {
+                            console.error('Failed to send confirmation:', error);
+                        }
+                    }
+                    
+                    // 成功メッセージと画面更新
+                    alert(`予約を作成しました！\n\n予約ID: #${result.reservation.id}\nお客様: ${data.customer_name}様\n日時: ${data.date} ${data.time}`);
+                    closeAddModal();
+                    loadReservations(); // 予約リストを更新
+                } else {
+                    alert('予約の作成に失敗しました: ' + (result.error || '不明なエラー'));
+                }
+            } catch (error) {
+                console.error('Create reservation error:', error);
+                alert('エラーが発生しました');
+            }
+        }
+        
         // 設定保存
         function saveSettings() {
             const password = document.getElementById('settingPassword').value;
