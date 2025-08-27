@@ -62,30 +62,46 @@ function createMenuMessage() {
   
   console.log('Calendar URL:', calendarUrl); // デバッグログ
   
-  // ボタンテンプレートメッセージ（カレンダー予約追加）
+  // テキストメッセージ + カレンダーURLを返す（PC版LINE対応）
   return {
-    type: 'template',
-    altText: '予約メニュー',
-    template: {
-      type: 'buttons',
-      thumbnailImageUrl: 'https://placehold.jp/3d4070/ffffff/300x200.png?text=📅%20予約',
-      title: '🍴 ご予約メニュー',
-      text: 'ご希望の予約方法をお選びください',
-      actions: [
+    type: 'text',
+    text: `📋 ご予約メニュー
+
+🔸 カレンダーで予約（おすすめ）
+${calendarUrl}
+
+🔸 テキストで予約
+「テキスト予約」と送信
+
+🔸 予約を確認
+「予約確認」と送信
+
+▼ スマホの方は以下のボタンもご利用いただけます`,
+    quickReply: {
+      items: [
         {
-          type: 'uri',
-          label: '📅 カレンダーで予約',
-          uri: calendarUrl
+          type: 'action',
+          action: {
+            type: 'uri',
+            label: '📅 カレンダー予約',
+            uri: calendarUrl
+          }
         },
         {
-          type: 'message',
-          label: '✏️ テキストで予約',
-          text: 'テキスト予約'
+          type: 'action',
+          action: {
+            type: 'message',
+            label: '✏️ テキスト予約',
+            text: 'テキスト予約'
+          }
         },
         {
-          type: 'message',
-          label: '📋 予約確認',
-          text: '予約確認'
+          type: 'action',
+          action: {
+            type: 'message',
+            label: '📋 予約確認',
+            text: '予約確認'
+          }
         }
       ]
     }
