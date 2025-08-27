@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vercel dev",
     "validate": "node scripts/validate-modules.js",
-    "predeploy": "npm run validate",
+    "validate:webhook": "node scripts/validate-webhook.js",
+    "predeploy": "npm run validate && npm run validate:webhook",
     "deploy": "vercel --prod",
     "test": "jest",
     "test:unit": "jest tests/unit",
@@ -17,7 +18,9 @@
     "lint": "eslint api/**/*.js",
     "admin": "node server.js",
     "format": "prettier --write '**/*.{js,json,md}'",
-    "typecheck": "echo 'TypeScript not configured yet'"
+    "typecheck": "echo 'TypeScript not configured yet'",
+    "health": "curl https://line-booking-system-seven.vercel.app/api/webhook-health",
+    "monitor": "vercel logs --prod --follow"
   },
   "dependencies": {
     "@line/bot-sdk": "^10.1.2",

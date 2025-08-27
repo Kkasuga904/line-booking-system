@@ -1,8 +1,15 @@
-// Account 1 Simple Webhook with proper messages
+// Account 1 Simple Webhook with proper messages and error prevention
 export default async function handler(req, res) {
+  const startTime = Date.now();
   console.log('=== Webhook Simple Start ===');
+  console.log('Timestamp:', new Date().toISOString());
   console.log('Method:', req.method);
   console.log('Body:', JSON.stringify(req.body));
+  
+  // 環境変数チェック
+  if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+    console.error('CRITICAL: LINE_CHANNEL_ACCESS_TOKEN not configured');
+  }
   
   // LINE Webhook検証用
   if (req.method === 'POST' && req.body?.events) {
@@ -83,6 +90,12 @@ export default async function handler(req, res) {
           
         } catch (error) {
           console.error('Error:', error.message);
+          // エラー詳細をログ
+          console.error('Error Details:', {
+            type: error.constructor.name,
+            message: error.message,
+            stack: error.stack?.split('\n').slice(0, 3)
+          });
         }
       } else {
         console.error('No LINE TOKEN');
@@ -90,6 +103,14 @@ export default async function handler(req, res) {
     }
   }
   
-  // 必ず200を返す
-  res.status(200).json({ ok: true });
+  // 処理時間を記録
+  const processingTime = Date.now() - startTime;
+  console.log(`Processing time: ${processingTime}ms`);
+  
+  // 必ず200を返す（重要：LINEは200を期待）
+  res.status(200).json({ 
+    ok: true,
+    processingTime: processingTime,
+    timestamp: new Date().toISOString()
+  });
 }
