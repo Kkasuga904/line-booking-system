@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
+    "validate": "node scripts/validate-modules.js",
+    "predeploy": "npm run validate",
     "deploy": "vercel --prod",
     "test": "jest",
     "test:unit": "jest tests/unit",
