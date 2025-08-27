@@ -616,6 +616,7 @@
             <div class="view-controls">
                 <button class="view-btn" onclick="window.location.href='/admin'">📋 リスト表示</button>
                 <button class="view-btn" onclick="window.location.href='/seats'">🪑 席管理</button>
+                <button class="view-btn" onclick="showSettingsModal()">⚙️ 設定</button>
             </div>
         </div>
     </header>
@@ -691,6 +692,95 @@
         </div>
     </div>
     
+    <!-- 設定モーダル -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <h2 class="modal-title">⚙️ 管理設定</h2>
+            
+            <div style="margin-bottom: 25px;">
+                <h3 style="font-size: 16px; margin-bottom: 15px; color: #667eea;">📍 基本設定</h3>
+                <div class="form-group">
+                    <label class="form-label">店舗名</label>
+                    <input type="text" class="form-input" id="settingStoreName" placeholder="例: レストラン〇〇">
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <h3 style="font-size: 16px; margin-bottom: 15px; color: #667eea;">⏰ 営業時間</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">開店時間</label>
+                        <select class="form-input" id="settingOpenHour">
+                            <option value="9">9:00</option>
+                            <option value="10">10:00</option>
+                            <option value="11">11:00</option>
+                            <option value="12">12:00</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">閉店時間</label>
+                        <select class="form-input" id="settingCloseHour">
+                            <option value="20">20:00</option>
+                            <option value="21">21:00</option>
+                            <option value="22">22:00</option>
+                            <option value="23">23:00</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <h3 style="font-size: 16px; margin-bottom: 15px; color: #667eea;">📝 予約設定</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">最小人数</label>
+                        <input type="number" class="form-input" id="settingMinPeople" min="1" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">最大人数</label>
+                        <input type="number" class="form-input" id="settingMaxPeople" max="100" value="20">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">予約受付期間</label>
+                    <select class="form-input" id="settingBookingPeriod">
+                        <option value="7">1週間先まで</option>
+                        <option value="14">2週間先まで</option>
+                        <option value="30">1ヶ月先まで</option>
+                        <option value="60">2ヶ月先まで</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <h3 style="font-size: 16px; margin-bottom: 15px; color: #667eea;">🪑 席管理</h3>
+                <button class="form-button" style="background: #06c755; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; margin-right: 10px;" onclick="window.location.href='/seats'">
+                    席の管理画面へ
+                </button>
+                <span style="color: #999; font-size: 14px;">現在の登録席数: <span id="seatCount">0</span>席</span>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <h3 style="font-size: 16px; margin-bottom: 15px; color: #667eea;">🔐 セキュリティ</h3>
+                <div class="form-group">
+                    <label class="form-label">管理画面パスワード</label>
+                    <input type="password" class="form-input" id="settingPassword" placeholder="新しいパスワード">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">パスワード確認</label>
+                    <input type="password" class="form-input" id="settingPasswordConfirm" placeholder="パスワードを再入力">
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; margin-top: 30px;">
+                <button class="modal-close" onclick="closeSettingsModal()">キャンセル</button>
+                <button class="form-button" style="background: #667eea; color: white; padding: 10px 30px; border: none; border-radius: 8px; cursor: pointer;" onclick="saveSettings()">
+                    設定を保存
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <script>
         // グローバル変数
         let currentWeekStart = new Date();
@@ -699,6 +789,7 @@
         let allReservations = [];
         let currentReservation = null; // モーダルで表示中の予約
         let allSeats = []; // 利用可能な席リスト
+        let settings = {}; // 設定データ
         
         // 初期化
         document.addEventListener('DOMContentLoaded', () => {
@@ -1551,6 +1642,75 @@
             if (event.target === addModal) {
                 closeAddModal();
             }
+        }
+        
+        // 設定モーダル表示
+        function showSettingsModal() {
+            loadSettings();
+            document.getElementById('settingsModal').classList.add('show');
+            // 席数を更新
+            document.getElementById('seatCount').textContent = allSeats.length;
+        }
+        
+        // 設定モーダルを閉じる
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.remove('show');
+        }
+        
+        // 設定読み込み
+        function loadSettings() {
+            // ローカルストレージから設定を読み込み
+            const savedSettings = localStorage.getItem('adminSettings');
+            if (savedSettings) {
+                settings = JSON.parse(savedSettings);
+                document.getElementById('settingStoreName').value = settings.storeName || 'デモレストラン';
+                document.getElementById('settingOpenHour').value = settings.openHour || '11';
+                document.getElementById('settingCloseHour').value = settings.closeHour || '22';
+                document.getElementById('settingMinPeople').value = settings.minPeople || '1';
+                document.getElementById('settingMaxPeople').value = settings.maxPeople || '20';
+                document.getElementById('settingBookingPeriod').value = settings.bookingPeriod || '30';
+            }
+        }
+        
+        // 設定保存
+        function saveSettings() {
+            const password = document.getElementById('settingPassword').value;
+            const passwordConfirm = document.getElementById('settingPasswordConfirm').value;
+            
+            // パスワードチェック
+            if (password && password !== passwordConfirm) {
+                alert('パスワードが一致しません');
+                return;
+            }
+            
+            // 設定を収集
+            settings = {
+                storeName: document.getElementById('settingStoreName').value,
+                openHour: document.getElementById('settingOpenHour').value,
+                closeHour: document.getElementById('settingCloseHour').value,
+                minPeople: document.getElementById('settingMinPeople').value,
+                maxPeople: document.getElementById('settingMaxPeople').value,
+                bookingPeriod: document.getElementById('settingBookingPeriod').value
+            };
+            
+            // パスワードが入力されていれば保存
+            if (password) {
+                settings.adminPassword = btoa(password); // 簡易的なエンコード
+            }
+            
+            // ローカルストレージに保存
+            localStorage.setItem('adminSettings', JSON.stringify(settings));
+            
+            alert('設定を保存しました');
+            closeSettingsModal();
+            
+            // 店舗名を更新
+            const storeNameElements = document.querySelectorAll('.store-name');
+            storeNameElements.forEach(el => {
+                if (settings.storeName) {
+                    el.textContent = settings.storeName;
+                }
+            });
         }
     </script>
 </body>
