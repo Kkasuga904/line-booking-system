@@ -401,9 +401,9 @@
                 const lockButtonText = isLocked ? '解除' : 'ロック';
                 const lockButtonClass = isLocked ? 'locked' : '';
                 
-                // is_lockedカラムが存在しない場合はロックボタンを非表示
-                const lockButtonHtml = false ? '' : `
-                    <button class="btn-lock ${lockButtonClass}" onclick="toggleLock('${seat.id}', ${isLocked})" style="display:none" disabled title="データベース更新が必要です">${lockButtonText}</button>
+                // ロックボタンを表示
+                const lockButtonHtml = `
+                    <button class="btn-lock ${lockButtonClass}" onclick="toggleLock('${seat.id}', ${isLocked})">${lockButtonText}</button>
                 `;
                 
                 return `
