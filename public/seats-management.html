@@ -155,12 +155,17 @@
             color: #721c24;
         }
         
+        .status-badge.locked {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
         .seat-actions {
             display: flex;
             gap: 8px;
         }
         
-        .btn-edit, .btn-delete {
+        .btn-edit, .btn-delete, .btn-lock {
             padding: 4px 8px;
             border: none;
             border-radius: 4px;
@@ -175,6 +180,16 @@
         
         .btn-delete {
             background: #dc3545;
+            color: white;
+        }
+        
+        .btn-lock {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .btn-lock.locked {
+            background: #28a745;
             color: white;
         }
         
@@ -379,21 +394,29 @@
                 return;
             }
             
-            container.innerHTML = allSeats.map(seat => `
+            container.innerHTML = allSeats.map(seat => {
+                const isLocked = seat.is_locked || false;
+                const statusClass = isLocked ? 'locked' : 'available';
+                const statusText = isLocked ? '予約停止中' : '利用可能';
+                const lockButtonText = isLocked ? '解除' : 'ロック';
+                const lockButtonClass = isLocked ? 'locked' : '';
+                
+                return `
                 <div class="seat-card">
                     <span class="seat-type ${seat.seat_type}">${getSeatTypeName(seat.seat_type)}</span>
                     <div class="seat-name">${seat.name}</div>
                     <div class="seat-capacity">👥 ${seat.capacity}名</div>
                     <div class="seat-description">${seat.description || '説明なし'}</div>
                     <div class="seat-status">
-                        <span class="status-badge available">利用可能</span>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
                         <div class="seat-actions">
+                            <button class="btn-lock ${lockButtonClass}" onclick="toggleLock('${seat.id}', ${isLocked})">${lockButtonText}</button>
                             <button class="btn-edit" onclick="editSeat('${seat.id}')">編集</button>
                             <button class="btn-delete" onclick="deleteSeat('${seat.id}')">削除</button>
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
         
         // 席タイプ名取得
@@ -493,6 +516,41 @@
             } catch (error) {
                 console.error('Delete error:', error);
                 alert('削除中にエラーが発生しました');
+            }
+        }
+        
+        // 席のロック/解除トグル
+        async function toggleLock(id, currentLockStatus) {
+            const newLockStatus = !currentLockStatus;
+            const message = newLockStatus 
+                ? 'この席を予約停止にしますか？\n予約カレンダーから選択できなくなります。'
+                : 'この席の予約停止を解除しますか？\n予約カレンダーで選択可能になります。';
+            
+            if (!confirm(message)) return;
+            
+            try {
+                const response = await fetch('/api/seats-manage', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: id,
+                        is_locked: newLockStatus
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(newLockStatus ? '席を予約停止にしました' : '予約停止を解除しました');
+                    loadSeats();
+                } else {
+                    alert('更新に失敗しました: ' + (result.error || '不明なエラー'));
+                }
+            } catch (error) {
+                console.error('Lock toggle error:', error);
+                alert('更新中にエラーが発生しました');
             }
         }
         

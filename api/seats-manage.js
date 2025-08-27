@@ -17,7 +17,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 export default async function handler(req, res) {
   // CORS設定
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
   if (req.method === 'OPTIONS') {
@@ -103,6 +103,40 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         seat: data[0]
+      });
+    }
+    
+    // PATCH: 席のロック状態更新
+    if (req.method === 'PATCH') {
+      const { id, is_locked } = req.body;
+      
+      if (!id) {
+        return res.status(400).json({ 
+          error: '席IDは必須です' 
+        });
+      }
+      
+      if (is_locked === undefined) {
+        return res.status(400).json({ 
+          error: 'ロック状態の指定が必要です' 
+        });
+      }
+      
+      const { data, error } = await supabase
+        .from('seats')
+        .update({ is_locked })
+        .eq('id', id)
+        .eq('store_id', storeId)
+        .select();
+      
+      if (error) throw error;
+      
+      console.log(`Seat ${id} lock status updated to: ${is_locked}`);
+      
+      return res.status(200).json({
+        success: true,
+        seat: data[0],
+        message: is_locked ? '席を予約停止にしました' : '予約停止を解除しました'
       });
     }
     

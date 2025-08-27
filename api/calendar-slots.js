@@ -46,6 +46,18 @@ export default async function handler(req, res) {
             });
         }
         
+        // ロックされた席を取得
+        const { data: lockedSeats, error: seatsError } = await supabase
+            .from('seats')
+            .select('id, name')
+            .eq('store_id', storeId.trim())
+            .eq('is_locked', true)
+            .eq('is_active', true);
+        
+        if (seatsError) {
+            console.error('Seats error:', seatsError);
+        }
+        
         // 日付ごとに時間をグループ化
         const bookedSlots = {};
         reservations.forEach(reservation => {
@@ -72,6 +84,7 @@ export default async function handler(req, res) {
                 end: endDate
             },
             booked: bookedSlots,
+            locked_seats: lockedSeats || [],
             total_reservations: reservations.length
         });
         
