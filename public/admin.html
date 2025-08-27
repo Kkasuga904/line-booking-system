@@ -485,11 +485,10 @@
             
             try {
                 // 環境に応じたAPIエンドポイントURL決定
-                // ローカル開発: /api/admin-supabase
-                // Vercel本番: https://xxx.vercel.app/api/admin-supabase
+                // 統合されたadmin APIを使用
                 const apiUrl = window.location.hostname === 'localhost' 
-                    ? '/api/admin-supabase'
-                    : `${window.location.origin}/api/admin-supabase`;
+                    ? '/api/admin?action=supabase'
+                    : `${window.location.origin}/api/admin?action=supabase`;
                 const response = await fetch(apiUrl);
                 
                 // HTTPステータスチェック
@@ -499,7 +498,7 @@
                 
                 // JSONデータ取得
                 const data = await response.json();
-                allReservations = data.reservations || [];  // グローバル変数に保存
+                allReservations = data.data || [];  // レスポンス構造が変更された
                 
                 // 日付・時刻で降順ソート（新しい予約が上）
                 allReservations.sort((a, b) => {
@@ -539,7 +538,7 @@
             
             try {
                 // 削除APIを呼び出し
-                const response = await fetch(`/api/admin-delete?id=${reservation.id}`, {
+                const response = await fetch(`/api/admin?action=delete&id=${reservation.id}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json'

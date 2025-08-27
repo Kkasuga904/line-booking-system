@@ -998,11 +998,11 @@
         // 予約データ読み込み
         async function loadReservations() {
             try {
-                const response = await fetch('/api/admin-supabase');
+                const response = await fetch('/api/admin?action=supabase');
                 const data = await response.json();
                 
-                if (data.reservations) {
-                    allReservations = data.reservations;
+                if (data.data) {
+                    allReservations = data.data;
                     displayReservations();
                     updateStatistics();
                 }
@@ -1365,7 +1365,7 @@
             if (!confirm(confirmMessage)) return;
             
             try {
-                const response = await fetch(`/api/admin-delete?id=${currentReservation.id}`, {
+                const response = await fetch(`/api/admin?action=delete&id=${currentReservation.id}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1608,7 +1608,7 @@
             const data = Object.fromEntries(formData);
             
             try {
-                const response = await fetch('/api/admin-create', {
+                const response = await fetch('/api/admin?action=create', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1682,7 +1682,7 @@
             
             try {
                 // 予約を作成
-                const response = await fetch('/api/admin-create', {
+                const response = await fetch('/api/admin?action=create', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

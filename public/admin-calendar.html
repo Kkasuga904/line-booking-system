@@ -681,11 +681,11 @@
         // 予約データ読み込み
         async function loadReservations() {
             try {
-                const response = await fetch('/api/admin-supabase');
+                const response = await fetch('/api/admin?action=supabase');
                 const data = await response.json();
                 
-                if (data.reservations) {
-                    allReservations = data.reservations;
+                if (data.data) {
+                    allReservations = data.data;
                     displayReservations();
                     updateStatistics();
                 }
