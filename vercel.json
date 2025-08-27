@@ -9,7 +9,9 @@
     { "source": "/webhook", "destination": "/api/webhook-simple" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/admin-calendar", "destination": "/admin-calendar-v2.html" },
-    { "source": "/seats", "destination": "/seats-management.html" }
+    { "source": "/seats", "destination": "/seats-management.html" },
+    { "source": "/liff", "destination": "/liff-calendar-v2.html" },
+    { "source": "/liff-calendar", "destination": "/liff-calendar-v2.html" }
   ],
   "headers": [
     {
