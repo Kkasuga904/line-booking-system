@@ -1,17 +1,17 @@
-// LINE Webhook Handler - Version 1.0.3 - Using HTTPS module (CommonJS)
+// LINE Webhook Handler - Version 1.0.4 - Using ES Modules
 // Deploy Date: 2025-08-27
 // IMPORTANT: Update VERSION when making changes to force cache refresh
-const https = require('https');
+import https from 'https';
 
-const WEBHOOK_VERSION = '1.0.3';
+const WEBHOOK_VERSION = '1.0.4';
 const DEPLOY_DATE = '2025-08-27';
 
 // Supabase設定
 const SUPABASE_URL = 'https://faenvzzeguvlconvrqgp.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZW52enplZ3V2bGNvbnZycWdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxNzQyOTgsImV4cCI6MjA3MTc1MDI5OH0.U_v82IYSDM3waCFfFr4e7MpbTQmZFRPCNaA-2u5R3d8';
 
-// メインハンドラー関数（CommonJS形式）
-exports.default = async function handler(req, res) {
+// メインハンドラー関数（ES Module形式）
+export default async function handler(req, res) {
   console.log(`=== Webhook v${WEBHOOK_VERSION} Start (${DEPLOY_DATE}) ===`);
   
   // 即座に200を返す（重要！）
