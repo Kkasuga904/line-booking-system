@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>予約テスト</title>
+</head>
+<body>
+    <h1>予約API動作テスト</h1>
+    <button onclick="testReservation()">テスト予約送信</button>
+    <div id="result"></div>
+    
+    <script>
+        async function testReservation() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '送信中...';
+            
+            const testData = {
+                store_id: 'default-store',
+                customer_name: 'テストユーザー',
+                date: new Date().toISOString().split('T')[0],
+                time: '15:00:00',
+                people: 2,
+                message: 'テスト予約メッセージ',
+                user_id: 'test-user'
+            };
+            
+            try {
+                const response = await fetch('https://line-booking-system-seven.vercel.app/api/calendar-reservation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const result = await response.text();
+                
+                if (response.ok) {
+                    const data = JSON.parse(result);
+                    resultDiv.innerHTML = `
+                        <h2>✅ 予約成功！</h2>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h2>❌ エラー</h2>
+                        <p>Status: ${response.status}</p>
+                        <pre>${result}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h2>❌ ネットワークエラー</h2>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
