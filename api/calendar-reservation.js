@@ -69,6 +69,17 @@ export default async function handler(req, res) {
             });
         }
         
+        // 予約確認メッセージをLINEに送信（オプション）
+        try {
+            if (process.env.LINE_CHANNEL_ACCESS_TOKEN && reservation.user_id && reservation.user_id !== 'liff-user') {
+                // ここで必要に応じてLINE Messaging APIでプッシュメッセージを送信
+                // ただし、user_idがLINE IDではない場合はスキップ
+                console.log('予約確認メッセージ送信対象:', reservation.customer_name);
+            }
+        } catch (msgError) {
+            console.log('メッセージ送信スキップ:', msgError.message);
+        }
+        
         // 成功レスポンス
         return res.status(200).json({
             success: true,
