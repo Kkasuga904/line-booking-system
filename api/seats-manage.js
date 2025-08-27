@@ -24,7 +24,9 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
   
-  const storeId = getEnv('STORE_ID', 'default-store');
+  // TODO: getEnvが正しく動作しているか確認が必要
+  const storeId = process.env.STORE_ID || 'default-store';
+  console.log('Using store_id:', storeId);
   
   try {
     // GET: 席一覧取得
@@ -106,7 +108,7 @@ export default async function handler(req, res) {
       });
     }
     
-    // PATCH: 席のロック状態更新
+    // PATCH: 席のロック状態更新（is_lockedカラムが存在しない場合はエラー）
     if (req.method === 'PATCH') {
       const { id, is_locked } = req.body;
       
@@ -122,6 +124,13 @@ export default async function handler(req, res) {
         });
       }
       
+      // TODO: is_lockedカラムが追加されたら有効化
+      return res.status(501).json({
+        error: '席ロック機能は準備中です',
+        message: 'データベースにis_lockedカラムを追加してください'
+      });
+      
+      /*
       const { data, error } = await supabase
         .from('seats')
         .update({ is_locked })
@@ -138,6 +147,7 @@ export default async function handler(req, res) {
         seat: data[0],
         message: is_locked ? '席を予約停止にしました' : '予約停止を解除しました'
       });
+      */
     }
     
     // DELETE: 席削除（論理削除）

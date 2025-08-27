@@ -401,6 +401,11 @@
                 const lockButtonText = isLocked ? '解除' : 'ロック';
                 const lockButtonClass = isLocked ? 'locked' : '';
                 
+                // is_lockedカラムが存在しない場合はロックボタンを非表示
+                const lockButtonHtml = false ? '' : `
+                    <button class="btn-lock ${lockButtonClass}" onclick="toggleLock('${seat.id}', ${isLocked})" style="display:none" disabled title="データベース更新が必要です">${lockButtonText}</button>
+                `;
+                
                 return `
                 <div class="seat-card">
                     <span class="seat-type ${seat.seat_type}">${getSeatTypeName(seat.seat_type)}</span>
@@ -410,7 +415,7 @@
                     <div class="seat-status">
                         <span class="status-badge ${statusClass}">${statusText}</span>
                         <div class="seat-actions">
-                            <button class="btn-lock ${lockButtonClass}" onclick="toggleLock('${seat.id}', ${isLocked})">${lockButtonText}</button>
+                            ${lockButtonHtml}
                             <button class="btn-edit" onclick="editSeat('${seat.id}')">編集</button>
                             <button class="btn-delete" onclick="deleteSeat('${seat.id}')">削除</button>
                         </div>
