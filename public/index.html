@@ -239,10 +239,10 @@
         
         async function loadReservations() {
             try {
-                const response = await fetch('/api/admin-simple?store_id=restaurant-001');
-                const data = await response.json();
+                const response = await fetch('/api/admin?action=supabase');
+                const result = await response.json();
                 
-                reservations = Array.isArray(data) ? data : [];
+                reservations = result.data && Array.isArray(result.data) ? result.data : [];
                 updateStats();
                 displayReservations();
             } catch (error) {
