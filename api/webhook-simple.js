@@ -11,6 +11,9 @@ export default async function handler(req, res) {
     // 友だち追加イベント
     if (event?.type === 'follow' && event?.replyToken) {
       const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+      const liffId = process.env.LIFF_ID || '***REMOVED-ROTATE-CREDENTIAL***';
+      const liffUrl = `https://liff.line.me/${liffId}`;
+      
       if (token) {
         try {
           await fetch('https://api.line.me/v2/bot/message/reply', {
@@ -23,7 +26,7 @@ export default async function handler(req, res) {
               replyToken: event.replyToken,
               messages: [{
                 type: 'text',
-                text: `友だち追加ありがとうございます！\n\n【ご予約はこちら】\nhttps://liff.line.me/***REMOVED-ROTATE-CREDENTIAL***\n\n予約の確認・変更・キャンセルも承っております。`
+                text: `友だち追加ありがとうございます！\n\n【ご予約はこちら】\n📱 LINE内で予約（おすすめ）\n${liffUrl}\n\n予約の確認・変更・キャンセルも承っております。`
               }]
             })
           });
@@ -47,12 +50,15 @@ export default async function handler(req, res) {
         let replyText = '';
         
         // メッセージ内容に応じた返信
+        const liffId = process.env.LIFF_ID || '***REMOVED-ROTATE-CREDENTIAL***';
+        const liffUrl = `https://liff.line.me/${liffId}`;
+        
         if (userMessage.includes('予約')) {
-          replyText = `ご予約はこちらから：\nhttps://liff.line.me/***REMOVED-ROTATE-CREDENTIAL***\n\nまたは管理画面から：\nhttps://line-booking-system-seven.vercel.app/admin-calendar`;
+          replyText = `ご予約はこちらから：\n\n📱 LINE内で予約（おすすめ）\n${liffUrl}\n\n🌐 ブラウザで予約\nhttps://line-booking-system-seven.vercel.app/liff-calendar`;
         } else if (userMessage.includes('確認') || userMessage.includes('変更') || userMessage.includes('キャンセル')) {
-          replyText = `予約の確認・変更・キャンセルはこちら：\nhttps://line-booking-system-seven.vercel.app/admin-calendar\n\n予約一覧：\nhttps://line-booking-system-seven.vercel.app/`;
+          replyText = `予約の確認・変更・キャンセル：\n\n📊 管理画面\nhttps://line-booking-system-seven.vercel.app/admin-calendar\n\n📋 予約一覧\nhttps://line-booking-system-seven.vercel.app/`;
         } else {
-          replyText = `メッセージありがとうございます！\n\n【ご予約】\nhttps://liff.line.me/***REMOVED-ROTATE-CREDENTIAL***\n\n【予約管理】\nhttps://line-booking-system-seven.vercel.app/admin-calendar\n\nお気軽にご利用ください。`;
+          replyText = `メッセージありがとうございます！\n\n【ご予約】\n📱 LINE内で予約\n${liffUrl}\n\n【予約管理】\n📊 管理画面\nhttps://line-booking-system-seven.vercel.app/admin-calendar\n\nお気軽にご利用ください。`;
         }
         
         try {
