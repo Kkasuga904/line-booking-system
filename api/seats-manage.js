@@ -7,7 +7,6 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { getEnv } from '../utils/env-helper.js';
 
 const SUPABASE_URL = '***REMOVED-ROTATE-CREDENTIAL***';
 const SUPABASE_ANON_KEY = '***REMOVED-ROTATE-CREDENTIAL***';
@@ -24,8 +23,8 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
   
-  // TODO: getEnvが正しく動作しているか確認が必要
-  const storeId = process.env.STORE_ID || '***REMOVED-ROTATE-CREDENTIAL***';
+  // 環境変数から取得、設定されていない場合は***REMOVED-ROTATE-CREDENTIAL***
+  const storeId = (process.env.STORE_ID || '***REMOVED-ROTATE-CREDENTIAL***').trim();
   console.log('Using store_id:', storeId);
   
   try {
