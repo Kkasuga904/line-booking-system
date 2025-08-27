@@ -22,15 +22,19 @@ exports.default = async function handler(req, res) {
   });
 };
 
+// Webhookイベントを処理する非同期関数
 async function processWebhook(body) {
   try {
+    // 受信したボディをログ出力（デバッグ用）
     console.log('Body:', JSON.stringify(body));
     
+    // イベントが存在しない場合は処理を終了
     if (!body?.events?.[0]) {
       console.log('No events');
       return;
     }
     
+    // 最初のイベントを取得（LINEは複数イベントを送る場合がある）
     const event = body.events[0];
     
     // メッセージイベントの処理
@@ -67,8 +71,10 @@ async function processWebhook(body) {
 }
 
 // HTTPSモジュールを使用したLINE返信
+// fetch APIの代わりにNode.js標準のhttpsモジュールを使用（Vercelキャッシュ問題対策）
 function sendReplyWithHttps(replyToken, text) {
   return new Promise((resolve, reject) => {
+    // 環境変数からLINEアクセストークンを取得
     const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
     if (!token) {
       console.error('NO TOKEN!');
@@ -78,36 +84,41 @@ function sendReplyWithHttps(replyToken, text) {
     
     console.log('Token found, preparing reply...');
     
+    // LINE APIに送信するデータを準備
     const postData = JSON.stringify({
-      replyToken: replyToken,
+      replyToken: replyToken,  // 返信用の一時トークン（30秒間有効）
       messages: [{
         type: 'text',
-        text: text
+        text: text  // 返信メッセージ本文
       }]
     });
     
+    // HTTPSリクエストオプション
     const options = {
       hostname: 'api.line.me',
       port: 443,
-      path: '/v2/bot/message/reply',
+      path: '/v2/bot/message/reply',  // LINE Reply APIエンドポイント
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${token}`,  // Bearer認証
         'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
+        'Content-Length': Buffer.byteLength(postData)  // Content-Lengthは必須
       }
     };
     
     console.log('Sending HTTPS request to LINE...');
     
+    // HTTPSリクエストを作成・送信
     const req = https.request(options, (res) => {
       console.log('LINE Response Status:', res.statusCode);
       
+      // レスポンスデータを収集
       let data = '';
       res.on('data', (chunk) => {
         data += chunk;
       });
       
+      // レスポンス完了時の処理
       res.on('end', () => {
         if (res.statusCode === 200) {
           console.log('✅ Reply sent successfully!');
@@ -120,11 +131,13 @@ function sendReplyWithHttps(replyToken, text) {
       });
     });
     
+    // エラーハンドリング
     req.on('error', (e) => {
       console.error('HTTPS Error:', e);
       reject(e);
     });
     
+    // POSTデータを送信してリクエストを終了
     req.write(postData);
     req.end();
   });
