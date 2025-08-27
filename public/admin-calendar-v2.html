@@ -310,6 +310,21 @@
             opacity: 0.9;
         }
         
+        .card-seat {
+            font-size: 10px;
+            color: #fff;
+            font-weight: 500;
+            margin-top: 2px;
+            opacity: 0.95;
+        }
+        
+        .mobile-reservation-seat {
+            font-size: 11px;
+            color: #667eea;
+            font-weight: 500;
+            margin-top: 3px;
+        }
+        
         /* スクロールバー調整 */
         .calendar-scroll-wrapper {
             max-height: 600px;
@@ -860,11 +875,16 @@
                         const card = document.createElement('div');
                         card.className = `reservation-card ${reservation.status}`;
                         
+                        // 席情報を取得
+                        const seatInfo = reservation.seat_name ? 
+                            `<div class="card-seat">📍${reservation.seat_name}</div>` : '';
+                        
                         card.innerHTML = `
                             <div class="card-content">
                                 <div class="card-time">${timeParts[0]}:${timeParts[1]}</div>
                                 <div class="card-name">${reservation.customer_name || 'ゲスト'}様</div>
                                 <div class="card-people">${reservation.people}名</div>
+                                ${seatInfo}
                             </div>
                         `;
                         
@@ -947,12 +967,15 @@
                     
                     container.innerHTML = dayReservations.map(r => {
                         const timeParts = r.time.split(':');
+                        const seatInfo = r.seat_name ? 
+                            `<div class="mobile-reservation-seat">📍${r.seat_name}</div>` : '';
                         return `
                             <div class="mobile-reservation-card ${r.status}" 
                                  onclick='showReservationDetail(${JSON.stringify(r).replace(/'/g, "&apos;")})'>
                                 <div class="mobile-reservation-time">${timeParts[0]}:${timeParts[1]}</div>
                                 <div class="mobile-reservation-name">${r.customer_name || 'ゲスト'}様</div>
                                 <div class="mobile-reservation-people">${r.people}名</div>
+                                ${seatInfo}
                             </div>
                         `;
                     }).join('');
@@ -994,6 +1017,12 @@
                     <div class="detail-label">ステータス</div>
                     <div class="detail-value">${statusText[reservation.status] || reservation.status}</div>
                 </div>
+                ${reservation.seat_name ? `
+                <div class="detail-row">
+                    <div class="detail-label">席</div>
+                    <div class="detail-value">📍 ${reservation.seat_name}</div>
+                </div>
+                ` : ''}
                 <div class="detail-row">
                     <div class="detail-label">作成日時</div>
                     <div class="detail-value">${new Date(reservation.created_at).toLocaleString('ja-JP')}</div>

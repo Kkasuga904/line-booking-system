@@ -23,13 +23,29 @@ export default async function handler(req, res) {
       const storeId = (process.env.STORE_ID || 'account-001').trim();
       console.log('Fetching reservations for store_id:', storeId);
       
-      // 予約データを取得
-      const { data, error, count } = await supabase
+      // 予約データを取得（席情報も含む）
+      const { data: reservations, error, count } = await supabase
         .from('reservations')
-        .select('*', { count: 'exact' })
+        .select(`
+          *,
+          seats (
+            id,
+            name,
+            seat_type,
+            capacity
+          )
+        `, { count: 'exact' })
         .eq('store_id', storeId)
         .order('created_at', { ascending: false })
         .limit(100);
+      
+      // 席情報を予約データに統合
+      const data = reservations ? reservations.map(r => ({
+        ...r,
+        seat_name: r.seats?.name || null,
+        seat_type: r.seats?.seat_type || null,
+        seat_capacity: r.seats?.capacity || null
+      })) : [];
       
       if (error) {
         console.error('Supabase error:', error);
