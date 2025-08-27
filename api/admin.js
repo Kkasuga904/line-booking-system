@@ -262,7 +262,7 @@ async function handleSupabase(req, res) {
   }
   
   // store_idを取得（環境変数またはデフォルト）
-  const storeId = (process.env.STORE_ID || 'account-001').trim();
+  const storeId = (process.env.STORE_ID || 'default-store').trim();
   console.log('Fetching reservations for store_id:', storeId);
   
   // 予約データを取得（席情報も含む）
