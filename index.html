@@ -17,6 +17,23 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Disable debug alerts -->
+    <script>
+        // インラインで即座にalert(1)をブロック
+        (function() {
+            window.alert = new Proxy(window.alert, {
+                apply: function(target, thisArg, args) {
+                    if (args[0] === '1' || args[0] === 1) {
+                        console.warn('[BLOCKED] Debug alert(1)');
+                        return;
+                    }
+                    console.log('[Alert]', args[0]);
+                }
+            });
+        })();
+    </script>
+    <script src="/disable-alerts.js"></script>
+    
     <style>
         body {
             font-family: 'Inter', 'Noto Sans JP', sans-serif;

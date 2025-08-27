@@ -1,0 +1,8 @@
+# API/DB/セキュリティは私の承認必須
+api/**           @tatata
+migrations/**    @tatata
+schema.*         @tatata
+vercel.json      @tatata
+.github/**       @tatata
+*.sql            @tatata
+supabase/**      @tatata

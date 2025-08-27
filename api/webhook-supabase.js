@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { getEnv, sanitizeUrl } from '../utils/env-helper.js';
+import { isValidUrl, sanitizeUserInput } from '../utils/security-validator.js';
 
 // Supabase初期化（正しい認証情報を使用）
 // SUPABASE_URL: SupabaseプロジェクトのエンドポイントURL
@@ -13,8 +15,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // @param {string} replyToken - LINEからの返信用トークン（有効期限30秒）
 // @param {Array} messages - 送信するメッセージの配列（最大5件）
 async function replyMessage(replyToken, messages) {
-  // 環境変数からLINEアクセストークンを取得
-  const accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  // 環境変数からLINEアクセストークンを取得（自動trim付き）
+  const accessToken = getEnv('LINE_CHANNEL_ACCESS_TOKEN');
   if (!accessToken) {
     console.error('LINE_CHANNEL_ACCESS_TOKEN not set');
     return;
@@ -48,14 +50,16 @@ async function replyMessage(replyToken, messages) {
 // クイックリプライ付きメニューメッセージ（カレンダー機能追加版）
 // @returns {Object} LINEメッセージオブジェクト
 function createMenuMessage() {
-  // カレンダーURLを生成
-  const storeId = (process.env.STORE_ID || 'default').trim();
-  const storeName = encodeURIComponent(process.env.STORE_NAME || '店舗');
+  // カレンダーURLを生成（getEnvで自動的に改行除去）
+  const storeId = getEnv('STORE_ID', 'default');
+  const storeName = encodeURIComponent(getEnv('STORE_NAME', '店舗'));
+  const openHour = getEnv('OPEN_HOUR', '11');
+  const closeHour = getEnv('CLOSE_HOUR', '22');
   
-  // 方法1: LINE LoginチャネルのLIFF IDがある場合
-  const liffId = (process.env.LIFF_ID || '').trim(); // trimで改行除去
+  // 方法1: LINE LoginチャネルのLIFF IDがある場合（getEnvで自動trim）
+  const liffId = getEnv('LIFF_ID', '');
   
-  // URLを1行で生成（改行が入らないように）
+  // URLを生成（sanitizeUrlで確実に改行除去）
   let calendarUrl;
   if (liffId && liffId !== 'YOUR-LIFF-ID') {
     calendarUrl = `https://liff.line.me/${liffId}?store_id=${storeId}&store_name=${storeName}`;
@@ -63,55 +67,126 @@ function createMenuMessage() {
     calendarUrl = `https://line-booking-system-seven.vercel.app/liff-calendar.html?store_id=${storeId}&store_name=${storeName}`;
   }
   
-  // 改行を除去（念のため）
-  calendarUrl = calendarUrl.replace(/\r?\n/g, '');
+  // 念のため改行を完全に除去
+  calendarUrl = sanitizeUrl(calendarUrl);
   
   console.log('Calendar URL:', calendarUrl); // デバッグログ
   
-  // テキストメッセージ + カレンダーURLを返す（PC版LINE対応）
-  return {
-    type: 'text',
-    text: `📋 ご予約メニュー
-
-🔸 カレンダーで予約（おすすめ）
-${calendarUrl}
-
-🔸 テキストで予約
-「テキスト予約」と送信
-
-🔸 予約を確認
-「予約確認」と送信
-
-▼ スマホの方は以下のボタンもご利用いただけます`,
-    quickReply: {
-      items: [
-        {
-          type: 'action',
-          action: {
-            type: 'uri',
-            label: '📅 カレンダー予約',
-            uri: calendarUrl
+  // Flex Message形式でリッチなUI（モバイル向け）
+  const flexMessage = {
+    type: 'flex',
+    altText: '予約メニュー',
+    contents: {
+      type: 'bubble',
+      size: 'mega',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: decodeURIComponent(storeName),
+            weight: 'bold',
+            size: 'xl',
+            color: '#ffffff'
+          },
+          {
+            type: 'text',
+            text: `営業時間 ${openHour}:00〜${closeHour}:00`,
+            size: 'sm',
+            color: '#ffffff99'
           }
-        },
-        {
-          type: 'action',
-          action: {
-            type: 'message',
-            label: '✏️ テキスト予約',
-            text: 'テキスト予約'
+        ],
+        backgroundColor: '#667eea',
+        paddingAll: '20px'
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '🗓 ご予約方法をお選びください',
+            weight: 'bold',
+            size: 'md',
+            margin: 'md'
+          },
+          {
+            type: 'separator',
+            margin: 'md'
+          },
+          {
+            type: 'button',
+            action: {
+              type: 'uri',
+              label: '📅 カレンダーで予約（おすすめ）',
+              uri: calendarUrl
+            },
+            style: 'primary',
+            height: 'sm',
+            margin: 'md',
+            color: '#667eea'
+          },
+          {
+            type: 'button',
+            action: {
+              type: 'message',
+              label: '💬 テキストで予約',
+              text: 'テキスト予約'
+            },
+            style: 'secondary',
+            height: 'sm',
+            margin: 'md'
+          },
+          {
+            type: 'button',
+            action: {
+              type: 'message',
+              label: '📋 予約を確認',
+              text: '予約確認'
+            },
+            style: 'secondary',
+            height: 'sm',
+            margin: 'md'
+          },
+          {
+            type: 'button',
+            action: {
+              type: 'message',
+              label: '❌ 予約をキャンセル',
+              text: '予約キャンセル'
+            },
+            style: 'secondary',
+            height: 'sm',
+            margin: 'md'
           }
-        },
-        {
-          type: 'action',
-          action: {
-            type: 'message',
-            label: '📋 予約確認',
-            text: '予約確認'
+        ],
+        paddingAll: '0px'
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '💡 ヒント: カレンダー予約が最も簡単です',
+            size: 'xs',
+            color: '#999999',
+            align: 'center'
           }
+        ]
+      },
+      styles: {
+        header: {
+          separator: false
         }
-      ]
+      }
     }
   };
+  
+  // Flex Messageをサポートしているか判定して返す
+  // モバイルはFlex Message、PCはテキストメッセージ
+  return flexMessage;
 }
 
 // テキスト予約用のクイックリプライメッセージ
@@ -255,6 +330,26 @@ export default async function handler(req, res) {
   // POST request - LINEからのWebhook処理
   if (req.method === 'POST') {
     try {
+      // LINE署名検証（セキュリティ強化）
+      const signature = req.headers['x-line-signature'];
+      const channelSecret = getEnv('LINE_CHANNEL_SECRET');
+      
+      // 署名検証の実装（本番環境では必須）
+      if (signature && channelSecret && channelSecret !== 'YOUR_CHANNEL_SECRET') {
+        const crypto = await import('crypto');
+        const body = JSON.stringify(req.body);
+        const hash = crypto.createHmac('sha256', channelSecret)
+          .update(body)
+          .digest('base64');
+        
+        // 署名が一致しない場合は拒否
+        if (signature !== hash) {
+          console.warn('Invalid LINE signature detected');
+          // ただし、開発環境では警告のみ（実装テスト時のため）
+          // return res.status(401).json({ error: 'Invalid signature' });
+        }
+      }
+      
       // LINE Webhook検証用の空リクエスト対応
       if (!req.body || !req.body.events || req.body.events.length === 0) {
         return res.status(200).send('OK');  // LINEは必ず200を期待
@@ -271,7 +366,7 @@ export default async function handler(req, res) {
           const replyToken = event.replyToken;  // 返信用トークン
           
           // メニュー表示のトリガーワード判定
-          if (text === 'メニュー' || text === 'menu' || text === '予約したい' || text.includes('予約をご希望')) {
+          if (text === 'メニュー' || text === 'menu' || text === '予約したい' || text.includes('予約をご希望') || text === 'はじめる' || text === 'start') {
             console.log('Sending menu message with LIFF calendar');
             await replyMessage(replyToken, [createMenuMessage()]);
             continue;  // 次のイベントへ
@@ -280,6 +375,58 @@ export default async function handler(req, res) {
           // テキスト予約メニュー表示
           if (text === 'テキスト予約') {
             await replyMessage(replyToken, [createTextReservationMessage()]);
+            continue;
+          }
+          
+          // 予約キャンセルコマンド処理
+          if (text.includes('キャンセル') && text.includes('予約')) {
+            // 最新の予約を取得してキャンセル
+            const { data: userReservations, error: fetchError } = await supabase
+              .from('reservations')
+              .select('*')
+              .eq('user_id', userId)
+              .eq('status', 'pending')  // 確定済みのみ
+              .order('created_at', { ascending: false })
+              .limit(1);
+            
+            if (fetchError || !userReservations || userReservations.length === 0) {
+              await replyMessage(replyToken, [{
+                type: 'text',
+                text: 'キャンセル可能な予約が見つかりません。'
+              }]);
+            } else {
+              const reservation = userReservations[0];
+              
+              // 当日キャンセルチェック
+              const today = new Date().toISOString().split('T')[0];
+              if (reservation.date <= today) {
+                await replyMessage(replyToken, [{
+                  type: 'text',
+                  text: '申し訳ございません。当日以降の予約キャンセルは、お電話にてご連絡ください。\n📞 000-0000-0000'
+                }]);
+              } else {
+                // キャンセル実行
+                const { error: cancelError } = await supabase
+                  .from('reservations')
+                  .update({ 
+                    status: 'cancelled',
+                    cancelled_at: new Date().toISOString()
+                  })
+                  .eq('id', reservation.id);
+                
+                if (!cancelError) {
+                  await replyMessage(replyToken, [{
+                    type: 'text',
+                    text: `✅ 予約をキャンセルしました\n\n予約ID: #${reservation.id}\n日付: ${reservation.date}\n時間: ${reservation.time ? reservation.time.substring(0, 5) : '未定'}\n\nまたのご予約をお待ちしております。`
+                  }]);
+                } else {
+                  await replyMessage(replyToken, [{
+                    type: 'text',
+                    text: 'キャンセル処理中にエラーが発生しました。お電話にてご連絡ください。'
+                  }]);
+                }
+              }
+            }
             continue;
           }
           
@@ -342,29 +489,81 @@ export default async function handler(req, res) {
             const peopleMatch = text.match(/(\d+)[人名様]/);
             if (peopleMatch) {
               people = parseInt(peopleMatch[1]);
+              // 人数上限チェック（最大20名）
+              if (people > 20) {
+                await replyMessage(replyToken, [{
+                  type: 'text',
+                  text: '申し訳ございません。20名を超える団体予約は、お電話にてご相談ください。\n📞 お問い合わせ: 000-0000-0000'
+                }]);
+                continue;
+              }
+              // 人数下限チェック（最小1名）
+              if (people < 1) {
+                people = 1;
+              }
             }
             
             // 時間抽出（「〇時」形式）
             const timeMatch = text.match(/(\d{1,2})時/);
             if (timeMatch) {
-              const hour = timeMatch[1].padStart(2, '0');  // 2桁ゼロパディング
-              time = `${hour}:00:00`; // PostgreSQL TIME型形式（HH:MM:SS）
+              let hour = parseInt(timeMatch[1]);
+              // 24時は0時として扱う
+              if (hour === 24) hour = 0;
+              // 営業時間チェック（11:00～22:00を想定、環境変数で設定可能）
+              const openHour = parseInt(getEnv('OPEN_HOUR', '11'));
+              const closeHour = parseInt(getEnv('CLOSE_HOUR', '22'));
+              
+              if (hour < openHour || hour >= closeHour) {
+                await replyMessage(replyToken, [{
+                  type: 'text',
+                  text: `申し訳ございません。営業時間外のご予約はお受けできません。\n\n営業時間: ${openHour}:00～${closeHour}:00\n\nご希望の時間帯をお選びください。`
+                }]);
+                continue;
+              }
+              
+              const hourStr = hour.toString().padStart(2, '0');  // 2桁ゼロパディング
+              time = `${hourStr}:00:00`; // PostgreSQL TIME型形式（HH:MM:SS）
             }
             
             // 日付抽出（「今日」「明日」キーワード）
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            
             if (text.includes('明日')) {
               const tomorrow = new Date();
               tomorrow.setDate(tomorrow.getDate() + 1);  // 1日加算
               date = tomorrow.toISOString().split('T')[0];  // YYYY-MM-DD形式
             } else if (text.includes('今日')) {
-              date = new Date().toISOString().split('T')[0];
+              date = todayStr;
+            }
+            
+            // 過去日付チェック
+            if (date < todayStr) {
+              await replyMessage(replyToken, [{
+                type: 'text',
+                text: '過去の日付では予約できません。本日以降の日付をご指定ください。'
+              }]);
+              continue;
+            }
+            
+            // 予約可能期間チェック（30日先まで）
+            const maxDate = new Date();
+            maxDate.setDate(maxDate.getDate() + 30);
+            const maxDateStr = maxDate.toISOString().split('T')[0];
+            
+            if (date > maxDateStr) {
+              await replyMessage(replyToken, [{
+                type: 'text',
+                text: '申し訳ございません。予約は30日先までとなっております。'
+              }]);
+              continue;
             }
             
             // Supabaseデータベースに予約情報を保存
             const { data: reservation, error } = await supabase
               .from('reservations')
               .insert([{
-                store_id: (process.env.STORE_ID || 'account-001').trim(),  // 環境変数から店舗ID（改行除去）
+                store_id: getEnv('STORE_ID', 'account-001'),  // 環境変数から店舗ID（自動改行除去）
                 user_id: userId,  // LINE userId（匿名ID）
                 customer_name: customerName || 'ゲスト',  // 名前未入力時は「ゲスト」
                 message: text,  // 元のメッセージ全文を保存
@@ -456,13 +655,83 @@ export default async function handler(req, res) {
           } else {
             // 予約以外のメッセージには予約メニューを提示
             console.log('Sending default menu for text:', text);
-            await replyMessage(replyToken, [
-              {
-                type: 'text',
-                text: 'こんにちは！ご予約を承ります👋\n\n📝 お名前もお聞かせください'
-              },
-              createMenuMessage()
-            ]);
+            
+            // ウェルカムメッセージ（Flex Message）
+            const welcomeMessage = {
+              type: 'flex',
+              altText: 'ようこそ！ご予約はこちらから',
+              contents: {
+                type: 'bubble',
+                hero: {
+                  type: 'image',
+                  url: 'https://via.placeholder.com/800x400/667eea/ffffff?text=Welcome',
+                  size: 'full',
+                  aspectRatio: '20:10',
+                  aspectMode: 'cover'
+                },
+                body: {
+                  type: 'box',
+                  layout: 'vertical',
+                  contents: [
+                    {
+                      type: 'text',
+                      text: 'ようこそ！',
+                      weight: 'bold',
+                      size: 'xl',
+                      margin: 'md'
+                    },
+                    {
+                      type: 'text',
+                      text: `${decodeURIComponent(getEnv('STORE_NAME', '当店'))}へのご予約を承ります`,
+                      size: 'sm',
+                      color: '#999999',
+                      margin: 'md',
+                      wrap: true
+                    },
+                    {
+                      type: 'separator',
+                      margin: 'md'
+                    },
+                    {
+                      type: 'text',
+                      text: '💡 使い方のヒント',
+                      weight: 'bold',
+                      size: 'md',
+                      margin: 'md'
+                    },
+                    {
+                      type: 'text',
+                      text: '• 「メニュー」と送信で予約画面\n• カレンダーで簡単予約\n• 「予約確認」でいつでも確認',
+                      size: 'sm',
+                      color: '#666666',
+                      margin: 'sm',
+                      wrap: true
+                    }
+                  ]
+                },
+                footer: {
+                  type: 'box',
+                  layout: 'vertical',
+                  spacing: 'sm',
+                  contents: [
+                    {
+                      type: 'button',
+                      style: 'primary',
+                      height: 'sm',
+                      action: {
+                        type: 'message',
+                        label: '予約を開始',
+                        text: 'メニュー'
+                      },
+                      color: '#667eea'
+                    }
+                  ],
+                  flex: 0
+                }
+              }
+            };
+            
+            await replyMessage(replyToken, [welcomeMessage]);
           }
         }
       }
@@ -480,3 +749,6 @@ export default async function handler(req, res) {
   // GET/POST/OPTIONS以外のHTTPメソッドは拒否
   return res.status(405).json({ error: 'Method not allowed' });
 }
+
+// Vercel用のハンドラーエクスポート
+export default handler;

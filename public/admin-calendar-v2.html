@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約管理カレンダー | LINE予約システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+        }
+        
+        /* ヘッダー */
+        .header {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .store-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .store-name {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .view-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .view-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .view-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        /* カレンダーナビゲーション */
+        .calendar-nav {
+            background: white;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .nav-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .month-selector {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .nav-arrow {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #e0e0e0;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .nav-arrow:hover {
+            background: #f5f5f7;
+        }
+        
+        .current-month {
+            font-size: 24px;
+            font-weight: 600;
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        .today-btn {
+            padding: 8px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        /* 統計サマリー */
+        .summary-bar {
+            background: white;
+            padding: 15px 20px;
+            margin: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .summary-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .summary-item {
+            text-align: center;
+        }
+        
+        .summary-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .summary-value {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        /* カレンダーテーブル */
+        .calendar-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px 20px;
+        }
+        
+        .calendar-table-wrapper {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .calendar-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        
+        .calendar-table thead {
+            background: #f8f9fa;
+        }
+        
+        .calendar-table th {
+            padding: 15px 10px;
+            border: 1px solid #e0e0e0;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .calendar-table th:first-child {
+            width: 80px;
+            background: #f8f9fa;
+        }
+        
+        .day-header {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .day-date {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        th.today {
+            background: #667eea;
+            color: white;
+        }
+        
+        th.today .day-header {
+            color: rgba(255,255,255,0.9);
+        }
+        
+        .calendar-table tbody td {
+            border: 1px solid #e0e0e0;
+            height: 60px;
+            position: relative;
+            vertical-align: top;
+            padding: 2px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .calendar-table tbody td:hover:not(:first-child) {
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .calendar-table tbody td:first-child {
+            background: #fafafa;
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        /* 予約カード */
+        .reservation-card {
+            position: relative;
+            padding: 6px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            z-index: 5;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .reservation-card:hover {
+            transform: translateX(2px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            z-index: 15;
+        }
+        
+        /* 同時刻の予約コンテナ */
+        .time-slot-reservations {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 2px;
+            min-height: 56px;
+        }
+        
+        /* 予約が多い場合のインジケーター */
+        .more-reservations {
+            background: #666;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        .reservation-card.pending {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .reservation-card.confirmed {
+            background: linear-gradient(135deg, #06c755, #00b74a);
+            color: white;
+        }
+        
+        .reservation-card.cancelled {
+            background: linear-gradient(135deg, #ef5350, #e91e63);
+            color: white;
+            opacity: 0.7;
+        }
+        
+        .card-content {
+            flex: 1;
+        }
+        
+        .card-time {
+            font-weight: 600;
+            font-size: 10px;
+        }
+        
+        .card-name {
+            font-size: 10px;
+            margin-top: 1px;
+        }
+        
+        .card-people {
+            font-size: 9px;
+            opacity: 0.9;
+        }
+        
+        /* スクロールバー調整 */
+        .calendar-scroll-wrapper {
+            max-height: 600px;
+            overflow: auto;
+            position: relative;
+        }
+        
+        /* モーダル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .detail-row {
+            display: flex;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .detail-label {
+            flex: 0 0 100px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .detail-value {
+            flex: 1;
+            font-size: 14px;
+        }
+        
+        .modal-close {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        .modal-delete {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #ef5350;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        .modal-delete:hover {
+            background: #e53935;
+        }
+        
+        /* 予約追加フォーム */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .form-submit {
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: #06c755;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .form-submit:hover {
+            background: #00b74a;
+        }
+        
+        /* モバイル用レスポンシブ対応 */
+        @media (max-width: 768px) {
+            /* ナビゲーション調整 */
+            .calendar-nav {
+                margin: 10px;
+                padding: 15px;
+            }
+            
+            .current-month {
+                font-size: 18px;
+                min-width: auto;
+            }
+            
+            .summary-bar {
+                margin: 10px;
+                padding: 10px;
+            }
+            
+            .summary-content {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            
+            .summary-value {
+                font-size: 18px;
+            }
+            
+            /* テーブル全体をリスト形式に変更 */
+            .calendar-table-wrapper {
+                display: none;
+            }
+            
+            /* モバイル用リストビュー */
+            .mobile-calendar-view {
+                display: block;
+                background: white;
+                border-radius: 12px;
+                padding: 10px;
+                margin: 10px;
+            }
+            
+            .mobile-day-section {
+                margin-bottom: 20px;
+                border-bottom: 1px solid #e0e0e0;
+                padding-bottom: 15px;
+            }
+            
+            .mobile-day-header {
+                font-size: 16px;
+                font-weight: 600;
+                margin-bottom: 10px;
+                padding: 10px;
+                background: #f8f9fa;
+                border-radius: 8px;
+            }
+            
+            .mobile-day-header.today {
+                background: #667eea;
+                color: white;
+            }
+            
+            .mobile-reservation-card {
+                background: white;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 12px;
+                margin-bottom: 8px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            }
+            
+            .mobile-reservation-card.pending {
+                border-left: 4px solid #667eea;
+            }
+            
+            .mobile-reservation-card.confirmed {
+                border-left: 4px solid #06c755;
+            }
+            
+            .mobile-reservation-card.cancelled {
+                border-left: 4px solid #ef5350;
+                opacity: 0.7;
+            }
+            
+            .mobile-reservation-time {
+                font-size: 16px;
+                font-weight: 600;
+                color: #1d1d1f;
+                margin-bottom: 4px;
+            }
+            
+            .mobile-reservation-name {
+                font-size: 14px;
+                color: #333;
+                margin-bottom: 2px;
+            }
+            
+            .mobile-reservation-people {
+                font-size: 12px;
+                color: #666;
+            }
+            
+            .mobile-empty-message {
+                text-align: center;
+                color: #999;
+                padding: 20px;
+                font-size: 14px;
+            }
+        }
+        
+        /* PCでモバイルビューを非表示 */
+        @media (min-width: 769px) {
+            .mobile-calendar-view {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="header-content">
+            <div class="store-info">
+                <span class="store-name">予約管理システム</span>
+                <span style="color: #666; font-size: 14px;">カレンダービュー</span>
+            </div>
+            <div class="view-controls">
+                <button class="view-btn active">週表示</button>
+                <button class="view-btn" onclick="alert('日表示は準備中です')">日表示</button>
+                <button class="view-btn" onclick="window.location.href='/admin'">📋 リスト表示</button>
+            </div>
+        </div>
+    </header>
+    
+    <!-- カレンダーナビゲーション -->
+    <div class="calendar-nav">
+        <div class="nav-content">
+            <div class="month-selector">
+                <button class="nav-arrow" onclick="navigateWeek(-1)">←</button>
+                <div class="current-month" id="currentPeriod">読み込み中...</div>
+                <button class="nav-arrow" onclick="navigateWeek(1)">→</button>
+            </div>
+            <button class="today-btn" onclick="goToToday()">今日</button>
+        </div>
+    </div>
+    
+    <!-- 統計サマリー -->
+    <div class="summary-bar">
+        <div class="summary-content">
+            <div class="summary-item">
+                <div class="summary-label">本日の予約</div>
+                <div class="summary-value" id="todayCount">0</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">今週の予約</div>
+                <div class="summary-value" id="weekCount">0</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">予約率</div>
+                <div class="summary-value" id="occupancyRate">0%</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">平均人数</div>
+                <div class="summary-value" id="avgPeople">0名</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- カレンダーテーブル（PC用） -->
+    <div class="calendar-container">
+        <div class="calendar-table-wrapper">
+            <div class="calendar-scroll-wrapper">
+                <table class="calendar-table">
+                    <thead id="calendarHeader">
+                        <!-- ヘッダーは動的生成 -->
+                    </thead>
+                    <tbody id="calendarBody">
+                        <!-- ボディは動的生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- モバイル用カレンダービュー -->
+        <div class="mobile-calendar-view" id="mobileCalendarView">
+            <!-- モバイル用コンテンツは動的生成 -->
+        </div>
+    </div>
+    
+    <!-- 詳細モーダル -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <div class="modal-title" id="modalTitle">予約詳細</div>
+            <div id="modalDetails">
+                <!-- 詳細は動的生成 -->
+            </div>
+            <button class="modal-delete" id="modalDeleteBtn" onclick="deleteCurrentReservation()">🗑️ この予約を削除</button>
+            <button class="modal-close" onclick="closeModal()">閉じる</button>
+        </div>
+    </div>
+    
+    <script>
+        // グローバル変数
+        let currentWeekStart = new Date();
+        let allReservations = [];
+        let currentReservation = null; // モーダルで表示中の予約
+        let allSeats = []; // 利用可能な席リスト
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeCalendar();
+            loadSeats();
+            loadReservations();
+            setInterval(loadReservations, 30000);
+        });
+        
+        // カレンダー初期化
+        function initializeCalendar() {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            currentWeekStart = new Date(today);
+            currentWeekStart.setDate(today.getDate() + diff);
+            currentWeekStart.setHours(0, 0, 0, 0);
+            
+            renderCalendar();
+        }
+        
+        // カレンダー描画
+        function renderCalendar() {
+            renderHeader();
+            renderBody();
+            renderMobileView();
+            updatePeriodDisplay();
+        }
+        
+        // ヘッダー描画
+        function renderHeader() {
+            const header = document.getElementById('calendarHeader');
+            const days = ['月', '火', '水', '木', '金', '土', '日'];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            let html = '<tr><th>時間</th>';
+            
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(currentWeekStart);
+                date.setDate(currentWeekStart.getDate() + i);
+                
+                const isToday = date.getTime() === today.getTime();
+                const className = isToday ? 'today' : '';
+                
+                html += `<th class="${className}" data-date="${date.toISOString().split('T')[0]}">
+                    <div class="day-header">${days[i]}</div>
+                    <div class="day-date">${date.getDate()}</div>
+                </th>`;
+            }
+            
+            html += '</tr>';
+            header.innerHTML = html;
+        }
+        
+        // ボディ描画
+        function renderBody() {
+            const body = document.getElementById('calendarBody');
+            let html = '';
+            
+            // 10:00から22:00まで
+            for (let hour = 10; hour <= 22; hour++) {
+                html += '<tr>';
+                html += `<td>${hour}:00</td>`;
+                
+                for (let day = 0; day < 7; day++) {
+                    const date = new Date(currentWeekStart);
+                    date.setDate(currentWeekStart.getDate() + day);
+                    const dateStr = date.toISOString().split('T')[0];
+                    
+                    html += `<td data-date="${dateStr}" data-hour="${hour}" data-day="${day}" 
+                                onclick="showAddReservationModal('${dateStr}', ${hour})"></td>`;
+                }
+                
+                html += '</tr>';
+            }
+            
+            body.innerHTML = html;
+        }
+        
+        // 期間表示更新
+        function updatePeriodDisplay() {
+            const endDate = new Date(currentWeekStart);
+            endDate.setDate(currentWeekStart.getDate() + 6);
+            
+            const startStr = `${currentWeekStart.getFullYear()}年${currentWeekStart.getMonth() + 1}月${currentWeekStart.getDate()}日`;
+            const endStr = `${endDate.getMonth() + 1}月${endDate.getDate()}日`;
+            
+            document.getElementById('currentPeriod').textContent = `${startStr} - ${endStr}`;
+        }
+        
+        // 週ナビゲーション
+        function navigateWeek(direction) {
+            currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
+            renderCalendar();
+            displayReservations();
+        }
+        
+        // 今日へ移動
+        function goToToday() {
+            initializeCalendar();
+            displayReservations();
+        }
+        
+        // 予約データ読み込み
+        async function loadReservations() {
+            try {
+                const response = await fetch('/api/admin-supabase');
+                const data = await response.json();
+                
+                if (data.reservations) {
+                    allReservations = data.reservations;
+                    displayReservations();
+                    updateStatistics();
+                }
+            } catch (error) {
+                console.error('Error loading reservations:', error);
+            }
+        }
+        
+        // モバイルビュー描画
+        function renderMobileView() {
+            const mobileView = document.getElementById('mobileCalendarView');
+            if (!mobileView) return;
+            
+            const days = ['月', '火', '水', '木', '金', '土', '日'];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            let html = '';
+            
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(currentWeekStart);
+                date.setDate(currentWeekStart.getDate() + i);
+                const dateStr = date.toISOString().split('T')[0];
+                const isToday = date.getTime() === today.getTime();
+                
+                html += `
+                    <div class="mobile-day-section">
+                        <div class="mobile-day-header ${isToday ? 'today' : ''}">
+                            ${days[i]}曜日 ${date.getMonth() + 1}月${date.getDate()}日
+                        </div>
+                        <div class="mobile-day-reservations" data-date="${dateStr}">
+                            <!-- 予約は後で追加 -->
+                        </div>
+                    </div>
+                `;
+            }
+            
+            mobileView.innerHTML = html;
+        }
+        
+        // 予約表示
+        function displayReservations() {
+            // PC用表示
+            displayPCReservations();
+            // モバイル用表示
+            displayMobileReservations();
+        }
+        
+        // PC用予約表示
+        function displayPCReservations() {
+            // 既存の予約カードとコンテナをクリア
+            document.querySelectorAll('.time-slot-reservations').forEach(container => container.remove());
+            document.querySelectorAll('.reservation-card').forEach(card => card.remove());
+            
+            const weekEnd = new Date(currentWeekStart);
+            weekEnd.setDate(currentWeekStart.getDate() + 7);
+            
+            // 今週の予約をフィルタリング
+            const weekReservations = allReservations.filter(r => {
+                const resDate = new Date(r.date);
+                return resDate >= currentWeekStart && resDate < weekEnd;
+            });
+            
+            // 時間とセルごとに予約をグループ化
+            const reservationsByCell = {};
+            weekReservations.forEach(reservation => {
+                const hour = parseInt(reservation.time.split(':')[0]);
+                const key = `${reservation.date}_${hour}`;
+                if (!reservationsByCell[key]) {
+                    reservationsByCell[key] = [];
+                }
+                reservationsByCell[key].push(reservation);
+            });
+            
+            // 各セルに予約を配置
+            Object.entries(reservationsByCell).forEach(([key, reservations]) => {
+                const [date, hour] = key.split('_');
+                const cell = document.querySelector(
+                    `td[data-date="${date}"][data-hour="${hour}"]`
+                );
+                
+                if (cell) {
+                    // コンテナを作成
+                    const container = document.createElement('div');
+                    container.className = 'time-slot-reservations';
+                    
+                    // 時間順にソート
+                    reservations.sort((a, b) => a.time.localeCompare(b.time));
+                    
+                    // 最大3件まで表示、それ以上は「+N件」表示
+                    const maxDisplay = 3;
+                    const displayReservations = reservations.slice(0, maxDisplay);
+                    const remaining = reservations.length - maxDisplay;
+                    
+                    displayReservations.forEach(reservation => {
+                        const timeParts = reservation.time.split(':');
+                        const card = document.createElement('div');
+                        card.className = `reservation-card ${reservation.status}`;
+                        
+                        card.innerHTML = `
+                            <div class="card-content">
+                                <div class="card-time">${timeParts[0]}:${timeParts[1]}</div>
+                                <div class="card-name">${reservation.customer_name || 'ゲスト'}様</div>
+                                <div class="card-people">${reservation.people}名</div>
+                            </div>
+                        `;
+                        
+                        card.onclick = () => showReservationDetail(reservation);
+                        container.appendChild(card);
+                    });
+                    
+                    // 残りの予約がある場合
+                    if (remaining > 0) {
+                        const moreIndicator = document.createElement('div');
+                        moreIndicator.className = 'more-reservations';
+                        moreIndicator.textContent = `+${remaining}件`;
+                        moreIndicator.onclick = () => {
+                            // すべての予約を表示するモーダルを開く
+                            showAllReservationsForSlot(reservations, date, hour);
+                        };
+                        container.appendChild(moreIndicator);
+                    }
+                    
+                    cell.appendChild(container);
+                }
+            });
+        }
+        
+        // 特定時間帯のすべての予約を表示
+        function showAllReservationsForSlot(reservations, date, hour) {
+            const modal = document.createElement('div');
+            modal.className = 'modal show';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-title">${date} ${hour}:00の予約一覧</div>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        ${reservations.map(r => `
+                            <div class="detail-row" style="cursor: pointer; padding: 10px; border: 1px solid #e0e0e0; margin-bottom: 5px; border-radius: 4px;"
+                                 onclick="showReservationDetail(${JSON.stringify(r).replace(/"/g, '&quot;')})">
+                                <strong>${r.time.substring(0, 5)}</strong> - 
+                                ${r.customer_name || 'ゲスト'}様 (${r.people}名)
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="modal-close" onclick="this.closest('.modal').remove()">閉じる</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // モバイル用予約表示
+        function displayMobileReservations() {
+            const mobileView = document.getElementById('mobileCalendarView');
+            if (!mobileView) return;
+            
+            const weekEnd = new Date(currentWeekStart);
+            weekEnd.setDate(currentWeekStart.getDate() + 7);
+            
+            // 今週の予約をフィルタリング
+            const weekReservations = allReservations.filter(r => {
+                const resDate = new Date(r.date);
+                return resDate >= currentWeekStart && resDate < weekEnd;
+            });
+            
+            // 日付ごとにグループ化
+            const reservationsByDate = {};
+            weekReservations.forEach(r => {
+                if (!reservationsByDate[r.date]) {
+                    reservationsByDate[r.date] = [];
+                }
+                reservationsByDate[r.date].push(r);
+            });
+            
+            // 各日の予約を表示
+            document.querySelectorAll('.mobile-day-reservations').forEach(container => {
+                const date = container.dataset.date;
+                const dayReservations = reservationsByDate[date] || [];
+                
+                if (dayReservations.length === 0) {
+                    container.innerHTML = '<div class="mobile-empty-message">予約なし</div>';
+                } else {
+                    // 時間順にソート
+                    dayReservations.sort((a, b) => a.time.localeCompare(b.time));
+                    
+                    container.innerHTML = dayReservations.map(r => {
+                        const timeParts = r.time.split(':');
+                        return `
+                            <div class="mobile-reservation-card ${r.status}" 
+                                 onclick='showReservationDetail(${JSON.stringify(r).replace(/'/g, "&apos;")})'>
+                                <div class="mobile-reservation-time">${timeParts[0]}:${timeParts[1]}</div>
+                                <div class="mobile-reservation-name">${r.customer_name || 'ゲスト'}様</div>
+                                <div class="mobile-reservation-people">${r.people}名</div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            });
+        }
+        
+        // 予約詳細表示
+        function showReservationDetail(reservation) {
+            currentReservation = reservation; // 削除用に保存
+            
+            const statusText = {
+                'pending': '予約確定',
+                'confirmed': '確認済み',
+                'cancelled': 'キャンセル'
+            };
+            
+            document.getElementById('modalTitle').textContent = 
+                `${reservation.customer_name || 'ゲスト'}様のご予約`;
+            
+            document.getElementById('modalDetails').innerHTML = `
+                <div class="detail-row">
+                    <div class="detail-label">予約ID</div>
+                    <div class="detail-value">#${reservation.id}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">日付</div>
+                    <div class="detail-value">${reservation.date}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">時間</div>
+                    <div class="detail-value">${reservation.time.substring(0, 5)}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">人数</div>
+                    <div class="detail-value">${reservation.people}名</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">ステータス</div>
+                    <div class="detail-value">${statusText[reservation.status] || reservation.status}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">作成日時</div>
+                    <div class="detail-value">${new Date(reservation.created_at).toLocaleString('ja-JP')}</div>
+                </div>
+            `;
+            
+            document.getElementById('detailModal').classList.add('show');
+        }
+        
+        // 現在の予約を削除
+        async function deleteCurrentReservation() {
+            if (!currentReservation) return;
+            
+            const confirmMessage = `予約ID: #${currentReservation.id}\n${currentReservation.customer_name || 'ゲスト'}様\n${currentReservation.date} ${currentReservation.time.substring(0, 5)}\n\nこの予約を削除しますか？`;
+            
+            if (!confirm(confirmMessage)) return;
+            
+            try {
+                const response = await fetch(`/api/admin-delete?id=${currentReservation.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    alert('予約を削除しました');
+                    closeModal();
+                    loadReservations(); // データ再読み込み
+                } else {
+                    alert(`削除に失敗しました: ${result.error || '不明なエラー'}`);
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('削除処理中にエラーが発生しました');
+            }
+        }
+        
+        // モーダル閉じる
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('show');
+            currentReservation = null;
+        }
+        
+        // 統計更新
+        function updateStatistics() {
+            const today = new Date().toISOString().split('T')[0];
+            const weekEnd = new Date(currentWeekStart);
+            weekEnd.setDate(currentWeekStart.getDate() + 7);
+            
+            // 本日の予約
+            const todayReservations = allReservations.filter(r => 
+                r.date === today && r.status !== 'cancelled'
+            );
+            document.getElementById('todayCount').textContent = todayReservations.length;
+            
+            // 今週の予約
+            const weekReservations = allReservations.filter(r => {
+                const resDate = new Date(r.date);
+                return resDate >= currentWeekStart && resDate < weekEnd && r.status !== 'cancelled';
+            });
+            document.getElementById('weekCount').textContent = weekReservations.length;
+            
+            // 予約率
+            const maxReservations = 7 * 50;
+            const occupancy = Math.round((weekReservations.length / maxReservations) * 100);
+            document.getElementById('occupancyRate').textContent = `${occupancy}%`;
+            
+            // 平均人数
+            if (weekReservations.length > 0) {
+                const totalPeople = weekReservations.reduce((sum, r) => sum + r.people, 0);
+                const avgPeople = (totalPeople / weekReservations.length).toFixed(1);
+                document.getElementById('avgPeople').textContent = `${avgPeople}名`;
+            } else {
+                document.getElementById('avgPeople').textContent = '0名';
+            }
+        }
+        
+        // 席データ読み込み
+        async function loadSeats() {
+            try {
+                const response = await fetch('/api/seats-manage');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allSeats = data.seats || [];
+                }
+            } catch (error) {
+                console.error('Error loading seats:', error);
+            }
+        }
+        
+        // 予約追加モーダル表示
+        async function showAddReservationModal(date, hour) {
+            // 既存の予約詳細がある場合は無視
+            if (event.target.closest('.reservation-card') || event.target.closest('.more-reservations')) {
+                return;
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal show';
+            modal.id = 'addReservationModal';
+            
+            const timeOptions = [];
+            for (let min = 0; min < 60; min += 15) {
+                const timeStr = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+                timeOptions.push(`<option value="${timeStr}">${timeStr}</option>`);
+            }
+            
+            // 席オプションを生成
+            const seatOptions = allSeats.length > 0 
+                ? allSeats.map(seat => 
+                    `<option value="${seat.id}">${seat.name} (${seat.capacity}名)</option>`
+                  ).join('')
+                : '<option value="">席情報がありません</option>';
+            
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-title">新規予約追加</div>
+                    <form id="addReservationForm" onsubmit="submitNewReservation(event)">
+                        <div class="form-group">
+                            <label class="form-label">お名前 <span style="color: red;">*</span></label>
+                            <input type="text" class="form-input" name="customer_name" required 
+                                   placeholder="山田太郎">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">日付 <span style="color: red;">*</span></label>
+                                <input type="date" class="form-input" name="date" value="${date}" required
+                                       onchange="checkSeatAvailability()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">時間 <span style="color: red;">*</span></label>
+                                <select class="form-input" name="time" required onchange="checkSeatAvailability()">
+                                    ${timeOptions.join('')}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">人数 <span style="color: red;">*</span></label>
+                                <select class="form-input" name="people" required onchange="checkSeatAvailability()">
+                                    ${Array.from({length: 20}, (_, i) => 
+                                        `<option value="${i+1}">${i+1}名</option>`
+                                    ).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">席を割り当て</label>
+                                <select class="form-input" name="seat_id" id="seatSelect">
+                                    <option value="">自動割り当て</option>
+                                    ${seatOptions}
+                                </select>
+                                <small id="seatAvailability" style="color: #666; font-size: 12px;"></small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">電話番号</label>
+                                <input type="tel" class="form-input" name="phone" 
+                                       placeholder="090-1234-5678">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">メールアドレス</label>
+                                <input type="email" class="form-input" name="email" 
+                                       placeholder="example@example.com">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">メッセージ・要望</label>
+                            <textarea class="form-input" name="message" rows="3" 
+                                      placeholder="アレルギー情報や特別な要望など"></textarea>
+                        </div>
+                        
+                        <button type="submit" class="form-submit">✅ 予約を追加</button>
+                        <button type="button" class="modal-close" onclick="closeAddModal()">キャンセル</button>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // 初回の席空き状況チェック
+            setTimeout(checkSeatAvailability, 100);
+        }
+        
+        // 席の空き状況をチェック
+        async function checkSeatAvailability() {
+            const form = document.getElementById('addReservationForm');
+            if (!form) return;
+            
+            const date = form.date.value;
+            const time = form.time.value;
+            const people = form.people.value;
+            
+            if (!date || !time) return;
+            
+            try {
+                const response = await fetch('/api/check-seat-availability', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ date, time, people })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const seatSelect = document.getElementById('seatSelect');
+                    const availabilityText = document.getElementById('seatAvailability');
+                    
+                    // 利用可能な席を更新
+                    seatSelect.innerHTML = '<option value="">自動割り当て</option>';
+                    
+                    if (data.availableSeats.length > 0) {
+                        data.availableSeats.forEach(seat => {
+                            const option = document.createElement('option');
+                            option.value = seat.id;
+                            option.textContent = `${seat.name} (${seat.capacity}名)`;
+                            if (data.recommendedSeat && seat.id === data.recommendedSeat.id) {
+                                option.textContent += ' ★おすすめ';
+                                option.selected = true;
+                            }
+                            seatSelect.appendChild(option);
+                        });
+                        
+                        availabilityText.textContent = `${data.availableSeats.length}席利用可能`;
+                        availabilityText.style.color = '#06c755';
+                    } else {
+                        availabilityText.textContent = 'この時間帯は満席です';
+                        availabilityText.style.color = '#ef5350';
+                    }
+                }
+            } catch (error) {
+                console.error('Check availability error:', error);
+            }
+        }
+        
+        // 予約追加モーダルを閉じる
+        function closeAddModal() {
+            const modal = document.getElementById('addReservationModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        // 新規予約を送信
+        async function submitNewReservation(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/admin-create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    alert('予約を追加しました');
+                    closeAddModal();
+                    loadReservations(); // データ再読み込み
+                } else {
+                    alert(`追加に失敗しました: ${result.error || '不明なエラー'}`);
+                }
+            } catch (error) {
+                console.error('Add error:', error);
+                alert('追加処理中にエラーが発生しました');
+            }
+        }
+        
+        // モーダル外クリックで閉じる
+        window.onclick = function(event) {
+            const detailModal = document.getElementById('detailModal');
+            const addModal = document.getElementById('addReservationModal');
+            
+            if (event.target === detailModal) {
+                closeModal();
+            }
+            if (event.target === addModal) {
+                closeAddModal();
+            }
+        }
+    </script>
+</body>
+</html>

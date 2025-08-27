@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>予約カレンダー | LINE予約システム</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            overflow-x: hidden;
+        }
+        
+        /* ローディング画面 */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.3s ease;
+        }
+        
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top: 5px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        /* ヘッダー */
+        .header {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            animation: slideDown 0.5s ease;
+        }
+        
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .header-content {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .store-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .business-hours {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        /* メインコンテナ */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            animation: fadeIn 0.8s ease;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* ステップインジケーター */
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding: 0 10px;
+        }
+        
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+        
+        .step::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 60%;
+            right: -40%;
+            height: 2px;
+            background: #e0e0e0;
+            z-index: -1;
+        }
+        
+        .step:last-child::after {
+            display: none;
+        }
+        
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #e0e0e0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .step.active .step-circle {
+            background: #667eea;
+            border-color: #667eea;
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .step.completed .step-circle {
+            background: #48bb78;
+            border-color: #48bb78;
+            color: white;
+        }
+        
+        .step-label {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .step.active .step-label {
+            color: #667eea;
+            font-weight: 500;
+        }
+        
+        /* カード */
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            animation: slideUp 0.6s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+        
+        .card-title span {
+            margin-right: 10px;
+        }
+        
+        /* カレンダー */
+        .calendar {
+            margin-bottom: 20px;
+        }
+        
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .calendar-nav {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: #f7f7f7;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .calendar-nav:hover {
+            background: #667eea;
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .calendar-nav:active {
+            transform: scale(0.95);
+        }
+        
+        .calendar-month {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .calendar-weekday {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 500;
+            color: #999;
+            padding: 5px;
+        }
+        
+        .calendar-weekday.sunday {
+            color: #ff6b6b;
+        }
+        
+        .calendar-weekday.saturday {
+            color: #4dabf7;
+        }
+        
+        .calendar-day {
+            aspect-ratio: 1;
+            border: 2px solid transparent;
+            background: #f9f9f9;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            position: relative;
+        }
+        
+        .calendar-day:hover:not(.disabled) {
+            background: #f0f3ff;
+            transform: scale(1.05);
+        }
+        
+        .calendar-day:active:not(.disabled) {
+            transform: scale(0.95);
+        }
+        
+        .calendar-day.selected {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            animation: pulse 0.5s ease;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+        
+        .calendar-day.disabled {
+            background: #f0f0f0;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .calendar-day.today {
+            border-color: #667eea;
+            font-weight: 700;
+        }
+        
+        .calendar-day.sunday {
+            color: #ff6b6b;
+        }
+        
+        .calendar-day.saturday {
+            color: #4dabf7;
+        }
+        
+        .calendar-day.has-slots::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            width: 4px;
+            height: 4px;
+            background: #48bb78;
+            border-radius: 50%;
+        }
+        
+        /* 時間選択 */
+        .time-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        
+        .time-slot {
+            padding: 12px;
+            background: #f9f9f9;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .time-slot:hover:not(.disabled) {
+            background: #f0f3ff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+        
+        .time-slot:active:not(.disabled) {
+            transform: translateY(0);
+        }
+        
+        .time-slot.selected {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .time-slot.disabled {
+            background: #f0f0f0;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        /* 人数選択 */
+        .people-selector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 12px;
+        }
+        
+        .people-button {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .people-button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .people-button:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+        
+        .people-button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        
+        .people-count {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .people-label {
+            font-size: 14px;
+            color: #666;
+            margin-left: 5px;
+        }
+        
+        /* 名前入力 */
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        
+        /* 確認画面 */
+        .confirmation-details {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .detail-value {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        /* ボタン */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+        }
+        
+        .button {
+            flex: 1;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        
+        .button-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .button-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .button-primary:active {
+            transform: translateY(0);
+        }
+        
+        .button-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .button-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .button-secondary:hover {
+            background: #f0f3ff;
+        }
+        
+        /* アニメーション */
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .slide-in {
+            animation: slideIn 0.5s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        /* 成功画面 */
+        .success-screen {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            animation: successPop 0.6s ease;
+        }
+        
+        @keyframes successPop {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .success-icon svg {
+            width: 40px;
+            height: 40px;
+            stroke: white;
+            stroke-width: 3;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        .success-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .success-message {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        /* レスポンシブ */
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .card {
+                padding: 20px;
+                border-radius: 15px;
+            }
+            
+            .time-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .store-name {
+                font-size: 20px;
+            }
+            
+            .step-label {
+                font-size: 10px;
+            }
+        }
+        
+        /* ダークモード対応 */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            }
+            
+            .header {
+                background: rgba(26, 26, 46, 0.95);
+            }
+            
+            .store-name {
+                color: #667eea;
+            }
+            
+            .business-hours {
+                color: #aaa;
+            }
+            
+            .card {
+                background: #1a1a2e;
+                color: #fff;
+            }
+            
+            .card-title {
+                color: #fff;
+            }
+            
+            .calendar-month {
+                color: #fff;
+            }
+            
+            .calendar-day {
+                background: #16213e;
+                color: #fff;
+            }
+            
+            .calendar-day:hover:not(.disabled) {
+                background: #2d2d44;
+            }
+            
+            .time-slot {
+                background: #16213e;
+                color: #fff;
+            }
+            
+            .time-slot:hover:not(.disabled) {
+                background: #2d2d44;
+            }
+            
+            .input-field {
+                background: #16213e;
+                border-color: #2d2d44;
+                color: #fff;
+            }
+            
+            .confirmation-details {
+                background: #16213e;
+            }
+            
+            .detail-value {
+                color: #fff;
+            }
+        }
+        
+        /* アクセシビリティ */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
+        /* フォーカス表示 */
+        *:focus-visible {
+            outline: 3px solid #667eea;
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <!-- ローディング画面 -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="spinner"></div>
+        <div class="loading-text">読み込み中...</div>
+    </div>
+    
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="header-content">
+            <h1 class="store-name" id="storeName">レストラン</h1>
+            <p class="business-hours" id="businessHours">営業時間: 11:00〜22:00</p>
+        </div>
+    </header>
+    
+    <!-- メインコンテンツ -->
+    <main class="container">
+        <!-- ステップインジケーター -->
+        <div class="step-indicator">
+            <div class="step active" id="step1">
+                <div class="step-circle">1</div>
+                <div class="step-label">日付選択</div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-circle">2</div>
+                <div class="step-label">時間選択</div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-circle">3</div>
+                <div class="step-label">詳細入力</div>
+            </div>
+            <div class="step" id="step4">
+                <div class="step-circle">4</div>
+                <div class="step-label">確認</div>
+            </div>
+        </div>
+        
+        <!-- ステップ1: 日付選択 -->
+        <div class="card" id="dateStep">
+            <h2 class="card-title">
+                <span>📅</span>
+                ご希望の日付を選択してください
+            </h2>
+            <div class="calendar">
+                <div class="calendar-header">
+                    <button class="calendar-nav" id="prevMonth" aria-label="前月">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M15 18l-6-6 6-6"/>
+                        </svg>
+                    </button>
+                    <div class="calendar-month" id="currentMonth">2024年12月</div>
+                    <button class="calendar-nav" id="nextMonth" aria-label="次月">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
+            </div>
+            <div class="button-group">
+                <button class="button button-primary" id="dateNextBtn" disabled>
+                    次へ進む
+                </button>
+            </div>
+        </div>
+        
+        <!-- ステップ2: 時間選択 -->
+        <div class="card" id="timeStep" style="display: none;">
+            <h2 class="card-title">
+                <span>⏰</span>
+                ご希望の時間を選択してください
+            </h2>
+            <div class="time-grid" id="timeGrid"></div>
+            <div class="button-group">
+                <button class="button button-secondary" id="timeBackBtn">戻る</button>
+                <button class="button button-primary" id="timeNextBtn" disabled>次へ進む</button>
+            </div>
+        </div>
+        
+        <!-- ステップ3: 詳細入力 -->
+        <div class="card" id="detailsStep" style="display: none;">
+            <h2 class="card-title">
+                <span>👤</span>
+                ご予約の詳細を入力してください
+            </h2>
+            
+            <div class="input-group">
+                <label class="input-label" for="customerName">お名前（必須）</label>
+                <input type="text" id="customerName" class="input-field" placeholder="例：山田太郎" required>
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label">人数</label>
+                <div class="people-selector">
+                    <button class="people-button" id="peopleMinusBtn" aria-label="人数を減らす">−</button>
+                    <div>
+                        <span class="people-count" id="peopleCount">2</span>
+                        <span class="people-label">名様</span>
+                    </div>
+                    <button class="people-button" id="peoplePlusBtn" aria-label="人数を増やす">＋</button>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label" for="customerNote">備考（任意）</label>
+                <input type="text" id="customerNote" class="input-field" placeholder="アレルギーや要望など">
+            </div>
+            
+            <div class="button-group">
+                <button class="button button-secondary" id="detailsBackBtn">戻る</button>
+                <button class="button button-primary" id="detailsNextBtn">確認画面へ</button>
+            </div>
+        </div>
+        
+        <!-- ステップ4: 確認 -->
+        <div class="card" id="confirmStep" style="display: none;">
+            <h2 class="card-title">
+                <span>✅</span>
+                ご予約内容の確認
+            </h2>
+            
+            <div class="confirmation-details">
+                <div class="detail-row">
+                    <span class="detail-label">お名前</span>
+                    <span class="detail-value" id="confirmName">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">日付</span>
+                    <span class="detail-value" id="confirmDate">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">時間</span>
+                    <span class="detail-value" id="confirmTime">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">人数</span>
+                    <span class="detail-value" id="confirmPeople">-</span>
+                </div>
+                <div class="detail-row" id="confirmNoteRow" style="display: none;">
+                    <span class="detail-label">備考</span>
+                    <span class="detail-value" id="confirmNote">-</span>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button class="button button-secondary" id="confirmBackBtn">修正する</button>
+                <button class="button button-primary" id="confirmSubmitBtn">予約を確定</button>
+            </div>
+        </div>
+        
+        <!-- 成功画面 -->
+        <div class="card success-screen" id="successStep" style="display: none;">
+            <div class="success-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 6L9 17l-5-5"/>
+                </svg>
+            </div>
+            <h2 class="success-title">予約が完了しました！</h2>
+            <p class="success-message">
+                ご予約ありがとうございます。<br>
+                LINEに確認メッセージをお送りしました。
+            </p>
+            <div class="confirmation-details">
+                <div class="detail-row">
+                    <span class="detail-label">予約ID</span>
+                    <span class="detail-value" id="successId">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">日時</span>
+                    <span class="detail-value" id="successDateTime">-</span>
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="button button-primary" onclick="closeLiff()">LINEに戻る</button>
+            </div>
+        </div>
+    </main>
+    
+    <script>
+        // グローバル変数
+        let selectedDate = null;
+        let selectedTime = null;
+        let peopleCount = 2;
+        let currentMonth = new Date();
+        let storeId = 'default';
+        let storeName = 'レストラン';
+        let openHour = 11;
+        let closeHour = 22;
+        
+        // URLパラメータ取得
+        const urlParams = new URLSearchParams(window.location.search);
+        storeId = urlParams.get('store_id') || 'default';
+        storeName = decodeURIComponent(urlParams.get('store_name') || 'レストラン');
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 店舗情報表示
+            document.getElementById('storeName').textContent = storeName;
+            document.getElementById('businessHours').textContent = `営業時間: ${openHour}:00〜${closeHour}:00`;
+            
+            // LIFF初期化（オプション）
+            if (typeof liff !== 'undefined') {
+                try {
+                    await liff.init({ liffId: urlParams.get('liff_id') || '0000000000-xxxxxxxx' });
+                } catch (error) {
+                    console.log('LIFF init skipped:', error);
+                }
+            }
+            
+            // カレンダー初期化
+            initCalendar();
+            
+            // イベントリスナー設定
+            setupEventListeners();
+            
+            // ローディング画面を非表示
+            setTimeout(() => {
+                document.getElementById('loadingScreen').classList.add('hidden');
+            }, 500);
+        });
+        
+        // カレンダー初期化
+        function initCalendar() {
+            renderCalendar();
+        }
+        
+        // カレンダー描画
+        function renderCalendar() {
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            
+            // 月表示更新
+            document.getElementById('currentMonth').textContent = 
+                `${year}年${month + 1}月`;
+            
+            // カレンダーグリッドクリア
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+            
+            // 曜日ヘッダー
+            const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+            weekdays.forEach((day, index) => {
+                const weekdayEl = document.createElement('div');
+                weekdayEl.className = 'calendar-weekday';
+                if (index === 0) weekdayEl.classList.add('sunday');
+                if (index === 6) weekdayEl.classList.add('saturday');
+                weekdayEl.textContent = day;
+                grid.appendChild(weekdayEl);
+            });
+            
+            // 月初日と月末日
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const prevLastDay = new Date(year, month, 0);
+            
+            // 前月の日付
+            for (let i = firstDay.getDay() - 1; i >= 0; i--) {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day disabled';
+                dayEl.textContent = prevLastDay.getDate() - i;
+                grid.appendChild(dayEl);
+            }
+            
+            // 今日の日付
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // 当月の日付
+            for (let day = 1; day <= lastDay.getDate(); day++) {
+                const date = new Date(year, month, day);
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day';
+                dayEl.textContent = day;
+                
+                // 曜日カラー
+                if (date.getDay() === 0) dayEl.classList.add('sunday');
+                if (date.getDay() === 6) dayEl.classList.add('saturday');
+                
+                // 今日マーク
+                if (date.getTime() === today.getTime()) {
+                    dayEl.classList.add('today');
+                }
+                
+                // 過去日付は無効
+                if (date < today) {
+                    dayEl.classList.add('disabled');
+                }
+                // 30日以上先は無効
+                else if (date > new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)) {
+                    dayEl.classList.add('disabled');
+                }
+                // 選択可能
+                else {
+                    dayEl.classList.add('has-slots');
+                    dayEl.addEventListener('click', () => selectDate(date));
+                }
+                
+                grid.appendChild(dayEl);
+            }
+            
+            // 次月の日付
+            const remainingCells = 42 - grid.children.length + 7; // 曜日ヘッダー分を引く
+            for (let day = 1; day <= remainingCells; day++) {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day disabled';
+                dayEl.textContent = day;
+                grid.appendChild(dayEl);
+            }
+        }
+        
+        // 日付選択
+        function selectDate(date) {
+            selectedDate = date;
+            
+            // 選択状態更新
+            document.querySelectorAll('.calendar-day').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            event.target.classList.add('selected');
+            
+            // 次へボタン有効化
+            document.getElementById('dateNextBtn').disabled = false;
+        }
+        
+        // 時間スロット生成
+        function generateTimeSlots() {
+            const grid = document.getElementById('timeGrid');
+            grid.innerHTML = '';
+            
+            for (let hour = openHour; hour < closeHour; hour++) {
+                const timeEl = document.createElement('div');
+                timeEl.className = 'time-slot';
+                timeEl.textContent = `${hour}:00`;
+                
+                // ランダムで満席設定（デモ用）
+                if (Math.random() < 0.2) {
+                    timeEl.classList.add('disabled');
+                    timeEl.textContent += ' 満席';
+                } else {
+                    timeEl.addEventListener('click', () => selectTime(`${hour}:00`));
+                }
+                
+                grid.appendChild(timeEl);
+            }
+        }
+        
+        // 時間選択
+        function selectTime(time) {
+            selectedTime = time;
+            
+            // 選択状態更新
+            document.querySelectorAll('.time-slot').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            event.target.classList.add('selected');
+            
+            // 次へボタン有効化
+            document.getElementById('timeNextBtn').disabled = false;
+        }
+        
+        // ステップ切り替え
+        function showStep(stepNumber) {
+            // すべてのステップを非表示
+            document.querySelectorAll('.card').forEach(card => {
+                card.style.display = 'none';
+            });
+            
+            // ステップインジケーター更新
+            document.querySelectorAll('.step').forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index < stepNumber - 1) {
+                    step.classList.add('completed');
+                } else if (index === stepNumber - 1) {
+                    step.classList.add('active');
+                }
+            });
+            
+            // 指定ステップを表示
+            switch(stepNumber) {
+                case 1:
+                    document.getElementById('dateStep').style.display = 'block';
+                    break;
+                case 2:
+                    document.getElementById('timeStep').style.display = 'block';
+                    generateTimeSlots();
+                    break;
+                case 3:
+                    document.getElementById('detailsStep').style.display = 'block';
+                    break;
+                case 4:
+                    document.getElementById('confirmStep').style.display = 'block';
+                    updateConfirmation();
+                    break;
+            }
+            
+            // スクロールトップ
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // 確認画面更新
+        function updateConfirmation() {
+            const name = document.getElementById('customerName').value || 'ゲスト';
+            const note = document.getElementById('customerNote').value;
+            
+            document.getElementById('confirmName').textContent = name + '様';
+            document.getElementById('confirmDate').textContent = formatDate(selectedDate);
+            document.getElementById('confirmTime').textContent = selectedTime;
+            document.getElementById('confirmPeople').textContent = `${peopleCount}名様`;
+            
+            if (note) {
+                document.getElementById('confirmNoteRow').style.display = 'flex';
+                document.getElementById('confirmNote').textContent = note;
+            } else {
+                document.getElementById('confirmNoteRow').style.display = 'none';
+            }
+        }
+        
+        // 日付フォーマット
+        function formatDate(date) {
+            const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+            return `${date.getMonth() + 1}月${date.getDate()}日(${weekdays[date.getDay()]})`;
+        }
+        
+        // 予約送信
+        async function submitReservation() {
+            const name = document.getElementById('customerName').value || 'ゲスト';
+            const note = document.getElementById('customerNote').value;
+            
+            // ローディング表示
+            document.getElementById('confirmSubmitBtn').disabled = true;
+            document.getElementById('confirmSubmitBtn').textContent = '送信中...';
+            
+            // APIエンドポイント
+            const apiUrl = window.location.hostname === 'localhost' 
+                ? 'http://localhost:3000/api/calendar-reservation'
+                : '/api/calendar-reservation';
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        store_id: storeId,
+                        customer_name: name,
+                        date: selectedDate.toISOString().split('T')[0],
+                        time: selectedTime + ':00',
+                        people: peopleCount,
+                        note: note
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    showSuccess(result.reservation);
+                } else {
+                    throw new Error('予約送信失敗');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('予約の送信に失敗しました。もう一度お試しください。');
+                document.getElementById('confirmSubmitBtn').disabled = false;
+                document.getElementById('confirmSubmitBtn').textContent = '予約を確定';
+            }
+        }
+        
+        // 成功画面表示
+        function showSuccess(reservation) {
+            document.getElementById('confirmStep').style.display = 'none';
+            document.getElementById('successStep').style.display = 'block';
+            
+            document.getElementById('successId').textContent = `#${reservation.id}`;
+            document.getElementById('successDateTime').textContent = 
+                `${formatDate(selectedDate)} ${selectedTime}`;
+            
+            // ステップインジケーター更新
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.add('completed');
+                step.classList.remove('active');
+            });
+        }
+        
+        // LIFF閉じる
+        function closeLiff() {
+            if (typeof liff !== 'undefined' && liff.isInClient()) {
+                liff.closeWindow();
+            } else {
+                window.close();
+                // ウィンドウが閉じない場合はメッセージ表示
+                setTimeout(() => {
+                    alert('LINEアプリに戻ってください');
+                }, 100);
+            }
+        }
+        
+        // イベントリスナー設定
+        function setupEventListeners() {
+            // カレンダーナビゲーション
+            document.getElementById('prevMonth').addEventListener('click', () => {
+                currentMonth.setMonth(currentMonth.getMonth() - 1);
+                renderCalendar();
+            });
+            
+            document.getElementById('nextMonth').addEventListener('click', () => {
+                currentMonth.setMonth(currentMonth.getMonth() + 1);
+                renderCalendar();
+            });
+            
+            // ステップナビゲーション
+            document.getElementById('dateNextBtn').addEventListener('click', () => {
+                showStep(2);
+            });
+            
+            document.getElementById('timeBackBtn').addEventListener('click', () => {
+                showStep(1);
+            });
+            
+            document.getElementById('timeNextBtn').addEventListener('click', () => {
+                showStep(3);
+            });
+            
+            document.getElementById('detailsBackBtn').addEventListener('click', () => {
+                showStep(2);
+            });
+            
+            document.getElementById('detailsNextBtn').addEventListener('click', () => {
+                const name = document.getElementById('customerName').value.trim();
+                if (!name) {
+                    alert('お名前を入力してください');
+                    document.getElementById('customerName').focus();
+                    return;
+                }
+                showStep(4);
+            });
+            
+            document.getElementById('confirmBackBtn').addEventListener('click', () => {
+                showStep(3);
+            });
+            
+            document.getElementById('confirmSubmitBtn').addEventListener('click', () => {
+                submitReservation();
+            });
+            
+            // 人数セレクター
+            document.getElementById('peopleMinusBtn').addEventListener('click', () => {
+                if (peopleCount > 1) {
+                    peopleCount--;
+                    document.getElementById('peopleCount').textContent = peopleCount;
+                    document.getElementById('peopleMinusBtn').disabled = peopleCount === 1;
+                }
+            });
+            
+            document.getElementById('peoplePlusBtn').addEventListener('click', () => {
+                if (peopleCount < 20) {
+                    peopleCount++;
+                    document.getElementById('peopleCount').textContent = peopleCount;
+                    document.getElementById('peoplePlusBtn').disabled = peopleCount === 20;
+                    document.getElementById('peopleMinusBtn').disabled = false;
+                }
+            });
+        }
+    </script>
+    
+    <!-- LIFF SDK（オプション） -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js" defer></script>
+</body>
+</html>
