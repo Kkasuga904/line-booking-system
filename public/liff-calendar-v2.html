@@ -1194,19 +1194,23 @@
                         date: selectedDate.toISOString().split('T')[0],
                         time: selectedTime + ':00',
                         people: peopleCount,
-                        note: note
+                        message: note || '',
+                        user_id: 'liff-user'
                     })
                 });
                 
                 if (response.ok) {
                     const result = await response.json();
+                    console.log('予約成功:', result);
                     showSuccess(result.reservation);
                 } else {
-                    throw new Error('予約送信失敗');
+                    const errorData = await response.text();
+                    console.error('予約エラー:', response.status, errorData);
+                    throw new Error(`予約送信失敗: ${response.status}`);
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('予約の送信に失敗しました。もう一度お試しください。');
+                console.error('Error details:', error);
+                alert(`予約の送信に失敗しました: ${error.message}\n\nもう一度お試しください。`);
                 document.getElementById('confirmSubmitBtn').disabled = false;
                 document.getElementById('confirmSubmitBtn').textContent = '予約を確定';
             }

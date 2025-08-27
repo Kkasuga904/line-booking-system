@@ -32,7 +32,9 @@ export default async function handler(req, res) {
             time,
             people,
             message,
-            status
+            status,
+            phone,
+            email
         } = req.body;
         
         // 必須パラメータチェック
@@ -55,6 +57,8 @@ export default async function handler(req, res) {
                 date: date,
                 time: time,
                 status: status || 'pending',
+                phone: phone || null,
+                email: email || null,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }])
