@@ -6,7 +6,7 @@
     }
   },
   "rewrites": [
-    { "source": "/webhook", "destination": "/api/webhook-new" },
+    { "source": "/webhook", "destination": "/api/webhook-simple" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/admin-calendar", "destination": "/admin-calendar-v2.html" },
     { "source": "/seats", "destination": "/seats-management.html" }
