@@ -249,7 +249,8 @@ export default async function handler(req, res) {
           const replyToken = event.replyToken;  // 返信用トークン
           
           // メニュー表示のトリガーワード判定
-          if (text === 'メニュー' || text === 'menu' || text === '予約したい') {
+          if (text === 'メニュー' || text === 'menu' || text === '予約したい' || text.includes('予約をご希望')) {
+            console.log('Sending menu message with LIFF calendar');
             await replyMessage(replyToken, [createMenuMessage()]);
             continue;  // 次のイベントへ
           }
@@ -432,6 +433,7 @@ export default async function handler(req, res) {
             }]);
           } else {
             // 予約以外のメッセージには予約メニューを提示
+            console.log('Sending default menu for text:', text);
             await replyMessage(replyToken, [
               {
                 type: 'text',
