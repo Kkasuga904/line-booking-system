@@ -3,7 +3,9 @@
  * POST /api/webhook-new
  */
 
-const WEBHOOK_VERSION = '2.0.1';
+import https from 'https';
+
+const WEBHOOK_VERSION = '2.0.2';
 
 export default async function handler(req, res) {
   console.log(`=== Webhook v${WEBHOOK_VERSION} Start ===`);
@@ -67,16 +69,13 @@ async function sendReplyWithFetch(replyToken, text) {
 
 // HTTPS モジュールを使ったフォールバック（ES Module対応）
 async function sendReplyWithHttps(replyToken, text) {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
     if (!token) {
       console.error('NO TOKEN for HTTPS fallback!');
       resolve();
       return;
     }
-    
-    // ES Moduleで動的import
-    const https = await import('https');
     
     const postData = JSON.stringify({
       replyToken: replyToken,
@@ -100,7 +99,7 @@ async function sendReplyWithHttps(replyToken, text) {
     
     console.log('Sending HTTPS request (fallback)...');
     
-    const req = https.default.request(options, (res) => {
+    const req = https.request(options, (res) => {
       console.log('HTTPS Response Status:', res.statusCode);
       
       let data = '';
