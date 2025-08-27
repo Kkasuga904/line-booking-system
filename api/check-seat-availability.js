@@ -57,12 +57,12 @@ export default async function handler(req, res) {
       .filter(r => r.seat_id)
       .map(r => r.seat_id);
     
-    // 利用可能な席を取得（is_lockedカラムが存在しない場合も考慮）
+    // 利用可能な席を取得（ロックされていない席のみ）
     let seatsQuery = supabase
       .from('seats')
       .select('*')
       .eq('is_active', true)
-      // .eq('is_locked', false)  // TODO: is_lockedカラムが追加されたら有効化
+      .or('is_locked.is.null,is_locked.eq.false')  // is_lockedがnullまたはfalseの席
       .gte('capacity', requiredPeople)
       .order('capacity')
       .order('display_order');

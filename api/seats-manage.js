@@ -108,7 +108,7 @@ export default async function handler(req, res) {
       });
     }
     
-    // PATCH: 席のロック状態更新（is_lockedカラムが存在しない場合はエラー）
+    // PATCH: 席のロック状態更新
     if (req.method === 'PATCH') {
       const { id, is_locked } = req.body;
       
@@ -124,13 +124,8 @@ export default async function handler(req, res) {
         });
       }
       
-      // TODO: is_lockedカラムが追加されたら有効化
-      return res.status(501).json({
-        error: '席ロック機能は準備中です',
-        message: 'データベースにis_lockedカラムを追加してください'
-      });
+      console.log(`Updating seat ${id} lock status to: ${is_locked}`);
       
-      /*
       const { data, error } = await supabase
         .from('seats')
         .update({ is_locked })
@@ -138,16 +133,18 @@ export default async function handler(req, res) {
         .eq('store_id', storeId)
         .select();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Lock update error:', error);
+        throw error;
+      }
       
-      console.log(`Seat ${id} lock status updated to: ${is_locked}`);
+      console.log(`Seat ${id} lock status updated successfully`);
       
       return res.status(200).json({
         success: true,
         seat: data[0],
         message: is_locked ? '席を予約停止にしました' : '予約停止を解除しました'
       });
-      */
     }
     
     // DELETE: 席削除（論理削除）

@@ -46,21 +46,18 @@ export default async function handler(req, res) {
             });
         }
         
-        // ロックされた席を取得（is_lockedカラムが存在しない場合も考慮）
-        let lockedSeats = [];
-        // TODO: is_lockedカラムが追加されたら有効化
-        /*
+        // ロックされた席を取得
         const { data: lockedSeats, error: seatsError } = await supabase
             .from('seats')
-            .select('id, name')
+            .select('id, name, is_locked')
             .eq('store_id', storeId.trim())
             .eq('is_locked', true)
             .eq('is_active', true);
         
         if (seatsError) {
             console.error('Seats error:', seatsError);
+            // エラーがあっても続行
         }
-        */
         
         // 日付ごとに時間をグループ化
         const bookedSlots = {};
