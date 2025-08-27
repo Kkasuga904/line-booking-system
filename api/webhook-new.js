@@ -1,13 +1,13 @@
-// LINE Webhook Handler - Version 1.0.6 - CommonJS ONLY
+// LINE Webhook Handler - Version 2.0.0 - ES Module with HTTPS
 // Deploy Date: 2025-08-27
-// IMPORTANT: DO NOT CHANGE TO ES MODULES - WILL CAUSE FETCH ERROR
-const https = require('https');
+// Fixed ES Module compatibility
+import https from 'https';
 
-const WEBHOOK_VERSION = '1.0.6';
+const WEBHOOK_VERSION = '2.0.0';
 const DEPLOY_DATE = '2025-08-27';
 
-// メインハンドラー関数（CommonJS形式 - 変更禁止！）
-exports.default = async function handler(req, res) {
+// メインハンドラー関数（ES Module形式）
+export default async function handler(req, res) {
   console.log(`=== Webhook v${WEBHOOK_VERSION} Start (${DEPLOY_DATE}) ===`);
   
   // 即座に200を返す（重要！）
