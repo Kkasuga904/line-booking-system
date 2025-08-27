@@ -7,7 +7,6 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { getEnv } from '../utils/env-helper.js';
 
 const SUPABASE_URL = 'https://faenvzzeguvlconvrqgp.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZW52enplZ3V2bGNvbnZycWdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxNzQyOTgsImV4cCI6MjA3MTc1MDI5OH0.U_v82IYSDM3waCFfFr4e7MpbTQmZFRPCNaA-2u5R3d8';
@@ -24,8 +23,8 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
   
-  // TODO: getEnvが正しく動作しているか確認が必要
-  const storeId = process.env.STORE_ID || 'default-store';
+  // 環境変数から取得、設定されていない場合はdefault-store
+  const storeId = (process.env.STORE_ID || 'default-store').trim();
   console.log('Using store_id:', storeId);
   
   try {
