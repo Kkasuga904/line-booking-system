@@ -8,7 +8,10 @@
     "dev": "vercel dev",
     "validate": "node scripts/validate-modules.js",
     "validate:webhook": "node scripts/validate-webhook.js",
-    "predeploy": "npm run validate && npm run validate:webhook",
+    "validate:system": "node scripts/validate-system.js",
+    "prevent-issues": "node scripts/prevent-issues.js",
+    "pre-deploy": "node scripts/pre-deploy-check.js",
+    "predeploy": "npm run pre-deploy",
     "deploy": "vercel --prod",
     "test": "jest",
     "test:unit": "jest tests/unit",
@@ -19,12 +22,16 @@
     "admin": "node server.js",
     "format": "prettier --write '**/*.{js,json,md}'",
     "typecheck": "echo 'TypeScript not configured yet'",
-    "health": "curl https://line-booking-system-seven.vercel.app/api/webhook-health",
+    "health": "curl https://line-booking-system-seven.vercel.app/api/health-check",
+    "health:old": "curl https://line-booking-system-seven.vercel.app/api/webhook-health",
     "monitor": "vercel logs --prod --follow"
   },
   "dependencies": {
     "@line/bot-sdk": "^10.1.2",
-    "@supabase/supabase-js": "^2.39.0"
+    "@supabase/supabase-js": "^2.39.0",
+    "axios": "^1.6.8",
+    "dotenv": "^16.0.3",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "jest": "^29.7.0",

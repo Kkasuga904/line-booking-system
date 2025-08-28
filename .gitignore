@@ -185,3 +185,4 @@ store-settings/
 *.店舗名.*
 *.企業名.*
 *.顧客.*
+.env*.local
