@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account 1 - 予約カレンダー＆管理画面</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+      background: #f7f7f7;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    h1 {
+      background: linear-gradient(135deg, #06c755 0%, #00b900 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      background: white;
+      border: 2px solid #06c755;
+      color: #06c755;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .tab.active {
+      background: #06c755;
+      color: white;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .card h2 {
+      color: #06c755;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    /* カレンダー */
+    .calendar {
+      width: 100%;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .calendar-month {
+      font-size: 1.5em;
+      font-weight: bold;
+      color: #333;
+    }
+    .calendar-nav {
+      display: flex;
+      gap: 10px;
+    }
+    .calendar-nav button {
+      padding: 8px 15px;
+      background: #06c755;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+    }
+    .calendar-weekday {
+      text-align: center;
+      font-weight: bold;
+      padding: 10px;
+      color: #666;
+    }
+    .calendar-weekday.sunday {
+      color: #ff4444;
+    }
+    .calendar-weekday.saturday {
+      color: #4444ff;
+    }
+    .calendar-day {
+      min-height: 80px;
+      padding: 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+      background: white;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    }
+    .calendar-day:hover {
+      background: #f0f8ff;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .calendar-day.other-month {
+      background: #f9f9f9;
+      color: #ccc;
+    }
+    .calendar-day.today {
+      background: #fffacd;
+      border: 2px solid #ffcc00;
+    }
+    .calendar-day.selected {
+      background: #e6ffe6;
+      border: 2px solid #06c755;
+    }
+    .calendar-day-number {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .calendar-day-info {
+      font-size: 0.85em;
+      color: #666;
+    }
+    .reservation-count {
+      background: #06c755;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 0.75em;
+      position: absolute;
+      top: 5px;
+      right: 5px;
+    }
+    .full {
+      background: #ff4444;
+    }
+    
+    /* 時間スロット */
+    .time-slots {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .time-slot {
+      padding: 10px;
+      text-align: center;
+      border: 2px solid #e0e0e0;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .time-slot:hover {
+      background: #f0f8ff;
+      border-color: #06c755;
+    }
+    .time-slot.selected {
+      background: #06c755;
+      color: white;
+      border-color: #06c755;
+    }
+    .time-slot.disabled {
+      background: #f5f5f5;
+      color: #ccc;
+      cursor: not-allowed;
+    }
+    .time-slot.limited {
+      background: #fff3cd;
+      border-color: #ffc107;
+    }
+    .time-slot.full {
+      background: #ffebee;
+      border-color: #ff4444;
+      color: #ff4444;
+      cursor: not-allowed;
+    }
+    .slot-capacity {
+      font-size: 0.85em;
+      margin-top: 5px;
+    }
+    
+    /* 予約フォーム */
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      color: #333;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e0e0e0;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #06c755;
+    }
+    button {
+      padding: 12px 30px;
+      background: #06c755;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 16px;
+      width: 100%;
+    }
+    button:hover {
+      background: #00b900;
+    }
+    
+    /* 予約リスト */
+    .reservation-list {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .reservation-item {
+      background: #f8f9fa;
+      border-left: 4px solid #06c755;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      position: relative;
+    }
+    .reservation-item.cancelled {
+      border-color: #dc3545;
+      opacity: 0.6;
+    }
+    .reservation-id {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #06c755;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 0.75em;
+    }
+    .reservation-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+    }
+    .btn-small {
+      padding: 5px 10px;
+      font-size: 12px;
+      width: auto;
+    }
+    .btn-danger {
+      background: #dc3545;
+    }
+    .btn-warning {
+      background: #ffc107;
+    }
+    
+    /* キャパシティ表示 */
+    .capacity-status {
+      padding: 15px;
+      background: #f0f8ff;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    .capacity-bar {
+      width: 100%;
+      height: 20px;
+      background: #e0e0e0;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .capacity-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #06c755 0%, #00b900 100%);
+      transition: width 0.3s;
+    }
+    .capacity-fill.warning {
+      background: linear-gradient(90deg, #ffc107 0%, #ff9800 100%);
+    }
+    .capacity-fill.danger {
+      background: linear-gradient(90deg, #ff4444 0%, #dc3545 100%);
+    }
+    
+    .message {
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      display: none;
+    }
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .message.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📅 Account 1 - 予約管理システム</h1>
+    
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('calendar')">📅 予約カレンダー</div>
+      <div class="tab" onclick="showTab('management')">📊 管理画面</div>
+      <div class="tab" onclick="showTab('capacity')">⚙️ キャパシティ設定</div>
+    </div>
+    
+    <div id="message" class="message"></div>
+    
+    <!-- 予約カレンダータブ -->
+    <div id="calendar-tab" class="tab-content active">
+      <div class="grid">
+        <div class="card">
+          <h2>📅 カレンダー</h2>
+          <div class="calendar">
+            <div class="calendar-header">
+              <div class="calendar-month" id="currentMonth">2025年1月</div>
+              <div class="calendar-nav">
+                <button onclick="previousMonth()">◀ 前月</button>
+                <button onclick="today()">今日</button>
+                <button onclick="nextMonth()">次月 ▶</button>
+              </div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+          </div>
+          
+          <div class="capacity-status" style="margin-top: 20px;">
+            <h3>選択日のキャパシティ状況</h3>
+            <div id="selectedDateInfo">日付を選択してください</div>
+            <div class="capacity-bar">
+              <div class="capacity-fill" id="capacityBar" style="width: 0%"></div>
+            </div>
+            <div id="capacityText">0/50 予約</div>
+          </div>
+        </div>
+        
+        <div>
+          <div class="card" style="margin-bottom: 20px;">
+            <h2>⏰ 時間選択</h2>
+            <div id="selectedDate" style="margin-bottom: 15px; font-weight: bold;">日付を選択してください</div>
+            <div class="time-slots" id="timeSlots"></div>
+          </div>
+          
+          <div class="card">
+            <h2>📝 予約フォーム</h2>
+            <div class="form-group">
+              <label>お名前 *</label>
+              <input type="text" id="customerName" placeholder="山田太郎">
+            </div>
+            <div class="form-group">
+              <label>人数 *</label>
+              <select id="peopleCount">
+                <option value="1">1名</option>
+                <option value="2" selected>2名</option>
+                <option value="3">3名</option>
+                <option value="4">4名</option>
+                <option value="5">5名</option>
+                <option value="6">6名</option>
+                <option value="7">7名</option>
+                <option value="8">8名以上</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>電話番号</label>
+              <input type="tel" id="phoneNumber" placeholder="090-1234-5678">
+            </div>
+            <div class="form-group">
+              <label>備考（アレルギー等）</label>
+              <textarea id="note" rows="3" placeholder="アレルギーや特別なご要望があればご記入ください"></textarea>
+            </div>
+            <button onclick="makeReservation()">予約する</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 管理画面タブ -->
+    <div id="management-tab" class="tab-content">
+      <div class="grid">
+        <div class="card">
+          <h2>📋 本日の予約一覧</h2>
+          <div class="capacity-status">
+            <strong>本日の予約状況</strong>
+            <div class="capacity-bar">
+              <div class="capacity-fill" style="width: 30%"></div>
+            </div>
+            <div>15/50 予約 (30%)</div>
+          </div>
+          <div class="reservation-list" id="reservationList"></div>
+        </div>
+        
+        <div>
+          <div class="card" style="margin-bottom: 20px;">
+            <h2>📊 統計情報</h2>
+            <div style="padding: 10px; background: #f0f8ff; border-radius: 5px; margin: 10px 0;">
+              <strong>今月の統計</strong><br>
+              総予約数: 342件<br>
+              キャンセル率: 5.2%<br>
+              平均人数: 3.2名
+            </div>
+            <div style="padding: 10px; background: #fff3cd; border-radius: 5px; margin: 10px 0;">
+              <strong>繁忙時間帯</strong><br>
+              平日: 18:00-20:00<br>
+              週末: 12:00-14:00
+            </div>
+          </div>
+          
+          <div class="card">
+            <h2>🔍 予約検索</h2>
+            <div class="form-group">
+              <label>予約番号</label>
+              <input type="text" id="searchId" placeholder="R123456789">
+            </div>
+            <div class="form-group">
+              <label>お名前</label>
+              <input type="text" id="searchName" placeholder="山田">
+            </div>
+            <div class="form-group">
+              <label>日付</label>
+              <input type="date" id="searchDate">
+            </div>
+            <button onclick="searchReservation()">検索</button>
+            <div id="searchResult" style="margin-top: 20px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- キャパシティ設定タブ -->
+    <div id="capacity-tab" class="tab-content">
+      <div class="grid">
+        <div class="card">
+          <h2>⚙️ キャパシティルール設定</h2>
+          <div class="form-group">
+            <label>ルールタイプ</label>
+            <select id="ruleType">
+              <option value="per_hour">1時間あたりの制限</option>
+              <option value="per_day">1日あたりの制限</option>
+              <option value="concurrent">同時予約制限</option>
+              <option value="stop">予約停止</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>適用範囲</label>
+            <select id="ruleScope">
+              <option value="all">全日程</option>
+              <option value="weekday">平日のみ</option>
+              <option value="weekend">週末のみ</option>
+              <option value="specific">特定日</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>時間帯</label>
+            <input type="text" id="ruleTime" placeholder="11:00-15:00">
+          </div>
+          <div class="form-group">
+            <label>制限値</label>
+            <input type="number" id="ruleLimit" placeholder="3" min="0">
+          </div>
+          <div class="form-group">
+            <label>説明</label>
+            <input type="text" id="ruleDescription" placeholder="週末ランチタイム: 1時間3件まで">
+          </div>
+          <button onclick="addRule()">ルール追加</button>
+        </div>
+        
+        <div class="card">
+          <h2>📋 現在の制限ルール</h2>
+          <div id="rulesList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // データ
+    let currentDate = new Date();
+    let selectedDate = null;
+    let selectedTime = null;
+    let reservations = [
+      { id: 'R123456789', date: '2025-01-28', time: '12:00', name: '山田太郎', people: 2, phone: '090-1234-5678', status: 'confirmed' },
+      { id: 'R123456790', date: '2025-01-28', time: '13:00', name: '鈴木花子', people: 4, phone: '080-2345-6789', status: 'confirmed' },
+      { id: 'R123456791', date: '2025-01-28', time: '18:00', name: '佐藤次郎', people: 3, phone: '070-3456-7890', status: 'confirmed' },
+    ];
+    let capacityRules = [
+      { id: 1, type: 'per_hour', scope: 'weekend', time: '11:00-15:00', limit: 3, description: '週末ランチタイム: 1時間3件まで' },
+      { id: 2, type: 'per_hour', scope: 'weekday', time: '17:00-20:00', limit: 5, description: '平日夕方: 1時間5件まで' },
+    ];
+    
+    // タブ切り替え
+    function showTab(tabName) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(tabName + '-tab').classList.add('active');
+      
+      if (tabName === 'management') {
+        loadReservations();
+      } else if (tabName === 'capacity') {
+        loadRules();
+      }
+    }
+    
+    // カレンダー描画
+    function renderCalendar() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const today = new Date();
+      
+      document.getElementById('currentMonth').textContent = year + '年' + (month + 1) + '月';
+      
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const prevLastDay = new Date(year, month, 0);
+      
+      const startDate = firstDay.getDay();
+      const lastDate = lastDay.getDate();
+      const prevLastDate = prevLastDay.getDate();
+      
+      let html = '';
+      
+      // 曜日ヘッダー
+      const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+      weekdays.forEach((day, i) => {
+        let className = 'calendar-weekday';
+        if (i === 0) className += ' sunday';
+        if (i === 6) className += ' saturday';
+        html += '<div class="' + className + '">' + day + '</div>';
+      });
+      
+      // 前月の日付
+      for (let i = startDate; i > 0; i--) {
+        html += '<div class="calendar-day other-month">' +
+          '<div class="calendar-day-number">' + (prevLastDate - i + 1) + '</div>' +
+          '</div>';
+      }
+      
+      // 当月の日付
+      for (let i = 1; i <= lastDate; i++) {
+        const date = new Date(year, month, i);
+        const dateStr = date.getFullYear() + '-' + 
+          String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+          String(date.getDate()).padStart(2, '0');
+        
+        const dayReservations = reservations.filter(r => r.date === dateStr);
+        const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === i;
+        
+        let className = 'calendar-day';
+        if (isToday) className += ' today';
+        if (selectedDate === dateStr) className += ' selected';
+        
+        html += '<div class="' + className + '" onclick="selectDate(\'' + dateStr + '\')">' +
+          '<div class="calendar-day-number">' + i + '</div>';
+        
+        if (dayReservations.length > 0) {
+          const isFull = dayReservations.length >= 50;
+          html += '<div class="reservation-count' + (isFull ? ' full' : '') + '">' + 
+            dayReservations.length + '</div>';
+        }
+        
+        html += '</div>';
+      }
+      
+      // 次月の日付
+      const remainingDays = 42 - (startDate + lastDate);
+      for (let i = 1; i <= remainingDays; i++) {
+        html += '<div class="calendar-day other-month">' +
+          '<div class="calendar-day-number">' + i + '</div>' +
+          '</div>';
+      }
+      
+      document.getElementById('calendarGrid').innerHTML = html;
+    }
+    
+    // 日付選択
+    function selectDate(dateStr) {
+      selectedDate = dateStr;
+      selectedTime = null;
+      renderCalendar();
+      
+      const date = new Date(dateStr);
+      const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+      document.getElementById('selectedDate').textContent = date.toLocaleDateString('ja-JP', options);
+      document.getElementById('selectedDateInfo').textContent = date.toLocaleDateString('ja-JP', options);
+      
+      // キャパシティ状況
+      const dayReservations = reservations.filter(r => r.date === dateStr);
+      const capacity = 50;
+      const used = dayReservations.length;
+      const percentage = (used / capacity * 100);
+      
+      document.getElementById('capacityBar').style.width = percentage + '%';
+      document.getElementById('capacityBar').className = 'capacity-fill' + 
+        (percentage > 80 ? ' danger' : percentage > 60 ? ' warning' : '');
+      document.getElementById('capacityText').textContent = used + '/' + capacity + ' 予約';
+      
+      renderTimeSlots();
+    }
+    
+    // 時間スロット描画
+    function renderTimeSlots() {
+      if (!selectedDate) {
+        document.getElementById('timeSlots').innerHTML = '<p>日付を選択してください</p>';
+        return;
+      }
+      
+      const slots = [];
+      const dayReservations = reservations.filter(r => r.date === selectedDate);
+      
+      // 11:00-22:00のスロット生成
+      for (let hour = 11; hour <= 21; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+          const time = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+          const timeReservations = dayReservations.filter(r => r.time === time);
+          
+          // キャパシティチェック
+          let status = 'available';
+          let capacityText = '';
+          
+          const date = new Date(selectedDate);
+          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+          
+          // 週末ランチタイム制限
+          if (isWeekend && hour >= 11 && hour <= 14) {
+            const hourReservations = dayReservations.filter(r => r.time.startsWith(String(hour).padStart(2, '0')));
+            if (hourReservations.length >= 3) {
+              status = 'full';
+              capacityText = '満席';
+            } else if (hourReservations.length >= 2) {
+              status = 'limited';
+              capacityText = '残り' + (3 - hourReservations.length) + '席';
+            }
+          }
+          // 平日夕方制限
+          else if (!isWeekend && hour >= 17 && hour <= 19) {
+            const hourReservations = dayReservations.filter(r => r.time.startsWith(String(hour).padStart(2, '0')));
+            if (hourReservations.length >= 5) {
+              status = 'full';
+              capacityText = '満席';
+            } else if (hourReservations.length >= 3) {
+              status = 'limited';
+              capacityText = '残り' + (5 - hourReservations.length) + '席';
+            }
+          }
+          
+          slots.push({ time, status, capacityText });
+        }
+      }
+      
+      document.getElementById('timeSlots').innerHTML = slots.map(slot => 
+        '<div class="time-slot ' + slot.status + '" onclick="selectTime(\'' + slot.time + '\', \'' + slot.status + '\')">' +
+          slot.time +
+          (slot.capacityText ? '<div class="slot-capacity">' + slot.capacityText + '</div>' : '') +
+        '</div>'
+      ).join('');
+    }
+    
+    // 時間選択
+    function selectTime(time, status) {
+      if (status === 'full' || status === 'disabled') return;
+      
+      selectedTime = time;
+      document.querySelectorAll('.time-slot').forEach(slot => {
+        slot.classList.remove('selected');
+        if (slot.textContent.includes(time)) {
+          slot.classList.add('selected');
+        }
+      });
+    }
+    
+    // 予約作成
+    function makeReservation() {
+      const name = document.getElementById('customerName').value;
+      const people = document.getElementById('peopleCount').value;
+      const phone = document.getElementById('phoneNumber').value;
+      const note = document.getElementById('note').value;
+      
+      if (!selectedDate || !selectedTime || !name) {
+        showMessage('error', '必須項目を入力してください');
+        return;
+      }
+      
+      const reservation = {
+        id: 'R' + Date.now(),
+        date: selectedDate,
+        time: selectedTime,
+        name: name,
+        people: people,
+        phone: phone,
+        note: note,
+        status: 'confirmed'
+      };
+      
+      reservations.push(reservation);
+      
+      showMessage('success', '予約が確定しました！\n予約番号: ' + reservation.id);
+      
+      // フォームリセット
+      document.getElementById('customerName').value = '';
+      document.getElementById('phoneNumber').value = '';
+      document.getElementById('note').value = '';
+      selectedTime = null;
+      
+      renderCalendar();
+      renderTimeSlots();
+    }
+    
+    // 予約一覧読み込み
+    function loadReservations() {
+      const today = new Date().toISOString().split('T')[0];
+      const todayReservations = reservations.filter(r => r.date === today);
+      
+      document.getElementById('reservationList').innerHTML = todayReservations.length > 0 ?
+        todayReservations.map(r => 
+          '<div class="reservation-item">' +
+            '<div class="reservation-id">' + r.id + '</div>' +
+            '<strong>' + r.time + ' - ' + r.name + '様</strong><br>' +
+            '人数: ' + r.people + '名<br>' +
+            '電話: ' + (r.phone || '-') + '<br>' +
+            (r.note ? '備考: ' + r.note + '<br>' : '') +
+            '<div class="reservation-actions">' +
+              '<button class="btn-small" onclick="viewReservation(\'' + r.id + '\')">詳細</button>' +
+              '<button class="btn-small btn-warning" onclick="editReservation(\'' + r.id + '\')">変更</button>' +
+              '<button class="btn-small btn-danger" onclick="cancelReservation(\'' + r.id + '\')">キャンセル</button>' +
+            '</div>' +
+          '</div>'
+        ).join('') :
+        '<p>本日の予約はありません</p>';
+    }
+    
+    // 予約検索
+    function searchReservation() {
+      const id = document.getElementById('searchId').value;
+      const name = document.getElementById('searchName').value;
+      const date = document.getElementById('searchDate').value;
+      
+      let results = reservations;
+      if (id) results = results.filter(r => r.id.includes(id));
+      if (name) results = results.filter(r => r.name.includes(name));
+      if (date) results = results.filter(r => r.date === date);
+      
+      document.getElementById('searchResult').innerHTML = results.length > 0 ?
+        '<h4>検索結果: ' + results.length + '件</h4>' +
+        results.map(r => 
+          '<div class="reservation-item" style="margin-top: 10px;">' +
+            '<strong>' + r.id + '</strong><br>' +
+            r.date + ' ' + r.time + ' - ' + r.name + '様 (' + r.people + '名)' +
+          '</div>'
+        ).join('') :
+        '<p>該当する予約が見つかりませんでした</p>';
+    }
+    
+    // キャパシティルール
+    function loadRules() {
+      document.getElementById('rulesList').innerHTML = capacityRules.map(rule => 
+        '<div class="reservation-item">' +
+          '<strong>' + rule.description + '</strong><br>' +
+          'タイプ: ' + rule.type + '<br>' +
+          '範囲: ' + rule.scope + '<br>' +
+          '時間: ' + rule.time + '<br>' +
+          '制限: ' + rule.limit + '件<br>' +
+          '<button class="btn-small btn-danger" onclick="deleteRule(' + rule.id + ')">削除</button>' +
+        '</div>'
+      ).join('');
+    }
+    
+    function addRule() {
+      const rule = {
+        id: capacityRules.length + 1,
+        type: document.getElementById('ruleType').value,
+        scope: document.getElementById('ruleScope').value,
+        time: document.getElementById('ruleTime').value,
+        limit: document.getElementById('ruleLimit').value,
+        description: document.getElementById('ruleDescription').value
+      };
+      
+      capacityRules.push(rule);
+      loadRules();
+      showMessage('success', 'ルールを追加しました');
+    }
+    
+    function deleteRule(id) {
+      capacityRules = capacityRules.filter(r => r.id !== id);
+      loadRules();
+    }
+    
+    // メッセージ表示
+    function showMessage(type, text) {
+      const message = document.getElementById('message');
+      message.className = 'message ' + type + ' show';
+      message.textContent = text;
+      setTimeout(() => {
+        message.classList.remove('show');
+      }, 5000);
+    }
+    
+    // ナビゲーション
+    function previousMonth() {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      renderCalendar();
+    }
+    
+    function nextMonth() {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      renderCalendar();
+    }
+    
+    function today() {
+      currentDate = new Date();
+      renderCalendar();
+    }
+    
+    // 初期化
+    renderCalendar();
+    
+    // 今日を自動選択
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + 
+      String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+      String(today.getDate()).padStart(2, '0');
+    selectDate(todayStr);
+  </script>
+</body>
+</html>

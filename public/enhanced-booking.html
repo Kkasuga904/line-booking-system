@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>予約システム - Premium Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #06C755;
+            --primary-dark: #05A648;
+            --secondary: #333;
+            --light: #f8f9fa;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --success: #28a745;
+            --border: #e0e0e0;
+            --shadow: 0 2px 8px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            animation: slideUp 0.5s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .header {
+            background: white;
+            border-radius: 20px 20px 0 0;
+            padding: 30px 20px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+        }
+        
+        .store-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--secondary);
+        }
+        
+        .store-info {
+            color: #666;
+            font-size: 14px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .store-info span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .main-content {
+            background: white;
+            border-radius: 0 0 20px 20px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        
+        .booking-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding: 0 10px;
+        }
+        
+        .step {
+            text-align: center;
+            flex: 1;
+            position: relative;
+        }
+        
+        .step::after {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            background: var(--border);
+            z-index: -1;
+        }
+        
+        .step:last-child::after {
+            display: none;
+        }
+        
+        .step-number {
+            width: 30px;
+            height: 30px;
+            background: var(--light);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #999;
+            margin-bottom: 5px;
+            transition: all 0.3s;
+        }
+        
+        .step.active .step-number {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 2px 8px rgba(6, 199, 85, 0.3);
+        }
+        
+        .step.completed .step-number {
+            background: var(--success);
+            color: white;
+        }
+        
+        .step-label {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .step.active .step-label {
+            color: var(--primary);
+            font-weight: bold;
+        }
+        
+        .calendar-container {
+            margin-bottom: 20px;
+        }
+        
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: var(--light);
+            border-radius: 10px;
+        }
+        
+        .month-nav {
+            background: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s;
+            box-shadow: var(--shadow);
+        }
+        
+        .month-nav:hover {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .month-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--secondary);
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+        
+        .calendar-day-header {
+            text-align: center;
+            font-weight: bold;
+            padding: 10px 0;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .calendar-day-header.sunday {
+            color: var(--danger);
+        }
+        
+        .calendar-day-header.saturday {
+            color: #0066cc;
+        }
+        
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            font-weight: 500;
+        }
+        
+        .calendar-day:hover:not(.disabled) {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.05);
+            box-shadow: var(--shadow);
+        }
+        
+        .calendar-day.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(6, 199, 85, 0.3);
+        }
+        
+        .calendar-day.disabled {
+            background: #f0f0f0;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .calendar-day.today {
+            border-color: var(--primary);
+            font-weight: bold;
+        }
+        
+        .calendar-day.has-slots::after {
+            content: '●';
+            position: absolute;
+            bottom: 2px;
+            color: var(--success);
+            font-size: 8px;
+        }
+        
+        .time-slots {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        .time-slots.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .time-slot-header {
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: var(--light);
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .time-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .time-slot {
+            padding: 12px;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .time-slot:hover:not(.disabled) {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        
+        .time-slot.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .time-slot.disabled {
+            background: #f0f0f0;
+            color: #ccc;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+        
+        .form-section {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        .form-section.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--secondary);
+        }
+        
+        .form-label .required {
+            color: var(--danger);
+            margin-left: 3px;
+        }
+        
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background: white;
+        }
+        
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(6, 199, 85, 0.1);
+        }
+        
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .people-selector {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .people-btn {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--primary);
+            background: white;
+            color: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .people-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .people-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .people-count {
+            font-size: 24px;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        .confirmation {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        .confirmation.active {
+            display: block;
+        }
+        
+        .confirmation-card {
+            background: var(--light);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .confirmation-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .confirmation-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .confirmation-item:last-child {
+            border-bottom: none;
+        }
+        
+        .confirmation-label {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .confirmation-value {
+            font-weight: bold;
+            color: var(--secondary);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 15px rgba(6, 199, 85, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(6, 199, 85, 0.4);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: var(--secondary);
+            border: 2px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--light);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .success-message {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+            animation: fadeIn 0.5s;
+        }
+        
+        .success-message.active {
+            display: block;
+        }
+        
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--success);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            animation: bounce 0.5s;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .success-icon::after {
+            content: '✓';
+            color: white;
+            font-size: 40px;
+        }
+        
+        .success-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--secondary);
+        }
+        
+        .success-subtitle {
+            color: #666;
+            margin-bottom: 20px;
+        }
+        
+        .reservation-number {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--light);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: var(--danger);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .error-message.active {
+            display: block;
+        }
+        
+        @media (max-width: 480px) {
+            .store-name {
+                font-size: 20px;
+            }
+            
+            .time-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="store-name" id="storeName">お店の予約</h1>
+            <div class="store-info">
+                <span>📍 東京都渋谷区</span>
+                <span>📞 03-1234-5678</span>
+                <span>⏰ 11:00-22:00</span>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="booking-steps">
+                <div class="step active" id="step1">
+                    <div class="step-number">1</div>
+                    <div class="step-label">日付</div>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-number">2</div>
+                    <div class="step-label">時間</div>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-number">3</div>
+                    <div class="step-label">情報</div>
+                </div>
+                <div class="step" id="step4">
+                    <div class="step-number">4</div>
+                    <div class="step-label">確認</div>
+                </div>
+            </div>
+            
+            <div class="error-message" id="errorMessage"></div>
+            
+            <!-- カレンダー -->
+            <div class="calendar-container" id="calendarSection">
+                <div class="calendar-header">
+                    <button class="month-nav" id="prevMonth">‹</button>
+                    <div class="month-title" id="currentMonth"></div>
+                    <button class="month-nav" id="nextMonth">›</button>
+                </div>
+                <div class="calendar-grid" id="calendar"></div>
+            </div>
+            
+            <!-- 時間選択 -->
+            <div class="time-slots" id="timeSection">
+                <div class="time-slot-header" id="selectedDateDisplay"></div>
+                <div class="time-grid" id="timeSlots"></div>
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="backToCalendar()">戻る</button>
+                </div>
+            </div>
+            
+            <!-- 予約フォーム -->
+            <div class="form-section" id="formSection">
+                <div class="form-group">
+                    <label class="form-label">
+                        人数<span class="required">*</span>
+                    </label>
+                    <div class="people-selector">
+                        <button class="people-btn" onclick="changePeople(-1)">-</button>
+                        <div class="people-count" id="peopleCount">2</div>
+                        <button class="people-btn" onclick="changePeople(1)">+</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        お名前<span class="required">*</span>
+                    </label>
+                    <input type="text" class="form-input" id="customerName" placeholder="山田 太郎">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        電話番号<span class="required">*</span>
+                    </label>
+                    <input type="tel" class="form-input" id="customerPhone" placeholder="090-1234-5678">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        メールアドレス
+                    </label>
+                    <input type="email" class="form-input" id="customerEmail" placeholder="example@email.com">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        ご要望・アレルギー等
+                    </label>
+                    <textarea class="form-textarea" id="customerMessage" placeholder="アレルギーや特別なご要望がございましたらご記入ください"></textarea>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="backToTime()">戻る</button>
+                    <button class="btn btn-primary" onclick="showConfirmation()">確認へ進む</button>
+                </div>
+            </div>
+            
+            <!-- 確認画面 -->
+            <div class="confirmation" id="confirmationSection">
+                <div class="confirmation-card">
+                    <div class="confirmation-title">
+                        📝 予約内容の確認
+                    </div>
+                    <div class="confirmation-item">
+                        <span class="confirmation-label">日付</span>
+                        <span class="confirmation-value" id="confirmDate"></span>
+                    </div>
+                    <div class="confirmation-item">
+                        <span class="confirmation-label">時間</span>
+                        <span class="confirmation-value" id="confirmTime"></span>
+                    </div>
+                    <div class="confirmation-item">
+                        <span class="confirmation-label">人数</span>
+                        <span class="confirmation-value" id="confirmPeople"></span>
+                    </div>
+                    <div class="confirmation-item">
+                        <span class="confirmation-label">お名前</span>
+                        <span class="confirmation-value" id="confirmName"></span>
+                    </div>
+                    <div class="confirmation-item">
+                        <span class="confirmation-label">電話番号</span>
+                        <span class="confirmation-value" id="confirmPhone"></span>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="backToForm()">修正する</button>
+                    <button class="btn btn-primary" onclick="submitReservation()">予約を確定</button>
+                </div>
+            </div>
+            
+            <!-- ローディング -->
+            <div class="loading" id="loadingSection">
+                <div class="spinner"></div>
+                <p>予約を処理しています...</p>
+            </div>
+            
+            <!-- 完了画面 -->
+            <div class="success-message" id="successSection">
+                <div class="success-icon"></div>
+                <h2 class="success-title">予約が完了しました！</h2>
+                <p class="success-subtitle">ご予約ありがとうございます</p>
+                <div class="reservation-number" id="reservationNumber"></div>
+                <p style="color: #666; margin-bottom: 20px;">
+                    予約内容の確認メッセージをLINEでお送りしました
+                </p>
+                <button class="btn btn-primary" onclick="location.reload()">新しい予約を作成</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentMonth = new Date();
+        let selectedDate = null;
+        let selectedTime = null;
+        let peopleCount = 2;
+        let reservedSlots = {};
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCalendar();
+            loadReservedSlots();
+        });
+        
+        // カレンダー描画
+        function renderCalendar() {
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const today = new Date();
+            
+            document.getElementById('currentMonth').textContent = 
+                `${year}年${month + 1}月`;
+            
+            let html = '';
+            
+            // 曜日ヘッダー
+            const dayHeaders = ['日', '月', '火', '水', '木', '金', '土'];
+            dayHeaders.forEach((day, index) => {
+                let className = 'calendar-day-header';
+                if (index === 0) className += ' sunday';
+                if (index === 6) className += ' saturday';
+                html += `<div class="${className}">${day}</div>`;
+            });
+            
+            // 空白セル
+            for (let i = 0; i < firstDay; i++) {
+                html += '<div></div>';
+            }
+            
+            // 日付セル
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const dateStr = formatDate(date);
+                const isPast = date < today && !isSameDay(date, today);
+                const isToday = isSameDay(date, today);
+                const hasSlots = !isPast && Math.random() > 0.3; // デモ用
+                
+                let className = 'calendar-day';
+                if (isPast) className += ' disabled';
+                if (isToday) className += ' today';
+                if (hasSlots) className += ' has-slots';
+                if (selectedDate === dateStr) className += ' selected';
+                
+                html += `<div class="${className}" onclick="selectDate('${dateStr}', ${isPast})">${day}</div>`;
+            }
+            
+            document.getElementById('calendar').innerHTML = html;
+        }
+        
+        // 日付選択
+        function selectDate(dateStr, isPast) {
+            if (isPast) return;
+            
+            selectedDate = dateStr;
+            renderCalendar();
+            showTimeSlots();
+        }
+        
+        // 時間枠表示
+        function showTimeSlots() {
+            setActiveStep(2);
+            document.getElementById('calendarSection').style.display = 'none';
+            document.getElementById('timeSection').classList.add('active');
+            
+            const date = new Date(selectedDate);
+            const dateText = `${date.getMonth() + 1}月${date.getDate()}日(${['日','月','火','水','木','金','土'][date.getDay()]})`;
+            document.getElementById('selectedDateDisplay').textContent = dateText;
+            
+            // 時間枠生成
+            const slots = [];
+            for (let hour = 11; hour <= 20; hour++) {
+                for (let minute = 0; minute < 60; minute += 30) {
+                    const time = `${hour}:${minute === 0 ? '00' : '30'}`;
+                    const isReserved = reservedSlots[selectedDate]?.includes(time);
+                    slots.push({ time, isReserved });
+                }
+            }
+            
+            let html = '';
+            slots.forEach(slot => {
+                const className = slot.isReserved ? 'time-slot disabled' : 'time-slot';
+                const selected = selectedTime === slot.time ? ' selected' : '';
+                html += `<div class="${className}${selected}" onclick="selectTime('${slot.time}', ${slot.isReserved})">${slot.time}</div>`;
+            });
+            
+            document.getElementById('timeSlots').innerHTML = html;
+        }
+        
+        // 時間選択
+        function selectTime(time, isReserved) {
+            if (isReserved) return;
+            
+            selectedTime = time;
+            document.querySelectorAll('.time-slot').forEach(slot => {
+                slot.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+            
+            setTimeout(() => showForm(), 300);
+        }
+        
+        // フォーム表示
+        function showForm() {
+            setActiveStep(3);
+            document.getElementById('timeSection').classList.remove('active');
+            document.getElementById('formSection').classList.add('active');
+            document.getElementById('peopleCount').textContent = peopleCount;
+        }
+        
+        // 確認画面表示
+        function showConfirmation() {
+            const name = document.getElementById('customerName').value;
+            const phone = document.getElementById('customerPhone').value;
+            
+            if (!name || !phone) {
+                showError('お名前と電話番号は必須です');
+                return;
+            }
+            
+            setActiveStep(4);
+            document.getElementById('formSection').classList.remove('active');
+            document.getElementById('confirmationSection').classList.add('active');
+            
+            const date = new Date(selectedDate);
+            document.getElementById('confirmDate').textContent = 
+                `${date.getMonth() + 1}月${date.getDate()}日(${['日','月','火','水','木','金','土'][date.getDay()]})`;
+            document.getElementById('confirmTime').textContent = selectedTime;
+            document.getElementById('confirmPeople').textContent = `${peopleCount}名`;
+            document.getElementById('confirmName').textContent = name;
+            document.getElementById('confirmPhone').textContent = phone;
+        }
+        
+        // 予約送信
+        async function submitReservation() {
+            document.getElementById('confirmationSection').classList.remove('active');
+            document.getElementById('loadingSection').classList.add('active');
+            
+            const reservationData = {
+                store_id: 'default-store',
+                date: selectedDate,
+                time: selectedTime + ':00',
+                people: peopleCount,
+                customer_name: document.getElementById('customerName').value,
+                phone: document.getElementById('customerPhone').value,
+                email: document.getElementById('customerEmail').value || null,
+                message: document.getElementById('customerMessage').value || null,
+                user_id: 'web-' + Date.now()
+            };
+            
+            try {
+                const response = await fetch('/api/calendar-reservation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(reservationData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showSuccess(result.reservation.id);
+                } else {
+                    throw new Error(result.error || '予約の処理に失敗しました');
+                }
+            } catch (error) {
+                document.getElementById('loadingSection').classList.remove('active');
+                document.getElementById('confirmationSection').classList.add('active');
+                showError('予約の送信に失敗しました。もう一度お試しください。');
+            }
+        }
+        
+        // 成功画面表示
+        function showSuccess(reservationId) {
+            document.getElementById('loadingSection').classList.remove('active');
+            document.getElementById('successSection').classList.add('active');
+            document.getElementById('reservationNumber').textContent = 
+                `予約番号: #${String(reservationId).padStart(6, '0')}`;
+        }
+        
+        // ナビゲーション関数
+        function backToCalendar() {
+            setActiveStep(1);
+            document.getElementById('timeSection').classList.remove('active');
+            document.getElementById('calendarSection').style.display = 'block';
+        }
+        
+        function backToTime() {
+            setActiveStep(2);
+            document.getElementById('formSection').classList.remove('active');
+            document.getElementById('timeSection').classList.add('active');
+        }
+        
+        function backToForm() {
+            setActiveStep(3);
+            document.getElementById('confirmationSection').classList.remove('active');
+            document.getElementById('formSection').classList.add('active');
+        }
+        
+        // 人数変更
+        function changePeople(delta) {
+            peopleCount = Math.max(1, Math.min(10, peopleCount + delta));
+            document.getElementById('peopleCount').textContent = peopleCount;
+        }
+        
+        // ステップ更新
+        function setActiveStep(step) {
+            document.querySelectorAll('.step').forEach((el, index) => {
+                el.classList.remove('active', 'completed');
+                if (index < step - 1) el.classList.add('completed');
+                if (index === step - 1) el.classList.add('active');
+            });
+        }
+        
+        // 月変更
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            currentMonth.setMonth(currentMonth.getMonth() - 1);
+            renderCalendar();
+        });
+        
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+            renderCalendar();
+        });
+        
+        // ユーティリティ関数
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        function isSameDay(date1, date2) {
+            return date1.getFullYear() === date2.getFullYear() &&
+                   date1.getMonth() === date2.getMonth() &&
+                   date1.getDate() === date2.getDate();
+        }
+        
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.classList.add('active');
+            setTimeout(() => {
+                errorEl.classList.remove('active');
+            }, 5000);
+        }
+        
+        // 予約済み時間取得
+        async function loadReservedSlots() {
+            try {
+                const response = await fetch('/api/calendar-slots?store_id=default-store');
+                const data = await response.json();
+                if (data.slots) {
+                    reservedSlots = data.slots;
+                }
+            } catch (error) {
+                console.error('Failed to load reserved slots:', error);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約テスト</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #06c755;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 0;
+            width: 100%;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f8f8;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 LINE予約システム 動作テスト</h1>
+        
+        <div class="info">
+            <strong>現在の設定:</strong><br>
+            Store ID: default-store<br>
+            API: /api/calendar-reservation
+        </div>
+
+        <button onclick="testReservation()">📅 テスト予約を送信</button>
+        <button onclick="checkReservations()">📋 予約一覧を確認</button>
+        <button onclick="checkSeats()">🪑 席データを確認</button>
+        
+        <div id="result">ボタンをクリックしてテストを開始してください</div>
+    </div>
+    
+    <script>
+        // 本日の日付取得
+        function getTodayDate() {
+            return new Date().toISOString().split('T')[0];
+        }
+        
+        // 明日の日付取得
+        function getTomorrowDate() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            return tomorrow.toISOString().split('T')[0];
+        }
+        
+        // テスト予約送信
+        async function testReservation() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '⏳ 送信中...';
+            
+            const testData = {
+                store_id: 'default-store',
+                customer_name: 'テスト太郎_' + new Date().getTime(),
+                date: getTomorrowDate(),
+                time: '14:00:00',
+                people: 2,
+                message: 'テスト予約 - ' + new Date().toLocaleTimeString('ja-JP'),
+                user_id: 'test-user',
+                phone: '090-0000-0000',
+                email: 'test@example.com'
+            };
+            
+            try {
+                console.log('送信データ:', testData);
+                
+                const response = await fetch('/api/calendar-reservation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ 予約成功！</h3>
+                            <strong>予約ID:</strong> #${result.reservation.id}<br>
+                            <strong>日時:</strong> ${result.reservation.date} ${result.reservation.time}<br>
+                            <strong>名前:</strong> ${result.reservation.customer_name}<br>
+                            <strong>人数:</strong> ${result.reservation.people}名<br>
+                            <strong>Store:</strong> ${result.reservation.store_id}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ エラー</h3>
+                            <strong>Status:</strong> ${response.status}<br>
+                            <pre>${JSON.stringify(result, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('エラー:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ ネットワークエラー</h3>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+        
+        // 予約一覧確認
+        async function checkReservations() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '⏳ 読み込み中...';
+            
+            try {
+                const response = await fetch('/api/admin?action=supabase');
+                const result = await response.json();
+                
+                if (response.ok && result.data) {
+                    const reservations = result.data;
+                    if (reservations.length === 0) {
+                        resultDiv.innerHTML = '<div class="info">予約データがありません</div>';
+                    } else {
+                        let html = `
+                            <h3>📋 予約一覧 (${reservations.length}件)</h3>
+                            <div style="max-height: 300px; overflow-y: auto;">
+                        `;
+                        
+                        reservations.slice(0, 10).forEach(r => {
+                            html += `
+                                <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                                    <strong>#${r.id}</strong> | 
+                                    ${r.date} ${r.time} | 
+                                    ${r.customer_name || 'ゲスト'} | 
+                                    ${r.people}名 | 
+                                    ${r.status}
+                                </div>
+                            `;
+                        });
+                        
+                        if (reservations.length > 10) {
+                            html += '<div style="padding: 10px;">... 他 ' + (reservations.length - 10) + '件</div>';
+                        }
+                        
+                        html += '</div>';
+                        resultDiv.innerHTML = html;
+                    }
+                } else {
+                    resultDiv.innerHTML = '<div class="error">データ取得エラー</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">エラー: ${error.message}</div>`;
+            }
+        }
+        
+        // 席データ確認
+        async function checkSeats() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '⏳ 読み込み中...';
+            
+            try {
+                const response = await fetch('/api/seats-manage');
+                const result = await response.json();
+                
+                if (response.ok && result.seats) {
+                    const seats = result.seats;
+                    if (seats.length === 0) {
+                        resultDiv.innerHTML = '<div class="info">席データがありません</div>';
+                    } else {
+                        let html = `
+                            <h3>🪑 席一覧 (${seats.length}席)</h3>
+                            <div style="max-height: 300px; overflow-y: auto;">
+                        `;
+                        
+                        seats.forEach(s => {
+                            html += `
+                                <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                                    <strong>${s.name}</strong> | 
+                                    ${s.seat_type} | 
+                                    定員: ${s.capacity}名 | 
+                                    ${s.is_locked ? '🔒 ロック中' : '✅ 利用可能'}
+                                </div>
+                            `;
+                        });
+                        
+                        html += '</div>';
+                        resultDiv.innerHTML = html;
+                    }
+                } else {
+                    resultDiv.innerHTML = '<div class="error">データ取得エラー</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">エラー: ${error.message}</div>`;
+            }
+        }
+        
+        // ページ読み込み時に自動で予約一覧を表示
+        window.addEventListener('DOMContentLoaded', () => {
+            checkReservations();
+        });
+    </script>
+</body>
+</html>

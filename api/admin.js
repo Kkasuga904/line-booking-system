@@ -29,6 +29,15 @@ export default async function handler(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const action = url.searchParams.get('action');
   
+  // GETリクエストでactionがない場合はヘルスチェック
+  if (!action && req.method === 'GET') {
+    return res.status(200).json({ 
+      status: 'healthy',
+      endpoint: 'admin',
+      timestamp: new Date().toISOString()
+    });
+  }
+  
   if (!action) {
     return res.status(400).json({ error: 'actionパラメータが必要です' });
   }
