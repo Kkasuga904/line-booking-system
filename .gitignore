@@ -171,6 +171,11 @@ scripts/*.result
 *-business-info.json
 store-names.txt
 business-names.txt
+# セキュリティ対策追加
+test-token.txt
+*token*.txt
+setup-vercel-env.bat
+fix-store-id.js
 client-list.*
 customer-list.*
 *.client-data
