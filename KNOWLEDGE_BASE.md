@@ -40,10 +40,16 @@ line-booking-system/
 LINE_CHANNEL_ACCESS_TOKEN  # LINE Bot用トークン
 LINE_CHANNEL_SECRET        # LINE Bot認証用
 LIFF_ID                   # 2006487876-xd1A5qJB（現在の値）
-STORE_ID                  # default-store（重要！）
+STORE_ID                  # default-store（超重要！必ず統一）
 SUPABASE_URL              # https://faenvzzeguvlconvrqgp.supabase.co
 SUPABASE_ANON_KEY         # Supabaseアクセスキー
 ```
+
+### ⚠️ STORE_ID統一の重要性
+**全ての予約データと環境変数でSTORE_IDを`default-store`に統一すること！**
+- 予約作成時: `default-store`で保存
+- 管理画面表示時: `default-store`で検索
+- 不一致があると予約が表示されない
 
 ### データベーススキーマ
 
@@ -295,6 +301,42 @@ async function dailyMaintenance() {
 }
 ```
 
+## 🚨 よくある問題と解決法
+
+### 1. 予約が管理画面に表示されない
+**原因**: store_idの不一致（最も多い問題）
+**解決法**:
+```bash
+# 診断スクリプト実行
+node test-store-id.js
+
+# 修正スクリプト実行
+node fix-store-id.js
+
+# 予防スクリプト（定期実行推奨）
+node prevent-issues.js
+```
+
+**根本対策**:
+1. 環境変数`STORE_ID=default-store`を全環境で統一
+2. Vercel環境変数を更新: `vercel env add STORE_ID production`
+3. 再デプロイ: `vercel --prod --force`
+
+### 2. Vercel 12ファイル制限エラー
+**原因**: Hobby planは12個までのServerless Functions制限
+**解決法**:
+```bash
+# API統合スクリプト実行
+node consolidate-apis.js
+```
+
+### 3. LINE返信が来ない
+**原因**: 環境変数未設定 or Webhook設定ミス
+**確認事項**:
+- LINE Developers: Webhook ON、応答メッセージ OFF
+- Webhook URL: `https://line-booking-system-seven.vercel.app/api/webhook-simple`
+- 環境変数: LINE_CHANNEL_ACCESS_TOKEN設定済み
+
 ## 📚 参考リンク
 
 - [Vercel Functions制限](https://vercel.com/docs/concepts/limits)
@@ -311,9 +353,9 @@ async function dailyMaintenance() {
 4. 最悪の場合: 前のコミットにロールバック
 
 ### データ不整合時
-1. `scripts/check-all-reservations.js`実行
-2. store_id統一スクリプト実行
-3. 必要に応じて手動修正
+1. `prevent-issues.js`実行（自動修正機能付き）
+2. `test-store-id.js`で確認
+3. 必要に応じて`fix-store-id.js`実行
 
 ### LINE Bot停止時
 1. LINE_CHANNEL_ACCESS_TOKEN確認
