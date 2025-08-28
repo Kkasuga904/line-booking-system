@@ -61,7 +61,7 @@ export default async function handler(req, res) {
         const liffUrl = `https://liff.line.me/${liffId}`;
         
         if (userMessage.includes('予約')) {
-          replyText = `ご予約はこちらから：\n\n📱 LINE内で予約（おすすめ）\n${liffUrl}\n\n🌐 ブラウザで予約\nhttps://line-booking-system-seven.vercel.app/liff-booking.html`;
+          replyText = `ご予約はこちらから：\n\n📱 LINE内で予約（おすすめ）\n${liffUrl}\n\n🌐 ブラウザで予約\nhttps://line-booking-system-seven.vercel.app/liff-calendar`;
         } else if (userMessage.includes('確認') || userMessage.includes('変更') || userMessage.includes('キャンセル')) {
           replyText = `予約の確認・変更・キャンセル：\n\n📊 管理画面\nhttps://line-booking-system-seven.vercel.app/admin-calendar\n\n📋 予約一覧\nhttps://line-booking-system-seven.vercel.app/`;
         } else {
