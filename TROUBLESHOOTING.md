@@ -2,6 +2,47 @@
 
 ## よくある問題と解決方法
 
+### 🔴 **最重要問題: Invalid signature - Channel mismatch** 
+
+#### 症状
+- Webhookは受信するが返信が来ない
+- Cloud Loggingで `Invalid signature - Channel mismatch detected`
+- 署名のハッシュが一致しない (`sig_head` ≠ `exp_head`)
+
+#### 根本原因
+LINE Developer ConsoleのWebhook設定とGCP Cloud Runの環境変数で**異なるチャネル**のCredentialsを使用している
+
+#### 解決手順
+1. **LINE Developer Console**で現在のWebhook URLを確認
+2. 同じチャネルの**Channel Secret**と**Channel Access Token**をメモ
+3. 環境変数を更新:
+   ```yaml
+   # .env.yaml
+   LINE_CHANNEL_SECRET: "正しいチャネルのSecret"
+   LINE_CHANNEL_ACCESS_TOKEN: "正しいチャネルのToken"
+   ```
+4. 再デプロイ: `gcloud run deploy --env-vars-file .env.yaml`
+
+#### 予防策（実装済み）
+- 起動時にチャネルハッシュをログ出力
+- 署名エラー時にトラブルシューティングメッセージ表示
+- Reply-to-Push自動フォールバック機能
+
+#### GCP Cloud Loggingでの診断方法
+```bash
+# 署名・Webhook関連エラー確認
+gcloud logging read \
+'resource.type=cloud_run_revision AND (jsonPayload.msg~"Invalid signature" OR jsonPayload.msg~"Webhook")' \
+--limit 10 --project YOUR_PROJECT_ID
+
+# エラーパターンと対処法
+# "Invalid signature" → チャネル不一致
+# "missing secret/signature/rawBody" → 環境変数未設定
+# "line reply failed" → アクセストークン問題
+```
+
+---
+
 ### 🔴 問題1: 404 Not Found エラー
 
 #### 症状
@@ -238,3 +279,70 @@ https://your-domain.vercel.app/api/echo
 4. **テスト方法**
    - 開発用と本番用でチャンネルを分ける
    - テスト用の友だちアカウントを作成
+
+---
+
+## 🚀 GCP Cloud Run版 トラブルシューティング
+
+### 問題1: データが表示されない
+
+#### 原因と対策
+1. **環境変数未設定**
+   ```bash
+   # 確認
+   curl https://line-booking-api-116429620992.asia-northeast1.run.app/api/ping
+   
+   # 再設定
+   gcloud run deploy line-booking-api --env-vars-file .env.yaml
+   ```
+
+2. **Supabaseテーブル未作成**
+   - Supabase SQL Editorで`create-all-tables.sql`を実行
+
+3. **ブラウザキャッシュ**
+   - Ctrl + F5でハードリロード
+
+### 問題2: LINEボットが返信しない
+
+#### 実装済み対策
+- **自動リトライ機能（最大3回）**
+- **環境変数チェック機能**
+- **詳細エラーログ**
+
+#### デバッグ方法
+```bash
+# Cloud Runログ確認
+gcloud run logs read --service line-booking-api --limit 50
+
+# 環境変数確認
+gcloud run services describe line-booking-api --format="get(spec.template.spec.containers[0].env)"
+```
+
+### 問題3: 環境変数型エラー
+
+#### エラーメッセージ
+```
+Cannot update environment variable to string literal 
+because it has already been set with a different type
+```
+
+#### 解決方法
+```bash
+# サービス削除して再作成
+gcloud run services delete line-booking-api --quiet
+gcloud run deploy line-booking-api --env-vars-file .env.yaml
+```
+
+### 重要な実装済み改善
+
+1. **環境変数チェック（server.js:15-20）**
+   - 起動時に環境変数を検証
+   - `/api/ping`で状態確認可能
+
+2. **LINEリトライ機能（server.js:201-273）**
+   - 最大3回の自動リトライ
+   - exponential backoff実装
+
+3. **詳細ログ出力**
+   - JSON構造化ログ
+   - Cloud Loggingとの統合

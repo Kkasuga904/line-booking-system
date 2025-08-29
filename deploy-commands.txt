@@ -1,0 +1,31 @@
+# Google Cloud SDK Shellで実行するコマンド一覧
+
+# 1. ディレクトリ移動
+cd C:\Users\user\line-booking-system
+
+# 2. プロジェクト設定
+gcloud config set project line-booking-prod-20241228
+
+# 3. APIの有効化（初回のみ）
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com
+
+# 4. Artifact Registryリポジトリ作成（初回のみ）
+gcloud artifacts repositories create line-booking --repository-format=docker --location=asia-northeast1 --description="LINE予約システムのDockerイメージ"
+
+# 5. Docker認証設定
+gcloud auth configure-docker asia-northeast1-docker.pkg.dev
+
+# 6. Dockerイメージビルド
+docker build -t asia-northeast1-docker.pkg.dev/line-booking-prod-20241228/line-booking/line-booking-api:latest .
+
+# 7. Dockerイメージプッシュ
+docker push asia-northeast1-docker.pkg.dev/line-booking-prod-20241228/line-booking/line-booking-api:latest
+
+# 8. Cloud Runにデプロイ（環境変数は後で更新）
+gcloud run deploy line-booking-api --image asia-northeast1-docker.pkg.dev/line-booking-prod-20241228/line-booking/line-booking-api:latest --platform managed --region asia-northeast1 --allow-unauthenticated --memory 512Mi --cpu 1 --min-instances 1 --max-instances 100 --port 8080
+
+# 9. 環境変数の設定（実際の値に置き換えてください）
+gcloud run services update line-booking-api --region asia-northeast1 --set-env-vars LINE_CHANNEL_SECRET=YOUR_SECRET,LINE_CHANNEL_ACCESS_TOKEN=YOUR_TOKEN,SUPABASE_URL=YOUR_SUPABASE_URL,SUPABASE_ANON_KEY=YOUR_SUPABASE_KEY
+
+# 10. サービスURLの確認
+gcloud run services describe line-booking-api --region asia-northeast1 --format "value(status.url)"

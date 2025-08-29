@@ -374,6 +374,8 @@
             z-index: 1000;
             align-items: center;
             justify-content: center;
+            overflow-y: auto;
+            padding: 20px 0;
         }
         
         .modal.show {
@@ -386,6 +388,10 @@
             border-radius: 16px;
             max-width: 400px;
             width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            margin: 20px auto;
         }
         
         .modal-title {
@@ -595,6 +601,18 @@
                 padding: 20px;
                 font-size: 14px;
             }
+            
+            /* モバイルでのモーダル調整 */
+            .modal {
+                padding: 10px;
+            }
+            
+            .modal-content {
+                max-height: 85vh;
+                width: 95%;
+                padding: 20px;
+                margin: 10px auto;
+            }
         }
         
         /* PCでモバイルビューを非表示 */
@@ -614,8 +632,11 @@
                 <span style="color: #666; font-size: 14px;">カレンダービュー</span>
             </div>
             <div class="view-controls">
+                <button class="view-btn" onclick="window.location.href='/dashboard.html'" style="background: linear-gradient(45deg, #667eea, #764ba2); color: white;">📊 ダッシュボード</button>
+                <button class="view-btn" onclick="window.location.href='/advanced-search.html'">🔍 高度検索</button>
                 <button class="view-btn" onclick="window.location.href='/admin'">📋 リスト表示</button>
                 <button class="view-btn" onclick="window.location.href='/seats'">🪑 席管理</button>
+                <button class="view-btn" onclick="window.location.href='/time-restrictions.html'" style="background: #ff6b35; color: white;">🕐 時間制限</button>
                 <button class="view-btn" onclick="showSettingsModal()">⚙️ 設定</button>
             </div>
         </div>
@@ -873,9 +894,10 @@
             header.innerHTML = `
                 <tr>
                     <th>時間</th>
-                    <th class="today" data-date="${dateStr}">
+                    <th class="today" data-date="${dateStr}" onclick="openTimeRestrictionModal('${dateStr}')" style="cursor: pointer;">
                         <div class="day-header">${days[dayOfWeek]}</div>
                         <div class="day-date">${currentDate.getDate()}</div>
+                        <div style="font-size: 10px; color: #ff6b35;">クリックで制限設定</div>
                     </th>
                 </tr>
             `;
@@ -917,9 +939,10 @@
                 const day = String(date.getDate()).padStart(2, '0');
                 const dateStr = `${year}-${month}-${day}`;
                 
-                html += `<th class="${className}" data-date="${dateStr}">
+                html += `<th class="${className}" data-date="${dateStr}" onclick="openTimeRestrictionModal('${dateStr}')" style="cursor: pointer;">
                     <div class="day-header">${days[i]}</div>
                     <div class="day-date">${date.getDate()}</div>
+                    <div style="font-size: 10px; color: #ff6b35;">クリックで制限設定</div>
                 </th>`;
             }
             
@@ -1466,7 +1489,7 @@
                 : '<option value="">席情報がありません</option>';
             
             modal.innerHTML = `
-                <div class="modal-content">
+                <div class="modal-content" style="max-height: 85vh; overflow-y: auto; margin: auto;">
                     <div class="modal-title">新規予約追加</div>
                     <form id="addReservationForm" onsubmit="submitNewReservation(event)">
                         <div class="form-group">
@@ -1767,6 +1790,128 @@
                 }
             });
         }
+        // 時間制限モーダルを開く
+        function openTimeRestrictionModal(dateStr) {
+            const modal = document.getElementById('timeRestrictionModal');
+            document.getElementById('restrictionDate').textContent = dateStr;
+            document.getElementById('restrictionDateInput').value = dateStr;
+            
+            // 既存の制限を読み込む
+            loadTimeRestrictions(dateStr);
+            
+            modal.style.display = 'block';
+        }
+        
+        // 時間制限を読み込む
+        async function loadTimeRestrictions(date) {
+            try {
+                const response = await fetch(`/api/time-restrictions?date=${date}`);
+                const data = await response.json();
+                
+                // 時間枠リストを生成
+                const container = document.getElementById('timeSlotsList');
+                container.innerHTML = '';
+                
+                const timeSlots = [];
+                for (let hour = 10; hour <= 21; hour++) {
+                    timeSlots.push(`${hour}:00`);
+                    if (hour < 21) {
+                        timeSlots.push(`${hour}:30`);
+                    }
+                }
+                
+                timeSlots.forEach(time => {
+                    const restriction = data.specific?.find(r => r.time_slot === time + ':00');
+                    const maxCapacity = restriction?.max_capacity ?? 4;
+                    const isBlocked = restriction?.is_blocked || false;
+                    
+                    const slotDiv = document.createElement('div');
+                    slotDiv.className = 'time-slot-item';
+                    slotDiv.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 5px;">
+                            <span style="font-weight: bold;">${time}</span>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <label>最大予約数:</label>
+                                <input type="number" id="capacity_${time}" value="${maxCapacity}" min="0" max="20" style="width: 60px; padding: 5px;">
+                                <label>
+                                    <input type="checkbox" id="blocked_${time}" ${isBlocked ? 'checked' : ''}>
+                                    ブロック
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(slotDiv);
+                });
+            } catch (error) {
+                console.error('Failed to load restrictions:', error);
+            }
+        }
+        
+        // 時間制限を保存
+        async function saveTimeRestrictions() {
+            const date = document.getElementById('restrictionDateInput').value;
+            const timeSlots = [];
+            
+            for (let hour = 10; hour <= 21; hour++) {
+                const times = [`${hour}:00`];
+                if (hour < 21) times.push(`${hour}:30`);
+                
+                times.forEach(time => {
+                    const capacity = document.getElementById(`capacity_${time}`)?.value || 4;
+                    const isBlocked = document.getElementById(`blocked_${time}`)?.checked || false;
+                    
+                    if (capacity != 4 || isBlocked) {
+                        timeSlots.push({
+                            type: 'specific',
+                            dayOrDate: date,
+                            time: time + ':00',
+                            capacity: parseInt(capacity),
+                            isBlocked: isBlocked,
+                            reason: isBlocked ? '管理者によるブロック' : ''
+                        });
+                    }
+                });
+            }
+            
+            // 各時間枠を保存
+            for (const slot of timeSlots) {
+                try {
+                    await fetch('/api/time-restrictions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(slot)
+                    });
+                } catch (error) {
+                    console.error('Failed to save restriction:', error);
+                }
+            }
+            
+            alert('時間制限を保存しました');
+            closeTimeRestrictionModal();
+            loadReservations(); // カレンダーを再読み込み
+        }
+        
+        // モーダルを閉じる
+        function closeTimeRestrictionModal() {
+            document.getElementById('timeRestrictionModal').style.display = 'none';
+        }
     </script>
+
+    <!-- 時間制限設定モーダル -->
+    <div id="timeRestrictionModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; overflow-y: auto; padding: 20px;">
+        <div style="position: relative; margin: 20px auto; background: white; border-radius: 12px; padding: 30px; width: 90%; max-width: 600px; max-height: 85vh; overflow-y: auto;">
+            <h2 style="margin-bottom: 20px;">📅 <span id="restrictionDate"></span> の時間制限設定</h2>
+            <input type="hidden" id="restrictionDateInput">
+            
+            <div id="timeSlotsList" style="margin-bottom: 20px;">
+                <!-- 時間枠リストがここに生成される -->
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+                <button onclick="closeTimeRestrictionModal()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">キャンセル</button>
+                <button onclick="saveTimeRestrictions()" style="padding: 10px 20px; background: #ff6b35; color: white; border: none; border-radius: 5px; cursor: pointer;">保存</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

@@ -1,27 +1,27 @@
-FROM node:18-alpine
+FROM node:20-slim
 
-# アプリケーションディレクトリの作成
+# 作業ディレクトリ設定
 WORKDIR /app
 
 # package.jsonとpackage-lock.jsonをコピー
 COPY package*.json ./
 
-# 依存関係のインストール
-RUN npm ci --only=production
+# 依存関係インストール（ciの代わりにinstallを使用）
+RUN npm install --production
 
-# アプリケーションソースをコピー
+# アプリケーションコードをコピー
 COPY . .
 
-# データと設定用のディレクトリを作成
-RUN mkdir -p /app/data /app/logs /app/config
+# ポートとNode環境設定
+ENV PORT=8080 \
+    NODE_ENV=production
 
-# 非rootユーザーの作成と権限設定
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
+# ヘルスチェック
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/api/ping', (r) => {r.statusCode === 200 ? process.exit(0) : process.exit(1)})" || exit 1
 
-# ユーザーを切り替え
-USER nodejs
+# 非rootユーザーで実行（セキュリティ）
+USER node
 
-# アプリケーションの起動
-CMD ["node", "multi-tenant-server.js"]
+# サーバー起動
+CMD ["node", "server.js"]

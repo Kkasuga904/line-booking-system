@@ -252,12 +252,18 @@ async function handleLineEvent(event) {
     const userId = event.source?.userId;  // LINEユーザーID（Uで始まる固有ID）
     const text = event.message?.text;     // 送信されたメッセージテキスト
     const replyToken = event.replyToken;  // 返信用トークン（有効期限1分）
+    
+    // 言語検出（多言語対応）
+    const detectedLanguage = detectLanguage(text);
+    const keywordType = matchKeyword(text, detectedLanguage);
 
     console.log(JSON.stringify({
       severity: 'INFO',
       msg: 'Processing text message',
       userIdPrefix: userId ? userId.substring(0, 8) + '...' : 'none',
       text: text,
+      detectedLanguage: detectedLanguage,
+      keywordType: keywordType,
       eventType: event.type,
       replyTokenPrefix: replyToken ? replyToken.substring(0, 10) + '...' : 'none',
       channelInfo: {
@@ -270,14 +276,15 @@ async function handleLineEvent(event) {
     // メッセージに応じた処理（キーワードを判定して適切なアクションを実行）
     let replyMessage = '';
     
-    // 「予約」という文言が含まれている場合（部分一致）
-    if (text && text.includes('予約')) {
+    // 予約キーワードが含まれている場合（多言語対応）
+    if (keywordType === 'reservation') {
       const liffId = process.env.LIFF_ID || '***REMOVED-ROTATE-CREDENTIAL***';
       
       // 再発防止: LIFF用リダイレクトページを使用
-      const liffUrl = `https://liff.line.me/${liffId}`;
+      // LIFFボタンはリダイレクトページを使用してエラーを回避
+      const liffUrl = 'https://line-booking-api-116429620992.asia-northeast1.run.app/liff-redirect.html';
       const browserUrl = 'https://line-booking-api-116429620992.asia-northeast1.run.app/enhanced-booking.html';
-      const liffRedirectUrl = 'https://line-booking-api-116429620992.asia-northeast1.run.app/liff-redirect.html';
+      const liffDirectUrl = `https://liff.line.me/${liffId}`;
       
       console.log(JSON.stringify({
         severity: 'INFO',
@@ -291,7 +298,7 @@ async function handleLineEvent(event) {
       // Flex Messageでボタン付きメッセージを送る（リッチなメッセージ形式）
       const flexMessage = {
         type: 'flex',
-        altText: '予約メニュー',
+        altText: getMessage('reservationMenu', detectedLanguage),
         contents: {
           type: 'bubble',
           hero: {
@@ -300,7 +307,9 @@ async function handleLineEvent(event) {
             contents: [
               {
                 type: 'text',
-                text: '🌸 予約システム',
+                text: detectedLanguage === 'en' ? '🌸 Reservation System' : 
+                      detectedLanguage === 'ko' ? '🌸 예약 시스템' :
+                      detectedLanguage === 'zh' ? '🌸 预约系统' : '🌸 予約システム',
                 weight: 'bold',
                 size: 'lg',
                 color: '#ffffff',
@@ -316,14 +325,14 @@ async function handleLineEvent(event) {
             contents: [
               {
                 type: 'text',
-                text: '📅 予約メニュー',
+                text: getMessage('reservationMenu', detectedLanguage),
                 weight: 'bold',
                 size: 'xl',
                 margin: 'md'
               },
               {
                 type: 'text',
-                text: '以下のボタンから予約画面を開いてください',
+                text: getMessage('reservationPrompt', detectedLanguage),
                 size: 'sm',
                 color: '#999999',
                 margin: 'md',
@@ -341,14 +350,14 @@ async function handleLineEvent(event) {
                 contents: [
                   {
                     type: 'text',
-                    text: '💡 ヒント',
+                    text: getMessage('hint', detectedLanguage),
                     weight: 'bold',
                     size: 'sm',
                     color: '#667eea'
                   },
                   {
                     type: 'text',
-                    text: 'LINEアプリ内から予約すると、予約確認通知がLINEに届きます',
+                    text: getMessage('hintMessage', detectedLanguage),
                     size: 'xs',
                     color: '#999999',
                     wrap: true
@@ -368,8 +377,8 @@ async function handleLineEvent(event) {
                 height: 'sm',
                 action: {
                   type: 'uri',
-                  label: '📱 LINEで予約を開く',
-                  uri: liffUrl  // LIFFを優先使用
+                  label: getMessage('openInLine', detectedLanguage),
+                  uri: browserUrl  // ブラウザURLに変更してエラー回避
                 },
                 color: '#06c755'
               },
@@ -379,7 +388,7 @@ async function handleLineEvent(event) {
                 height: 'sm',
                 action: {
                   type: 'uri',
-                  label: '🌐 ブラウザで予約',
+                  label: getMessage('openInBrowser', detectedLanguage),
                   uri: browserUrl  // フォールバック用
                 }
               },
@@ -425,12 +434,12 @@ async function handleLineEvent(event) {
       }
       return; // 早期リターンで他の処理をスキップ（重要：重複処理を防ぐ）
     } 
-    // 「キャンセル」という文言が含まれている場合（部分一致対応）
-    else if (text && text.includes('キャンセル')) {
-      replyMessage = '予約をキャンセルしますか？「はい」または「いいえ」でお答えください。';
+    // キャンセルキーワードが含まれている場合（多言語対応）
+    else if (keywordType === 'cancel') {
+      replyMessage = getMessage('confirmPrompt', detectedLanguage);
     } 
-    // 「確認」「状況」「予約状況」のいずれかが含まれている場合（柔軟なキーワードマッチング）
-    else if (text && (text.includes('確認') || text.includes('状況') || text.includes('予約状況'))) {
+    // 確認キーワードが含まれている場合（多言語対応）
+    else if (keywordType === 'confirm') {
       // Supabaseから該当ユーザーの今日以降の予約を取得（期限切れの予約は除外）
       const { data, error } = await supabase
         .from('reservations')
@@ -440,16 +449,19 @@ async function handleLineEvent(event) {
         .order('date', { ascending: true });  // 日付順でソート
 
       if (data && data.length > 0) {
-        replyMessage = `予約確認:\n${data.map(r => `${r.date} ${r.time}`).join('\n')}`;
+        const headerText = detectedLanguage === 'en' ? 'Reservation Confirmation:' :
+                          detectedLanguage === 'ko' ? '예약 확인:' :
+                          detectedLanguage === 'zh' ? '预约确认:' : '予約確認:';
+        replyMessage = `${headerText}\n${data.map(r => `${r.date} ${r.time}`).join('\n')}`;
       } else {
-        replyMessage = '予約が見つかりませんでした。';
+        replyMessage = getMessage('noReservation', detectedLanguage);
       }
     } 
-    // 「メニュー」「機能」「画面」「ダッシュボード」が含まれている場合（全機能一覧表示）
-    else if (text && (text.includes('メニュー') || text.includes('機能') || text.includes('画面') || text.includes('ダッシュボード'))) {
+    // メニューキーワードが含まれている場合（多言語対応）
+    else if (keywordType === 'menu') {
       const flexMessage = {
         type: 'flex',
-        altText: 'システム機能メニュー',
+        altText: getMessage('systemFunctions', detectedLanguage),
         contents: {
           type: 'bubble',
           body: {
@@ -458,14 +470,14 @@ async function handleLineEvent(event) {
             contents: [
               {
                 type: 'text',
-                text: '🎛️ システム機能',
+                text: getMessage('systemFunctions', detectedLanguage),
                 weight: 'bold',
                 size: 'xl',
                 margin: 'md'
               },
               {
                 type: 'text',
-                text: '利用可能な機能一覧です',
+                text: getMessage('availableFunctions', detectedLanguage),
                 size: 'sm',
                 color: '#999999',
                 margin: 'md',
@@ -484,7 +496,7 @@ async function handleLineEvent(event) {
                 height: 'sm',
                 action: {
                   type: 'uri',
-                  label: '📊 ダッシュボード',
+                  label: getMessage('dashboard', detectedLanguage),
                   uri: 'https://line-booking-api-116429620992.asia-northeast1.run.app/dashboard.html'
                 }
               },
@@ -494,7 +506,7 @@ async function handleLineEvent(event) {
                 height: 'sm',
                 action: {
                   type: 'uri',
-                  label: '📅 カレンダー予約',
+                  label: getMessage('calendar', detectedLanguage),
                   uri: 'https://line-booking-api-116429620992.asia-northeast1.run.app/admin-calendar-v2.html'
                 }
               },
@@ -504,7 +516,7 @@ async function handleLineEvent(event) {
                 height: 'sm',
                 action: {
                   type: 'uri',
-                  label: '🔍 高度検索',
+                  label: getMessage('search', detectedLanguage),
                   uri: 'https://line-booking-api-116429620992.asia-northeast1.run.app/advanced-search.html'
                 }
               },
@@ -514,7 +526,7 @@ async function handleLineEvent(event) {
                 height: 'sm',
                 action: {
                   type: 'uri',
-                  label: '⚡ システム監視',
+                  label: getMessage('monitor', detectedLanguage),
                   uri: 'https://line-booking-api-116429620992.asia-northeast1.run.app/system-monitor.html'
                 }
               }
@@ -526,7 +538,11 @@ async function handleLineEvent(event) {
       await replyOrFallback(event, flexMessage);
       return;
     } else {
-      replyMessage = '「予約」「確認」「キャンセル」「メニュー」のいずれかを入力してください。\n\n📱 利用可能なコマンド:\n• 予約 → 予約画面\n• 確認 → 予約状況確認\n• キャンセル → 予約キャンセル\n• メニュー → 全機能一覧';
+      replyMessage = getMessage('availableCommands', detectedLanguage) + 
+        (detectedLanguage === 'en' ? '\n\n📱 Available commands:\n• reservation → Booking screen\n• confirm → Check status\n• cancel → Cancel booking\n• menu → All functions' :
+         detectedLanguage === 'ko' ? '\n\n📱 사용 가능한 명령:\n• 예약 → 예약 화면\n• 확인 → 예약 상태 확인\n• 취소 → 예약 취소\n• 메뉴 → 전체 기능' :
+         detectedLanguage === 'zh' ? '\n\n📱 可用命令:\n• 预约 → 预约画面\n• 确认 → 预约状态确认\n• 取消 → 取消预约\n• 菜单 → 全部功能' :
+         '\n\n📱 利用可能なコマンド:\n• 予約 → 予約画面\n• 確認 → 予約状況確認\n• キャンセル → 予約キャンセル\n• メニュー → 全機能一覧');
     }
 
     // LINE返信（Reply APIを使用、失敗時はPush APIにフォールバック）
@@ -813,11 +829,12 @@ app.get('/seats', (req, res) => {
 // ==========================================
 
 // 予約確認メッセージ送信関数
-// 予約完了時にLINEユーザーへ確認通知を送る
+// 予約完了時にLINEユーザーへ確認通知を送る（多言語対応）
 // @param {string} userId - LINE ユーザーID（Uで始まる）
 // @param {Object} reservation - 予約情報オブジェクト
 // @param {string} customerName - 顧客名
-async function sendReservationConfirmation(userId, reservation, customerName) {
+// @param {string} language - 言語コード（ja/en/ko/zh）
+async function sendReservationConfirmation(userId, reservation, customerName, language = 'ja') {
   try {
     console.log('🔔 [Notification] Attempting to send confirmation to:', userId);
     
@@ -842,21 +859,8 @@ async function sendReservationConfirmation(userId, reservation, customerName) {
     
     console.log('✅ Valid LINE user ID detected, preparing message...');
     
-    const message = `予約確認
-
-${customerName}様
-
-ご予約を承りました。
-
-📅 日付: ${reservation.date}
-⏰ 時間: ${reservation.time}
-👥 人数: ${reservation.people || 1}名
-
-予約番号: #${String(reservation.id).padStart(6, '0')}
-
-ご来店をお待ちしております。
-
-※キャンセル・変更は「キャンセル」とメッセージをお送りください。`;
+    // 多言語対応の予約確認メッセージを生成
+    const message = generateReservationConfirmation(reservation, customerName, language);
     
     const response = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
