@@ -31,6 +31,18 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
         
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .header-left {
+            flex: 1;
+        }
+        
         h1 {
             color: #333;
             font-size: 28px;
@@ -40,6 +52,53 @@
         .subtitle {
             color: #666;
             font-size: 14px;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .nav-btn.dashboard {
+            background: linear-gradient(135deg, #06c755 0%, #05a847 100%);
+        }
+        
+        .nav-btn.calendar {
+            background: linear-gradient(135deg, #ff6b35 0%, #f52e52 100%);
+        }
+        
+        .nav-btn.search {
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+        }
+        
+        .nav-btn.monitor {
+            background: linear-gradient(135deg, #ffa500 0%, #ff8c00 100%);
+        }
+        
+        .nav-btn.seats {
+            background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
         }
         
         .stats-grid {
@@ -215,10 +274,31 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🗓️ 予約管理画面</h1>
-            <div class="subtitle">
-                <span id="storeName">レストラン</span> | 
-                最終更新: <span id="lastUpdate">-</span>
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>🗓️ 予約管理画面</h1>
+                    <div class="subtitle">
+                        <span id="storeName">レストラン</span> | 
+                        最終更新: <span id="lastUpdate">-</span>
+                    </div>
+                </div>
+                <div class="nav-buttons">
+                    <a href="/dashboard.html" class="nav-btn dashboard">
+                        📊 ダッシュボード
+                    </a>
+                    <a href="/admin-calendar-v2.html" class="nav-btn calendar">
+                        📅 カレンダー
+                    </a>
+                    <a href="/advanced-search.html" class="nav-btn search">
+                        🔍 詳細検索
+                    </a>
+                    <a href="/system-monitor.html" class="nav-btn monitor">
+                        📡 システム監視
+                    </a>
+                    <a href="/seats-management.html" class="nav-btn seats">
+                        💺 席管理
+                    </a>
+                </div>
             </div>
         </div>
         
