@@ -1,0 +1,31 @@
+# LIFF設定ファイル
+# LINE Developersコンソールで設定
+
+liffId: 2006487876-xd1A5qJB
+name: LINE予約システム
+description: 美容室の予約をLINEから簡単に行えます
+features:
+  - shareTargetPicker
+  - bluetooth
+endpointUrl: https://line-booking-api-116429620992.asia-northeast1.run.app/liff-redirect.html
+type: full
+viewType: full
+
+# LIFF設定手順
+# 1. LINE Developersコンソールにログイン
+# 2. LINE Loginチャネルを選択
+# 3. LIFF タブを選択
+# 4. 「追加」ボタンをクリック
+# 5. 以下を設定:
+#    - LIFF アプリ名: LINE予約システム
+#    - サイズ: Full
+#    - エンドポイントURL: https://line-booking-api-116429620992.asia-northeast1.run.app/liff-redirect.html
+#    - スコープ: profile, openid
+#    - ボットリンク機能: On (Aggressive)
+# 6. 作成後、LIFF IDをコピーして環境変数に設定
+
+# トラブルシューティング
+# - LIFF IDが正しいか確認
+# - エンドポイントURLがHTTPSであることを確認
+# - LINE Loginチャネルが有効であることを確認
+# - スコープにprofileが含まれていることを確認

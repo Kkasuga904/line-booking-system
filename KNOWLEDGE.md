@@ -1,5 +1,115 @@
 # LINE予約システム - トラブルシューティングナレッジ
 
+## 🔴 最重要：「予約」キーワードが反応しない問題（2024年12月解決）
+
+### 根本原因と完全解決策
+**症状**:
+- LINEで「予約」と送信してもボタンが表示されない
+- レスポンスが返ってくるが、エラーが出る
+
+**根本原因**:
+1. `replyOrFallback`関数がFlex Message形式に対応していなかった
+2. テキストメッセージ専用の実装になっていた
+
+**完全解決コード（再発防止版）**:
+```javascript
+// server.js - 再発防止コード実装
+async function replyOrFallback(event, message) {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  
+  if (!token) {
+    console.error('LINE_CHANNEL_ACCESS_TOKEN is not set');
+    return;
+  }
+
+  // ★重要：メッセージタイプの自動判定（再発防止の核心）
+  const messagePayload = typeof message === 'object' && message.type === 'flex'
+    ? [message]  // Flex Messageの場合はそのまま配列に
+    : [{ type: 'text', text: message }];  // Text Messageの場合
+
+  // 詳細ログ記録（デバッグ用）
+  console.log(JSON.stringify({
+    severity: 'INFO',
+    msg: 'Message type detection',
+    isFlexMessage: typeof message === 'object' && message.type === 'flex',
+    messageType: typeof message,
+    hasFlexType: message?.type === 'flex'
+  }));
+
+  // Reply API送信
+  const r1 = await fetch('https://api.line.me/v2/bot/message/reply', {
+    method: 'POST',
+    headers: { 
+      'Authorization': `Bearer ${token}`, 
+      'Content-Type': 'application/json' 
+    },
+    body: JSON.stringify({ 
+      replyToken: event.replyToken, 
+      messages: messagePayload  // 判定済みのペイロードを使用
+    })
+  });
+
+  // Push APIフォールバック時も同じペイロードを使用
+  if (!r1.ok && event.source?.userId) {
+    const r2 = await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${token}`, 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({ 
+        to: event.source.userId, 
+        messages: messagePayload  // 同じ形式を維持
+      })
+    });
+  }
+}
+```
+
+**予約キーワード処理の完全版**:
+```javascript
+// 「予約」という文言が含まれている場合（部分一致対応）
+if (text && text.includes('予約')) {
+  const liffId = process.env.LIFF_ID || '2006487876-xd1A5qJB';
+  
+  // URLの準備（LIFF優先、ブラウザフォールバック）
+  const liffUrl = `https://liff.line.me/${liffId}`;
+  const browserUrl = 'https://line-booking-api-116429620992.asia-northeast1.run.app/enhanced-booking.html';
+  
+  // 詳細ログ（問題発生時の調査用）
+  console.log(JSON.stringify({
+    severity: 'INFO',
+    msg: 'Reservation keyword detected',
+    originalText: text,
+    liffId: liffId,
+    liffUrl: liffUrl,
+    browserUrl: browserUrl,
+    userId: userId?.substring(0, 8) + '...'
+  }));
+  
+  // Flex Message作成（ボタン付きメッセージ）
+  const flexMessage = {
+    type: 'flex',
+    altText: '予約メニュー',
+    contents: {
+      type: 'bubble',
+      // ... Flex Messageコンテンツ
+    }
+  };
+  
+  // 送信（Flex Message対応済みの関数を使用）
+  await replyOrFallback(event, flexMessage);
+  return; // 重要：他の処理をスキップ
+}
+```
+
+### 再発防止チェックリスト
+- [ ] `replyOrFallback`関数がFlex Message対応になっているか
+- [ ] メッセージタイプの判定ロジックが実装されているか
+- [ ] 詳細ログが記録されているか
+- [ ] LIFF IDが正しく設定されているか
+- [ ] 早期リターンで他の処理をスキップしているか
+
 ## 🔴 重要：環境変数の改行問題（2024年12月解決）
 
 ### 最も深刻だった問題：LIFF_IDに改行が混入
