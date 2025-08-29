@@ -1,0 +1,71 @@
+# Git
+.git
+.gitignore
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Environment
+.env
+.env.*
+*.env
+
+# Development
+.vscode
+.idea
+*.swp
+*.swo
+
+# Testing
+coverage
+.nyc_output
+
+# Documentation
+*.md
+docs
+LICENSE
+
+# Build artifacts
+dist
+build
+.vercel
+.next
+
+# Terraform
+infra/
+*.tf
+*.tfstate
+*.tfstate.*
+
+# Scripts
+scripts/
+*.sh
+*.bat
+
+# Backup
+*-backup/
+api-backup/
+*.backup
+*.bak
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test files
+test-*.js
+*-test.js
+*.test.js
+fixtures/

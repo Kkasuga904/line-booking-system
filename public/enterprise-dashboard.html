@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Dashboard - LINE Booking System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { font-size: 24px; margin-bottom: 5px; }
+        .header .subtitle { opacity: 0.8; font-size: 14px; }
+        
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h3 { color: #2c3e50; margin-bottom: 15px; font-size: 18px; }
+        
+        .metric { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .metric:last-child { border-bottom: none; }
+        .metric-value { font-weight: bold; color: #27ae60; }
+        .metric-value.warning { color: #f39c12; }
+        .metric-value.error { color: #e74c3c; }
+        
+        .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+        .status-healthy { background: #27ae60; }
+        .status-degraded { background: #f39c12; }
+        .status-critical { background: #e74c3c; }
+        
+        .log-entry { padding: 8px 0; border-bottom: 1px solid #eee; font-family: monospace; font-size: 12px; }
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #7f8c8d; margin-right: 10px; }
+        .log-level-INFO { color: #3498db; }
+        .log-level-WARNING { color: #f39c12; }
+        .log-level-ERROR { color: #e74c3c; }
+        
+        .chart-container { height: 200px; background: #f8f9fa; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #7f8c8d; }
+        
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px; margin-bottom: 10px; }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn:hover { opacity: 0.9; }
+        
+        .alert { padding: 15px; border-radius: 4px; margin-bottom: 15px; }
+        .alert-warning { background: #fff3cd; border-left: 4px solid #f39c12; color: #856404; }
+        .alert-danger { background: #f8d7da; border-left: 4px solid #e74c3c; color: #721c24; }
+        .alert-success { background: #d4edda; border-left: 4px solid #27ae60; color: #155724; }
+        
+        .tab-container { margin-bottom: 20px; }
+        .tabs { display: flex; border-bottom: 1px solid #ddd; }
+        .tab { padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; }
+        .tab.active { border-bottom-color: #3498db; color: #3498db; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        @media (max-width: 768px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .container { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Enterprise Dashboard</h1>
+            <div class="subtitle">LINE Booking System - Real-time Monitoring & Management</div>
+        </div>
+        
+        <div id="alerts-container"></div>
+        
+        <div class="tab-container">
+            <div class="tabs">
+                <div class="tab active" onclick="showTab('overview')">Overview</div>
+                <div class="tab" onclick="showTab('metrics')">Metrics</div>
+                <div class="tab" onclick="showTab('security')">Security</div>
+                <div class="tab" onclick="showTab('logs')">Logs</div>
+                <div class="tab" onclick="showTab('management')">Management</div>
+            </div>
+        </div>
+        
+        <!-- Overview Tab -->
+        <div id="overview-tab" class="tab-content active">
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h3>🏥 System Health</h3>
+                    <div class="metric">
+                        <span>Overall Status</span>
+                        <span id="system-status" class="metric-value">
+                            <span class="status-indicator status-healthy"></span>Healthy
+                        </span>
+                    </div>
+                    <div class="metric">
+                        <span>Account 1</span>
+                        <span id="account1-status" class="metric-value">
+                            <span class="status-indicator status-healthy"></span>Online
+                        </span>
+                    </div>
+                    <div class="metric">
+                        <span>Account 2</span>
+                        <span id="account2-status" class="metric-value">
+                            <span class="status-indicator status-healthy"></span>Online
+                        </span>
+                    </div>
+                    <div class="metric">
+                        <span>Database</span>
+                        <span id="db-status" class="metric-value">
+                            <span class="status-indicator status-healthy"></span>Connected
+                        </span>
+                    </div>
+                    <div class="metric">
+                        <span>Last Health Check</span>
+                        <span id="last-health-check" class="metric-value">--</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>📊 Performance Metrics</h3>
+                    <div class="metric">
+                        <span>Requests/Hour</span>
+                        <span id="requests-hour" class="metric-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span>Average Response Time</span>
+                        <span id="avg-response-time" class="metric-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span>Error Rate</span>
+                        <span id="error-rate" class="metric-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span>Success Rate</span>
+                        <span id="success-rate" class="metric-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span>Active Connections</span>
+                        <span id="active-connections" class="metric-value">--</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>💬 LINE API Status</h3>
+                    <div class="metric">
+                        <span>Messages Sent Today</span>
+                        <span id="messages-sent" class="metric-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span>Webhooks Received</span>
+                        <span id="webhooks-received" class="metric-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span>New Friends Today</span>
+                        <span id="new-friends" class="metric-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span>API Rate Limit</span>
+                        <span id="api-rate-limit" class="metric-value">--</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>📈 Response Time Chart</h3>
+                    <div class="chart-container">
+                        <canvas id="responseTimeChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Metrics Tab -->
+        <div id="metrics-tab" class="tab-content">
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h3>📊 Detailed Metrics</h3>
+                    <div class="chart-container">Real-time metrics charts will be displayed here</div>
+                </div>
+                
+                <div class="card">
+                    <h3>🔄 Circuit Breakers</h3>
+                    <div class="metric">
+                        <span>LINE API Circuit</span>
+                        <span id="line-circuit-status" class="metric-value">CLOSED</span>
+                    </div>
+                    <div class="metric">
+                        <span>Database Circuit</span>
+                        <span id="db-circuit-status" class="metric-value">CLOSED</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>⏱️ Queue Status</h3>
+                    <div class="metric">
+                        <span>Message Queue Length</span>
+                        <span id="queue-length" class="metric-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span>Processing Status</span>
+                        <span id="queue-processing" class="metric-value">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Security Tab -->
+        <div id="security-tab" class="tab-content">
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h3>🛡️ Security Overview</h3>
+                    <div class="metric">
+                        <span>Blocked IPs</span>
+                        <span id="blocked-ips-count" class="metric-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span>Suspicious Activities</span>
+                        <span id="suspicious-activities" class="metric-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span>Security Score</span>
+                        <span id="security-score" class="metric-value">--</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>🚫 Blocked IPs</h3>
+                    <div id="blocked-ips-list">
+                        <div style="color: #7f8c8d; text-align: center; padding: 20px;">No blocked IPs</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>⚠️ Security Events</h3>
+                    <div id="security-events" style="max-height: 300px; overflow-y: auto;">
+                        <div style="color: #7f8c8d; text-align: center; padding: 20px;">No recent security events</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Logs Tab -->
+        <div id="logs-tab" class="tab-content">
+            <div class="card">
+                <h3>📋 System Logs</h3>
+                <div style="margin-bottom: 15px;">
+                    <button class="btn btn-primary" onclick="refreshLogs()">Refresh</button>
+                    <button class="btn btn-success" onclick="clearLogs()">Clear</button>
+                    <select id="log-level-filter" onchange="filterLogs()">
+                        <option value="all">All Levels</option>
+                        <option value="ERROR">Error Only</option>
+                        <option value="WARNING">Warning+</option>
+                        <option value="INFO">Info+</option>
+                    </select>
+                </div>
+                <div id="logs-container" style="max-height: 500px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 4px;">
+                    <div style="color: #7f8c8d; text-align: center;">Loading logs...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Management Tab -->
+        <div id="management-tab" class="tab-content">
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h3>🔧 System Management</h3>
+                    <button class="btn btn-primary" onclick="performHealthCheck()">Health Check</button>
+                    <button class="btn btn-success" onclick="restartServices()">Restart Services</button>
+                    <button class="btn btn-danger" onclick="emergencyShutdown()">Emergency Stop</button>
+                </div>
+                
+                <div class="card">
+                    <h3>🏷️ Configuration</h3>
+                    <div class="metric">
+                        <span>Environment</span>
+                        <span id="environment" class="metric-value">Production</span>
+                    </div>
+                    <div class="metric">
+                        <span>Version</span>
+                        <span id="version" class="metric-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span>Uptime</span>
+                        <span id="uptime" class="metric-value">--</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>🔐 Access Control</h3>
+                    <input type="text" id="ip-input" placeholder="IP Address" style="width: 200px; padding: 8px; margin-right: 10px;">
+                    <button class="btn btn-danger" onclick="blockIP()">Block IP</button>
+                    <button class="btn btn-success" onclick="unblockIP()">Unblock IP</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Dashboard JavaScript
+        let wsConnection = null;
+        let chartData = [];
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDashboard();
+            setupAutoRefresh();
+            connectWebSocket();
+        });
+        
+        function initializeDashboard() {
+            loadSystemStats();
+            loadSecurityStats();
+            loadLogs();
+        }
+        
+        function setupAutoRefresh() {
+            setInterval(() => {
+                loadSystemStats();
+                loadSecurityStats();
+                updateCharts();
+            }, 30000); // 30秒ごとに更新
+        }
+        
+        function connectWebSocket() {
+            // WebSocket接続（リアルタイム更新用）
+            // 実装時にはWebSocketサーバーを追加
+        }
+        
+        async function loadSystemStats() {
+            try {
+                const response = await fetch('/api/dashboard/stats');
+                const data = await response.json();
+                updateSystemStats(data);
+            } catch (error) {
+                console.error('Failed to load system stats:', error);
+                showAlert('Failed to load system statistics', 'danger');
+            }
+        }
+        
+        async function loadSecurityStats() {
+            try {
+                const response = await fetch('/api/dashboard/security');
+                const data = await response.json();
+                updateSecurityStats(data);
+            } catch (error) {
+                console.error('Failed to load security stats:', error);
+            }
+        }
+        
+        async function loadLogs() {
+            try {
+                const response = await fetch('/api/dashboard/logs');
+                const data = await response.json();
+                updateLogs(data.logs);
+            } catch (error) {
+                console.error('Failed to load logs:', error);
+            }
+        }
+        
+        function updateSystemStats(data) {
+            document.getElementById('requests-hour').textContent = data.requestsPerHour || '--';
+            document.getElementById('avg-response-time').textContent = data.avgResponseTime || '--';
+            document.getElementById('error-rate').textContent = data.errorRate || '--';
+            document.getElementById('success-rate').textContent = data.successRate || '--';
+            document.getElementById('last-health-check').textContent = data.lastHealthCheck || '--';
+            
+            // ステータス更新
+            updateStatusIndicator('system-status', data.systemStatus);
+            updateStatusIndicator('account1-status', data.account1Status);
+            updateStatusIndicator('account2-status', data.account2Status);
+            updateStatusIndicator('db-status', data.dbStatus);
+        }
+        
+        function updateSecurityStats(data) {
+            document.getElementById('blocked-ips-count').textContent = data.blockedIPs?.length || 0;
+            document.getElementById('suspicious-activities').textContent = data.suspiciousActivities || 0;
+            document.getElementById('security-score').textContent = data.securityScore || '--';
+            
+            // ブロックされたIP一覧更新
+            const blockedIPsList = document.getElementById('blocked-ips-list');
+            if (data.blockedIPs && data.blockedIPs.length > 0) {
+                blockedIPsList.innerHTML = data.blockedIPs.map(ip => 
+                    `<div class="metric">
+                        <span>${ip}</span>
+                        <button class="btn btn-success" onclick="unblockSpecificIP('${ip}')">Unblock</button>
+                    </div>`
+                ).join('');
+            }
+        }
+        
+        function updateStatusIndicator(elementId, status) {
+            const element = document.getElementById(elementId);
+            const indicator = element.querySelector('.status-indicator');
+            
+            indicator.className = 'status-indicator';
+            if (status === 'healthy' || status === 'online' || status === 'connected') {
+                indicator.classList.add('status-healthy');
+            } else if (status === 'degraded' || status === 'warning') {
+                indicator.classList.add('status-degraded');
+            } else {
+                indicator.classList.add('status-critical');
+            }
+        }
+        
+        function updateLogs(logs) {
+            const container = document.getElementById('logs-container');
+            if (!logs || logs.length === 0) {
+                container.innerHTML = '<div style="color: #7f8c8d; text-align: center;">No logs available</div>';
+                return;
+            }
+            
+            container.innerHTML = logs.map(log => 
+                `<div class="log-entry">
+                    <span class="log-time">${new Date(log.timestamp).toLocaleTimeString()}</span>
+                    <span class="log-level-${log.level}">[${log.level}]</span>
+                    <span>${log.message}</span>
+                </div>`
+            ).join('');
+        }
+        
+        function showTab(tabName) {
+            // タブ切り替え
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+        
+        function showAlert(message, type = 'warning') {
+            const alertsContainer = document.getElementById('alerts-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `${message} <button onclick="this.parentElement.remove()" style="float: right; background: none; border: none; font-size: 18px; cursor: pointer;">&times;</button>`;
+            alertsContainer.appendChild(alert);
+            
+            // 5秒後に自動削除
+            setTimeout(() => {
+                if (alert.parentElement) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+        
+        // Management functions
+        async function performHealthCheck() {
+            try {
+                showAlert('Health check started...', 'success');
+                const response = await fetch('/api/health/check', { method: 'POST' });
+                const result = await response.json();
+                showAlert(`Health check completed: ${result.status}`, result.status === 'healthy' ? 'success' : 'warning');
+                loadSystemStats();
+            } catch (error) {
+                showAlert('Health check failed', 'danger');
+            }
+        }
+        
+        async function blockIP() {
+            const ip = document.getElementById('ip-input').value.trim();
+            if (!ip) {
+                showAlert('Please enter an IP address', 'warning');
+                return;
+            }
+            
+            try {
+                await fetch('/api/security/block-ip', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip, reason: 'Manual block from dashboard' })
+                });
+                showAlert(`IP ${ip} has been blocked`, 'success');
+                document.getElementById('ip-input').value = '';
+                loadSecurityStats();
+            } catch (error) {
+                showAlert('Failed to block IP', 'danger');
+            }
+        }
+        
+        async function unblockIP() {
+            const ip = document.getElementById('ip-input').value.trim();
+            if (!ip) {
+                showAlert('Please enter an IP address', 'warning');
+                return;
+            }
+            
+            try {
+                await fetch('/api/security/unblock-ip', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip })
+                });
+                showAlert(`IP ${ip} has been unblocked`, 'success');
+                document.getElementById('ip-input').value = '';
+                loadSecurityStats();
+            } catch (error) {
+                showAlert('Failed to unblock IP', 'danger');
+            }
+        }
+        
+        function refreshLogs() {
+            loadLogs();
+            showAlert('Logs refreshed', 'success');
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs-container').innerHTML = 
+                '<div style="color: #7f8c8d; text-align: center;">Logs cleared</div>';
+        }
+        
+        // Chart updates placeholder
+        function updateCharts() {
+            // 実際のチャート更新ロジックをここに実装
+        }
+    </script>
+</body>
+</html>

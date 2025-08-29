@@ -4,6 +4,76 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>予約システム - Premium Edition</title>
+    <script src="https://static.line-scdn.net/liff/edge/2.22/sdk.js"></script>
+    <script>
+        // LIFF用の変数
+        let lineUserId = null;
+        let lineDisplayName = null;
+        
+        // LIFF初期化
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                console.log('🌐 Initializing LIFF...');
+                await liff.init({ liffId: '2006487876-xd1A5qJB' });
+                console.log('✅ LIFF initialized successfully');
+                
+                // LIFF環境であるかチェック
+                if (liff.isInClient()) {
+                    console.log('📱 Running in LINE app');
+                    
+                    // ログイン状態をチェック
+                    if (!liff.isLoggedIn()) {
+                        console.log('🔐 Not logged in, attempting login...');
+                        liff.login();
+                        return;
+                    }
+                    
+                    if (liff.isLoggedIn()) {
+                        const profile = await liff.getProfile();
+                        lineUserId = profile.userId;
+                        lineDisplayName = profile.displayName;
+                        console.log('✅ LINE User ID:', lineUserId);
+                        console.log('✅ LINE Display Name:', lineDisplayName);
+                        console.log('✅ User ID starts with U:', lineUserId?.startsWith('U'));
+                        
+                        // 名前フィールドにLINEの表示名を自動入力
+                        const nameField = document.getElementById('customerName');
+                        if (nameField && !nameField.value && lineDisplayName) {
+                            nameField.value = lineDisplayName;
+                        }
+                        
+                        // LINEログイン状態を表示
+                        const loginStatus = document.createElement('div');
+                        loginStatus.style.cssText = 'background: #06C755; color: white; padding: 10px; text-align: center; margin-bottom: 10px; border-radius: 5px;';
+                        loginStatus.innerHTML = `🎉 LINEアカウントでログイン中: ${lineDisplayName}`;
+                        document.querySelector('.container').insertBefore(loginStatus, document.querySelector('.header'));
+                    }
+                } else {
+                    console.log('🖥️ Running in external browser');
+                    // 外部ブラウザの場合の情報表示
+                    const infoDiv = document.createElement('div');
+                    infoDiv.style.cssText = 'background: #6c757d; color: white; padding: 10px; text-align: center; margin-bottom: 10px; border-radius: 5px;';
+                    infoDiv.innerHTML = 'ℹ️ Webブラウザからの予約です。LINEアプリ内で開くと通知機能が利用できます';
+                    document.querySelector('.container').insertBefore(infoDiv, document.querySelector('.header'));
+                }
+            } catch (error) {
+                console.log('⚠️ LIFF initialization failed:', error);
+                // LIFFが利用できない場合でも通常の予約は可能
+                // LIFF初期化エラーの詳細ログ
+                console.error('LIFF initialization error details:', error);
+                
+                // エラーメッセージの表示（開発用）
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = 'background: #ffc107; color: #333; padding: 10px; text-align: center; margin-bottom: 10px; border-radius: 5px;';
+                errorDiv.innerHTML = 'ℹ️ LIFF初期化エラーが発生しましたが、予約は可能です';
+                document.querySelector('.container').insertBefore(errorDiv, document.querySelector('.header'));
+                
+                // LIFFエラーでも予約を続行できるようにする
+                lineUserId = null;
+                lineDisplayName = null;
+            }
+        });
+    </script>
     <style>
         * {
             margin: 0;
@@ -946,7 +1016,14 @@
                 phone: document.getElementById('customerPhone').value,
                 email: document.getElementById('customerEmail').value || null,
                 message: document.getElementById('customerMessage').value || null,
-                user_id: 'web-' + Date.now()
+                user_id: lineUserId || ('web-' + Date.now())
+            };
+            
+            // LINEユーザーID確認ログ
+            if (lineUserId) {
+                console.log('✅ Using LINE User ID for reservation:', lineUserId);
+            } else {
+                console.log('⚠️ Using fallback web ID for reservation');
             };
             
             try {

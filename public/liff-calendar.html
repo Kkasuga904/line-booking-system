@@ -168,6 +168,107 @@
             background: #ccc;
             cursor: not-allowed;
         }
+        
+        /* モバイルレスポンシブ対応 */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .calendar-container {
+                padding: 15px;
+                border-radius: 8px;
+            }
+            
+            .header {
+                margin-bottom: 15px;
+            }
+            
+            .month-year {
+                font-size: 16px;
+            }
+            
+            .nav-btn {
+                font-size: 20px;
+                padding: 5px 8px;
+            }
+            
+            .weekdays {
+                margin-bottom: 5px;
+            }
+            
+            .weekday {
+                font-size: 11px;
+                padding: 8px 0;
+            }
+            
+            .days {
+                gap: 2px;
+            }
+            
+            .day {
+                font-size: 12px;
+                border-radius: 4px;
+            }
+            
+            .time-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            
+            .time-slot {
+                padding: 10px 8px;
+                font-size: 14px;
+                border-radius: 6px;
+            }
+            
+            .time-title {
+                font-size: 14px;
+                margin-bottom: 12px;
+            }
+            
+            .confirm-btn {
+                padding: 12px;
+                font-size: 15px;
+                border-radius: 6px;
+            }
+        }
+        
+        /* 小さい画面用の追加調整 */
+        @media (max-width: 360px) {
+            .time-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .day {
+                font-size: 11px;
+            }
+            
+            .weekday {
+                font-size: 10px;
+            }
+        }
+        
+        /* 横向きモード対応 */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .calendar-container {
+                max-width: 600px;
+                padding: 10px;
+            }
+            
+            .header {
+                margin-bottom: 10px;
+            }
+            
+            .time-slots {
+                margin-top: 15px;
+                padding-top: 15px;
+            }
+            
+            .days {
+                gap: 3px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -228,7 +329,7 @@
         
         function init() {
             // LIFFなしでも動作するように改善
-            const liffId = window.LIFF_ID || '2007999490-oqz3PXdk';
+            const liffId = window.LIFF_ID || '2006487876-xd1A5qJB';
             
             // LIFF環境チェック
             if (typeof liff !== 'undefined' && liffId && liffId !== 'YOUR-LIFF-ID') {
@@ -236,7 +337,30 @@
                 liff.init({
                     liffId: liffId
                 }).then(() => {
-                    console.log('LIFF初期化成功');
+                    console.log('✅ LIFF初期化成功');
+                    
+                    // LINEアプリ内かチェック
+                    if (liff.isInClient()) {
+                        console.log('📱 Running in LINE app');
+                        
+                        // ログイン状態をチェック
+                        if (!liff.isLoggedIn()) {
+                            console.log('🔐 Not logged in, attempting login...');
+                            liff.login();
+                            return;
+                        }
+                        
+                        // プロフィール取得
+                        liff.getProfile().then(profile => {
+                            window.lineUserId = profile.userId;
+                            window.lineDisplayName = profile.displayName;
+                            console.log('✅ LINE User ID:', profile.userId);
+                            console.log('✅ LINE Display Name:', profile.displayName);
+                        }).catch(err => {
+                            console.error('Profile fetch error:', err);
+                        });
+                    }
+                    
                     fetchExistingReservations();
                     renderCalendar();
                 }).catch((err) => {

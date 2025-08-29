@@ -1,0 +1,71 @@
+name: Deploy to GCP (Production)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:  # 手動実行も可能
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_PROD }}
+  REGION: asia-northeast1
+  SERVICE: line-booking-api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10  # タイムアウト設定
+    environment: production  # GitHub環境保護ルール適用
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    
+    # GCP認証
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY_PROD }}
+    
+    # gcloud CLIセットアップ
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+    
+    # 本番デプロイ（最小インスタンス1で常時起動）
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy $SERVICE \
+          --source . \
+          --region $REGION \
+          --platform managed \
+          --allow-unauthenticated \
+          --min-instances 1 \
+          --max-instances 100 \
+          --cpu 1 \
+          --memory 512Mi \
+          --timeout 60 \
+          --project $PROJECT_ID \
+          --update-secrets=LINE_CHANNEL_ACCESS_TOKEN=line-channel-access-token:latest,LINE_CHANNEL_SECRET=line-channel-secret:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_ANON_KEY=supabase-anon-key:latest \
+          --set-env-vars=NODE_ENV=production,STORE_ID=default-store,LIFF_ID=2006487876-xd1A5qJB
+    
+    # 本番環境テスト
+    - name: Production Test
+      run: |
+        SERVICE_URL=$(gcloud run services describe $SERVICE --region $REGION --format 'value(status.url)' --project $PROJECT_ID)
+        echo "Testing $SERVICE_URL/api/ping"
+        curl -f "$SERVICE_URL/api/ping" || exit 1
+        
+        # Webhookテスト
+        echo "Testing webhook endpoint"
+        curl -X POST "$SERVICE_URL/webhook" \
+          -H "Content-Type: application/json" \
+          -d '{"events":[{"type":"message","replyToken":"test","message":{"type":"text","text":"test"}}]}' \
+          -w "\n%{http_code}\n" || exit 1
+        
+        echo "✅ All tests passed"
+    
+    # LINE Webhook URL更新の通知
+    - name: Notify Webhook URL
+      run: |
+        SERVICE_URL=$(gcloud run services describe $SERVICE --region $REGION --format 'value(status.url)' --project $PROJECT_ID)
+        echo "::notice title=Webhook URL::$SERVICE_URL/webhook"
+        echo "LINE DevelopersでこのURLに更新してください: $SERVICE_URL/webhook"

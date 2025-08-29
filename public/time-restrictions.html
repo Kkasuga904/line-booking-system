@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>時間帯制限管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .content {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            display: none;
+        }
+        
+        .section.active {
+            display: block;
+        }
+        
+        .time-grid {
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+            gap: 5px;
+            margin-top: 20px;
+        }
+        
+        .time-header {
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+        
+        .time-cell {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .time-cell:hover {
+            background: #f0f0ff;
+        }
+        
+        .time-cell.blocked {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .time-cell.limited {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+        
+        .time-cell.available {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .capacity-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #333;
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .modal-header {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .quick-settings {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .quick-btn {
+            padding: 15px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .quick-btn:hover {
+            background: #e9ecef;
+        }
+        
+        .quick-btn i {
+            font-size: 24px;
+            margin-bottom: 5px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>🕐 時間帯予約制限管理</h1>
+                <p>各時間帯の予約可能数や制限を設定できます</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="window.location.href='/admin'" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">📋 リスト表示</button>
+                <button onclick="window.location.href='/admin-calendar'" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">📅 カレンダー</button>
+                <button onclick="window.location.href='/seats'" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">🪑 席管理</button>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('weekly')">定期設定</button>
+            <button class="tab" onclick="showTab('specific')">特定日設定</button>
+            <button class="tab" onclick="showTab('quick')">クイック設定</button>
+        </div>
+        
+        <div class="content">
+            <!-- 定期設定 -->
+            <div id="weekly" class="section active">
+                <h2>定期的な時間制限設定</h2>
+                <p>曜日ごとの営業時間や予約制限を設定します</p>
+                
+                <div class="time-grid">
+                    <div class="time-header">時間</div>
+                    <div class="time-header">日曜</div>
+                    <div class="time-header">月曜</div>
+                    <div class="time-header">火曜</div>
+                    <div class="time-header">水曜</div>
+                    <div class="time-header">木曜</div>
+                    <div class="time-header">金曜</div>
+                    <div class="time-header">土曜</div>
+                </div>
+                
+                <div id="weeklyGrid"></div>
+            </div>
+            
+            <!-- 特定日設定 -->
+            <div id="specific" class="section">
+                <h2>特定日の時間制限設定</h2>
+                <p>祝日や特別な日の予約制限を設定します</p>
+                
+                <div class="form-group">
+                    <label>日付選択</label>
+                    <input type="date" id="specificDate" onchange="loadSpecificDate()">
+                </div>
+                
+                <div id="specificTimeSlots"></div>
+            </div>
+            
+            <!-- クイック設定 -->
+            <div id="quick" class="section">
+                <h2>クイック設定</h2>
+                <p>よく使う設定をワンクリックで適用</p>
+                
+                <div class="quick-settings">
+                    <div class="quick-btn" onclick="applyQuickSetting('lunch-break')">
+                        <i>🍽️</i>
+                        <strong>ランチタイム設定</strong>
+                        <small>12:00-14:00 予約増</small>
+                    </div>
+                    <div class="quick-btn" onclick="applyQuickSetting('dinner-peak')">
+                        <i>🌃</i>
+                        <strong>ディナータイム設定</strong>
+                        <small>18:00-20:00 予約増</small>
+                    </div>
+                    <div class="quick-btn" onclick="applyQuickSetting('holiday')">
+                        <i>🏖️</i>
+                        <strong>休業日設定</strong>
+                        <small>終日予約不可</small>
+                    </div>
+                    <div class="quick-btn" onclick="applyQuickSetting('limited')">
+                        <i>⚠️</i>
+                        <strong>制限営業</strong>
+                        <small>予約数を半分に</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 編集モーダル -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>時間帯設定</h3>
+            </div>
+            <form id="editForm">
+                <div class="form-group">
+                    <label>時間帯</label>
+                    <input type="text" id="editTime" readonly>
+                </div>
+                <div class="form-group">
+                    <label>最大予約数</label>
+                    <input type="number" id="editCapacity" min="0" max="20">
+                    <small>0 = 予約不可</small>
+                </div>
+                <div class="form-group">
+                    <label>完全ブロック</label>
+                    <input type="checkbox" id="editBlocked">
+                </div>
+                <div class="form-group">
+                    <label>理由・メモ</label>
+                    <textarea id="editReason" rows="3"></textarea>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // 時間帯リスト
+        const timeSlots = [];
+        for (let hour = 10; hour <= 21; hour++) {
+            timeSlots.push(`${hour}:00`);
+            if (hour < 21) {
+                timeSlots.push(`${hour}:30`);
+            }
+        }
+        
+        // 曜日リスト
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+        
+        // 初期データ（実際はAPIから取得）
+        let weeklySettings = {};
+        let specificSettings = {};
+        
+        // 初期化
+        function init() {
+            generateWeeklyGrid();
+            loadSettings();
+        }
+        
+        // 週間グリッド生成
+        function generateWeeklyGrid() {
+            const grid = document.getElementById('weeklyGrid');
+            grid.className = 'time-grid';
+            
+            timeSlots.forEach(time => {
+                // 時間ヘッダー
+                const timeHeader = document.createElement('div');
+                timeHeader.className = 'time-header';
+                timeHeader.textContent = time;
+                grid.appendChild(timeHeader);
+                
+                // 各曜日のセル
+                for (let day = 0; day < 7; day++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'time-cell available';
+                    cell.dataset.day = day;
+                    cell.dataset.time = time;
+                    cell.innerHTML = `
+                        <span>4組</span>
+                        <span class="capacity-badge">4</span>
+                    `;
+                    cell.onclick = () => editTimeSlot('weekly', day, time);
+                    grid.appendChild(cell);
+                }
+            });
+        }
+        
+        // 特定日の時間スロット生成
+        function loadSpecificDate() {
+            const date = document.getElementById('specificDate').value;
+            if (!date) return;
+            
+            const container = document.getElementById('specificTimeSlots');
+            container.innerHTML = '<h3>' + date + 'の設定</h3>';
+            
+            const grid = document.createElement('div');
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(100px, 1fr))';
+            grid.style.gap = '10px';
+            grid.style.marginTop = '20px';
+            
+            timeSlots.forEach(time => {
+                const cell = document.createElement('div');
+                cell.className = 'time-cell available';
+                cell.dataset.date = date;
+                cell.dataset.time = time;
+                cell.innerHTML = `
+                    <strong>${time}</strong><br>
+                    <span>4組</span>
+                `;
+                cell.onclick = () => editTimeSlot('specific', date, time);
+                grid.appendChild(cell);
+            });
+            
+            container.appendChild(grid);
+        }
+        
+        // 設定読み込み
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/time-restrictions');
+                const data = await response.json();
+                
+                // 週間設定の適用
+                if (data.weekly) {
+                    weeklySettings = data.weekly;
+                    updateWeeklyGrid();
+                }
+                
+                // 特定日設定の適用
+                if (data.specific) {
+                    specificSettings = data.specific;
+                }
+            } catch (error) {
+                console.error('設定の読み込みに失敗:', error);
+            }
+        }
+        
+        // 週間グリッド更新
+        function updateWeeklyGrid() {
+            Object.entries(weeklySettings).forEach(([key, setting]) => {
+                const [day, time] = key.split('-');
+                const cell = document.querySelector(`[data-day="${day}"][data-time="${time}"]`);
+                if (cell) {
+                    updateCell(cell, setting);
+                }
+            });
+        }
+        
+        // セル更新
+        function updateCell(cell, setting) {
+            cell.className = 'time-cell';
+            
+            if (setting.isBlocked) {
+                cell.classList.add('blocked');
+                cell.innerHTML = `<span>✕</span>`;
+            } else if (setting.capacity === 0) {
+                cell.classList.add('blocked');
+                cell.innerHTML = `<span>予約不可</span>`;
+            } else if (setting.capacity < 4) {
+                cell.classList.add('limited');
+                cell.innerHTML = `
+                    <span>${setting.capacity}組</span>
+                    <span class="capacity-badge">${setting.capacity}</span>
+                `;
+            } else {
+                cell.classList.add('available');
+                cell.innerHTML = `
+                    <span>${setting.capacity}組</span>
+                    <span class="capacity-badge">${setting.capacity}</span>
+                `;
+            }
+        }
+        
+        // 時間帯編集
+        function editTimeSlot(type, dayOrDate, time) {
+            const modal = document.getElementById('editModal');
+            const form = document.getElementById('editForm');
+            
+            // 現在の設定を取得
+            let currentSetting = { capacity: 4, isBlocked: false, reason: '' };
+            
+            if (type === 'weekly') {
+                const key = `${dayOrDate}-${time}`;
+                if (weeklySettings[key]) {
+                    currentSetting = weeklySettings[key];
+                }
+                document.getElementById('editTime').value = `${dayNames[dayOrDate]}曜日 ${time}`;
+            } else {
+                const key = `${dayOrDate}-${time}`;
+                if (specificSettings[key]) {
+                    currentSetting = specificSettings[key];
+                }
+                document.getElementById('editTime').value = `${dayOrDate} ${time}`;
+            }
+            
+            // フォームに値を設定
+            document.getElementById('editCapacity').value = currentSetting.capacity;
+            document.getElementById('editBlocked').checked = currentSetting.isBlocked;
+            document.getElementById('editReason').value = currentSetting.reason || '';
+            
+            // 保存処理
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                await saveTimeSlot(type, dayOrDate, time);
+                closeModal();
+            };
+            
+            modal.classList.add('active');
+        }
+        
+        // 設定保存
+        async function saveTimeSlot(type, dayOrDate, time) {
+            const capacity = parseInt(document.getElementById('editCapacity').value);
+            const isBlocked = document.getElementById('editBlocked').checked;
+            const reason = document.getElementById('editReason').value;
+            
+            const data = {
+                type,
+                dayOrDate,
+                time,
+                capacity,
+                isBlocked,
+                reason
+            };
+            
+            try {
+                const response = await fetch('/api/time-restrictions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    // ローカル更新
+                    const key = `${dayOrDate}-${time}`;
+                    const setting = { capacity, isBlocked, reason };
+                    
+                    if (type === 'weekly') {
+                        weeklySettings[key] = setting;
+                        const cell = document.querySelector(`[data-day="${dayOrDate}"][data-time="${time}"]`);
+                        updateCell(cell, setting);
+                    } else {
+                        specificSettings[key] = setting;
+                        const cell = document.querySelector(`[data-date="${dayOrDate}"][data-time="${time}"]`);
+                        updateCell(cell, setting);
+                    }
+                    
+                    alert('保存しました');
+                }
+            } catch (error) {
+                console.error('保存エラー:', error);
+                alert('保存に失敗しました');
+            }
+        }
+        
+        // クイック設定適用
+        async function applyQuickSetting(preset) {
+            const settings = {
+                'lunch-break': {
+                    times: ['12:00', '12:30', '13:00', '13:30'],
+                    capacity: 6,
+                    reason: 'ランチタイム増席'
+                },
+                'dinner-peak': {
+                    times: ['18:00', '18:30', '19:00', '19:30', '20:00'],
+                    capacity: 8,
+                    reason: 'ディナータイム増席'
+                },
+                'holiday': {
+                    allDay: true,
+                    capacity: 0,
+                    isBlocked: true,
+                    reason: '定休日'
+                },
+                'limited': {
+                    allDay: true,
+                    capacity: 2,
+                    reason: '制限営業'
+                }
+            };
+            
+            const preset_config = settings[preset];
+            if (!preset_config) return;
+            
+            if (!confirm(`${preset}設定を適用しますか？`)) return;
+            
+            // TODO: API経由で一括適用
+            alert('設定を適用しました');
+        }
+        
+        // タブ切り替え
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+        
+        // モーダルを閉じる
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('active');
+        }
+        
+        // 初期化実行
+        init();
+    </script>
+</body>
+</html>

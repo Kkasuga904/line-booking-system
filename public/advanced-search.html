@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Advanced Search | LINE予約システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .header {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .nav-btn {
+            padding: 12px 20px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 25px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .nav-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .search-panel {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            margin-bottom: 30px;
+        }
+        
+        .search-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        
+        .search-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .form-input, .form-select {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .search-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .search-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .search-btn.primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .search-btn.secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .results-section {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .results-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .results-count {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .results-table th,
+        .results-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .results-table th {
+            background: #f8f9ff;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .results-table tr:hover {
+            background: #f8f9ff;
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-confirmed {
+            background: #e8f5e8;
+            color: #2e7d2e;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .action-btn.edit {
+            background: #667eea;
+            color: white;
+        }
+        
+        .action-btn.delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .no-results-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .search-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-buttons {
+                flex-direction: column;
+            }
+            
+            .results-table {
+                font-size: 14px;
+            }
+            
+            .results-table th,
+            .results-table td {
+                padding: 10px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">🔍 Advanced Search</div>
+            <nav class="nav-buttons">
+                <a href="/dashboard.html" class="nav-btn">📊 ダッシュボード</a>
+                <a href="/admin-calendar-v2.html" class="nav-btn">📅 カレンダー</a>
+                <a href="/admin" class="nav-btn">📋 予約一覧</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="search-panel">
+            <h2 class="search-title">🔍 高度な予約検索</h2>
+            
+            <div class="search-grid">
+                <div class="form-group">
+                    <label class="form-label">お客様名</label>
+                    <input type="text" id="customerName" class="form-input" placeholder="山田太郎">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">電話番号</label>
+                    <input type="tel" id="phoneNumber" class="form-input" placeholder="090-1234-5678">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">予約日（開始）</label>
+                    <input type="date" id="dateFrom" class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">予約日（終了）</label>
+                    <input type="date" id="dateTo" class="form-input">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">時間帯</label>
+                    <select id="timeSlot" class="form-select">
+                        <option value="">すべての時間</option>
+                        <option value="morning">午前（10:00-12:00）</option>
+                        <option value="afternoon">午後（12:00-17:00）</option>
+                        <option value="evening">夕方（17:00-21:00）</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">ステータス</label>
+                    <select id="status" class="form-select">
+                        <option value="">すべてのステータス</option>
+                        <option value="confirmed">確定</option>
+                        <option value="pending">保留</option>
+                        <option value="cancelled">キャンセル</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">人数</label>
+                    <select id="peopleCount" class="form-select">
+                        <option value="">すべての人数</option>
+                        <option value="1">1名</option>
+                        <option value="2">2名</option>
+                        <option value="3">3名</option>
+                        <option value="4">4名以上</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">メールアドレス</label>
+                    <input type="email" id="email" class="form-input" placeholder="example@example.com">
+                </div>
+            </div>
+            
+            <div class="search-buttons">
+                <button class="search-btn primary" onclick="performSearch()">
+                    🔍 検索実行
+                </button>
+                <button class="search-btn secondary" onclick="clearSearch()">
+                    🗑️ クリア
+                </button>
+                <button class="search-btn secondary" onclick="exportResults()">
+                    📊 結果をエクスポート
+                </button>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div class="results-header">
+                <h3 class="results-title">検索結果</h3>
+                <div class="results-count" id="resultsCount">0件</div>
+            </div>
+            
+            <div id="resultsContainer">
+                <div class="no-results">
+                    <span class="no-results-icon">🔍</span>
+                    <p>検索条件を入力して「検索実行」ボタンを押してください</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let searchResults = [];
+        
+        async function performSearch() {
+            const searchParams = {
+                customerName: document.getElementById('customerName').value,
+                phoneNumber: document.getElementById('phoneNumber').value,
+                dateFrom: document.getElementById('dateFrom').value,
+                dateTo: document.getElementById('dateTo').value,
+                timeSlot: document.getElementById('timeSlot').value,
+                status: document.getElementById('status').value,
+                peopleCount: document.getElementById('peopleCount').value,
+                email: document.getElementById('email').value
+            };
+            
+            // ローディング表示
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/search-reservations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(searchParams)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    searchResults = data.results;
+                    displayResults(searchResults);
+                } else {
+                    showError('検索に失敗しました: ' + data.error);
+                }
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                showError('検索中にエラーが発生しました');
+            }
+        }
+        
+        function showLoading() {
+            document.getElementById('resultsContainer').innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>検索中...</p>
+                </div>
+            `;
+        }
+        
+        function displayResults(results) {
+            const container = document.getElementById('resultsContainer');
+            const countEl = document.getElementById('resultsCount');
+            
+            countEl.textContent = `${results.length}件`;
+            
+            if (results.length === 0) {
+                container.innerHTML = `
+                    <div class="no-results">
+                        <span class="no-results-icon">😔</span>
+                        <p>条件に一致する予約が見つかりませんでした</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const tableHTML = `
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>予約日時</th>
+                            <th>お客様名</th>
+                            <th>電話番号</th>
+                            <th>人数</th>
+                            <th>ステータス</th>
+                            <th>アクション</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${results.map(reservation => `
+                            <tr>
+                                <td>${formatDateTime(reservation.date, reservation.time)}</td>
+                                <td>${reservation.customer_name || reservation.name || '-'}</td>
+                                <td>${reservation.phone || '-'}</td>
+                                <td>${reservation.people || reservation.party_size || 1}名</td>
+                                <td><span class="status-badge status-${reservation.status}">${getStatusText(reservation.status)}</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="action-btn edit" onclick="editReservation('${reservation.id}')">編集</button>
+                                        <button class="action-btn delete" onclick="deleteReservation('${reservation.id}')">削除</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = tableHTML;
+        }
+        
+        function formatDateTime(date, time) {
+            const dateObj = new Date(date);
+            const formattedDate = dateObj.toLocaleDateString('ja-JP', {
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric'
+            });
+            return `${formattedDate} ${time}`;
+        }
+        
+        function getStatusText(status) {
+            switch (status) {
+                case 'confirmed': return '確定';
+                case 'pending': return '保留';
+                case 'cancelled': return 'キャンセル';
+                default: return status;
+            }
+        }
+        
+        function showError(message) {
+            document.getElementById('resultsContainer').innerHTML = `
+                <div class="no-results">
+                    <span class="no-results-icon">⚠️</span>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+        
+        function clearSearch() {
+            document.getElementById('customerName').value = '';
+            document.getElementById('phoneNumber').value = '';
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+            document.getElementById('timeSlot').value = '';
+            document.getElementById('status').value = '';
+            document.getElementById('peopleCount').value = '';
+            document.getElementById('email').value = '';
+            
+            document.getElementById('resultsContainer').innerHTML = `
+                <div class="no-results">
+                    <span class="no-results-icon">🔍</span>
+                    <p>検索条件を入力して「検索実行」ボタンを押してください</p>
+                </div>
+            `;
+            document.getElementById('resultsCount').textContent = '0件';
+        }
+        
+        function exportResults() {
+            if (searchResults.length === 0) {
+                alert('エクスポートする結果がありません');
+                return;
+            }
+            
+            const csv = convertToCSV(searchResults);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `search-results-${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function convertToCSV(data) {
+            const headers = ['予約日', '時間', 'お客様名', '電話番号', 'メール', '人数', 'ステータス'];
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => [
+                    row.date,
+                    row.time,
+                    row.customer_name || row.name || '',
+                    row.phone || '',
+                    row.email || '',
+                    row.people || row.party_size || 1,
+                    getStatusText(row.status)
+                ].join(','))
+            ].join('\n');
+            
+            return csvContent;
+        }
+        
+        function editReservation(id) {
+            alert(`予約ID ${id} の編集機能は開発中です`);
+        }
+        
+        function deleteReservation(id) {
+            if (confirm('この予約を削除しますか？')) {
+                alert(`予約ID ${id} の削除機能は開発中です`);
+            }
+        }
+        
+        // デフォルトの日付範囲を設定（今日から1週間）
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const nextWeek = new Date(today);
+            nextWeek.setDate(today.getDate() + 7);
+            
+            document.getElementById('dateFrom').value = today.toISOString().split('T')[0];
+            document.getElementById('dateTo').value = nextWeek.toISOString().split('T')[0];
+        });
+    </script>
+</body>
+</html>
