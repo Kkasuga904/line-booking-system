@@ -1,0 +1,49 @@
+# Cloud Build設定（無料枠最適化版）
+# 月120分の無料枠を活用
+
+steps:
+  # ステップ1: 簡易テスト実行（2分以内）
+  - name: 'node:18-slim'
+    entrypoint: 'npm'
+    args: ['test', '--', '--maxWorkers=1', '--bail']
+    timeout: 120s
+    
+  # ステップ2: Cloud Runへ直接デプロイ（5分以内）
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'line-booking-api'
+      - '--source=.'
+      - '--region=asia-northeast1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--memory=256Mi'
+      - '--cpu=1'
+      - '--max-instances=1'
+      - '--min-instances=0'
+      - '--port=8080'
+      - '--quiet'
+    timeout: 300s
+
+# 全体のタイムアウト（無料枠節約）
+timeout: 600s
+
+options:
+  # マシンタイプを最小に
+  machineType: 'E2_MEDIUM'
+  
+  # ログをストリーミング（デバッグ時のみ有効化）
+  logging: CLOUD_LOGGING_ONLY
+  
+  # 並列実行を制限
+  pool:
+    name: 'projects/line-booking-prod-20241228/locations/asia-northeast1/workerPools/free-pool'
+
+# トリガー設定（mainブランチのみ）
+# Cloud Consoleで以下を設定：
+# - トリガー名: main-deploy-free
+# - イベント: pushをmainブランチに
+# - ビルド設定: このファイルを指定
+# - 頻度制限: 1日5回まで（コスト防止）

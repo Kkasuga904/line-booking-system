@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>容量テンプレート管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #ff4757;
+            color: white;
+        }
+
+        .btn-success {
+            background: #00b894;
+            color: white;
+        }
+
+        .template-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .template-item {
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .template-item:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .template-item.active {
+            border-color: #667eea;
+            background: #f0f3ff;
+        }
+
+        .template-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .template-type {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-right: 10px;
+        }
+
+        .type-people {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .type-groups {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .type-seats {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .time-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .time-slot {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .time-label {
+            font-size: 13px;
+            color: #666;
+            min-width: 50px;
+        }
+
+        .time-input {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .apply-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .date-range {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .weekday-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .weekday-btn {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #ddd;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+        }
+
+        .weekday-btn.selected {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .status-bar {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+
+        .capacity-preview {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .preview-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        .preview-chart {
+            display: flex;
+            align-items: flex-end;
+            height: 150px;
+            gap: 5px;
+        }
+
+        .bar {
+            flex: 1;
+            background: linear-gradient(to top, #667eea, #764ba2);
+            border-radius: 4px 4px 0 0;
+            position: relative;
+            min-height: 20px;
+        }
+
+        .bar-label {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: #666;
+        }
+
+        .bar-value {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .exception-form {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .exception-title {
+            color: #856404;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .time-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header" style="position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+                <div>
+                    <h1>🗓️ 容量テンプレート管理</h1>
+                    <p class="subtitle">人数ベースの予約容量を効率的に管理</p>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <a href="/admin" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; transition: all 0.3s;">
+                        📋 管理画面
+                    </a>
+                    <a href="/admin-calendar" style="padding: 10px 20px; background: linear-gradient(135deg, #ff6b35 0%, #f52e52 100%); color: white; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; transition: all 0.3s;">
+                        📅 カレンダー
+                    </a>
+                    <a href="/dashboard.html" style="padding: 10px 20px; background: linear-gradient(135deg, #06c755 0%, #05a847 100%); color: white; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; transition: all 0.3s;">
+                        📊 ダッシュボード
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- 左側: テンプレート作成フォーム -->
+            <div class="card">
+                <h2 class="card-title">テンプレート作成</h2>
+                
+                <div class="form-group">
+                    <label>テンプレート名 *</label>
+                    <input type="text" id="templateName" placeholder="例: 平日標準">
+                </div>
+
+                <div class="form-group">
+                    <label>説明</label>
+                    <textarea id="templateDescription" placeholder="このテンプレートの用途を記入"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>容量タイプ *</label>
+                    <select id="capacityType">
+                        <option value="people">人数制限</option>
+                        <option value="groups">組数制限</option>
+                        <option value="seats">席数制限</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>デフォルト容量</label>
+                    <input type="number" id="defaultCapacity" value="10" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label>時間枠別容量設定</label>
+                    <div class="time-grid" id="timeGrid">
+                        <!-- 動的に生成 -->
+                    </div>
+                </div>
+
+                <div class="capacity-preview">
+                    <div class="preview-title">容量プレビュー</div>
+                    <div class="preview-chart" id="previewChart">
+                        <!-- 動的に生成 -->
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveTemplate()" style="width: 100%; margin-top: 20px;">
+                    💾 テンプレートを保存
+                </button>
+            </div>
+
+            <!-- 右側: テンプレート管理 -->
+            <div>
+                <!-- テンプレート一覧 -->
+                <div class="card">
+                    <h2 class="card-title">保存済みテンプレート</h2>
+                    <div class="template-list" id="templateList">
+                        <!-- 動的に生成 -->
+                    </div>
+                </div>
+
+                <!-- テンプレート適用 -->
+                <div class="card" style="margin-top: 20px;">
+                    <h2 class="card-title">テンプレート適用</h2>
+                    
+                    <div class="form-group">
+                        <label>適用するテンプレート</label>
+                        <select id="applyTemplateSelect">
+                            <option value="">テンプレートを選択</option>
+                        </select>
+                    </div>
+
+                    <div class="apply-section">
+                        <div class="date-range">
+                            <div>
+                                <label>開始日 *</label>
+                                <input type="date" id="startDate">
+                            </div>
+                            <div>
+                                <label>終了日 *</label>
+                                <input type="date" id="endDate">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>曜日指定（選択しない場合は全曜日）</label>
+                            <div class="weekday-selector">
+                                <button class="weekday-btn" data-day="0">日</button>
+                                <button class="weekday-btn" data-day="1">月</button>
+                                <button class="weekday-btn" data-day="2">火</button>
+                                <button class="weekday-btn" data-day="3">水</button>
+                                <button class="weekday-btn" data-day="4">木</button>
+                                <button class="weekday-btn" data-day="5">金</button>
+                                <button class="weekday-btn" data-day="6">土</button>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-success" onclick="applyTemplate()">
+                            期間に適用
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 日次例外設定 -->
+                <div class="card" style="margin-top: 20px;">
+                    <h2 class="card-title">日次例外設定</h2>
+                    
+                    <div class="exception-form">
+                        <div class="exception-title">⚠️ 特定日の容量を上書き</div>
+                        
+                        <div class="form-group">
+                            <label>対象日 *</label>
+                            <input type="date" id="exceptionDate">
+                        </div>
+
+                        <div class="form-group">
+                            <label>時間（空欄で終日）</label>
+                            <input type="time" id="exceptionTime">
+                        </div>
+
+                        <div class="form-group">
+                            <label>容量タイプ *</label>
+                            <select id="exceptionType">
+                                <option value="people">人数</option>
+                                <option value="groups">組数</option>
+                                <option value="seats">席数</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>容量 *</label>
+                            <input type="number" id="exceptionCapacity" min="0">
+                        </div>
+
+                        <div class="form-group">
+                            <label>理由</label>
+                            <input type="text" id="exceptionReason" placeholder="例: 祝日、イベント開催">
+                        </div>
+
+                        <button class="btn btn-danger" onclick="setException()">
+                            例外を設定
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-bar" id="statusBar"></div>
+    </div>
+
+    <script>
+        const STORE_ID = localStorage.getItem('store_id') || 'default-store';
+        const API_BASE = '/api';
+        
+        // 営業時間の設定
+        const BUSINESS_HOURS = {
+            start: 9,
+            end: 18
+        };
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeTimeGrid();
+            loadTemplates();
+            setupWeekdaySelector();
+            updatePreviewChart();
+            
+            // 今日の日付をデフォルトに設定
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('startDate').value = today;
+            document.getElementById('exceptionDate').value = today;
+            
+            // 容量タイプ変更時のプレビュー更新
+            document.getElementById('capacityType').addEventListener('change', updatePreviewChart);
+            
+            // 時間枠入力時のプレビュー更新
+            document.addEventListener('input', (e) => {
+                if (e.target.classList.contains('time-input')) {
+                    updatePreviewChart();
+                }
+            });
+        });
+
+        // 時間グリッドの初期化
+        function initializeTimeGrid() {
+            const grid = document.getElementById('timeGrid');
+            if (!grid) {
+                console.error('timeGrid element not found');
+                return;
+            }
+            grid.innerHTML = '';
+            
+            console.log('Initializing time grid:', BUSINESS_HOURS);
+            
+            for (let hour = BUSINESS_HOURS.start; hour < BUSINESS_HOURS.end; hour++) {
+                const timeStr = `${hour.toString().padStart(2, '0')}:00`;
+                const slot = document.createElement('div');
+                slot.className = 'time-slot';
+                slot.innerHTML = `
+                    <span class="time-label">${timeStr}</span>
+                    <input type="number" class="time-input" data-time="${timeStr}" 
+                           value="10" min="0" placeholder="容量">
+                `;
+                grid.appendChild(slot);
+            }
+            
+            console.log('Time grid initialized with', grid.children.length, 'slots');
+        }
+
+        // テンプレート一覧の読み込み
+        async function loadTemplates() {
+            try {
+                const response = await fetch(`${API_BASE}/capacity-templates/templates?store_id=${STORE_ID}`);
+                const templates = await response.json();
+                
+                displayTemplates(templates);
+                updateTemplateSelect(templates);
+            } catch (error) {
+                console.error('テンプレート読み込みエラー:', error);
+                showStatus('テンプレートの読み込みに失敗しました', 'error');
+            }
+        }
+
+        // テンプレート一覧表示
+        function displayTemplates(templates) {
+            const list = document.getElementById('templateList');
+            
+            if (templates.length === 0) {
+                list.innerHTML = '<p style="color: #999; text-align: center;">テンプレートがありません</p>';
+                return;
+            }
+            
+            list.innerHTML = templates.map(template => `
+                <div class="template-item" data-id="${template.id}">
+                    <div class="template-name">${template.template_name}</div>
+                    <span class="template-type type-${template.capacity_type}">
+                        ${getCapacityTypeLabel(template.capacity_type)}
+                    </span>
+                    <span style="color: #999; font-size: 12px;">
+                        ${template.description || ''}
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        // テンプレート選択リスト更新
+        function updateTemplateSelect(templates) {
+            const select = document.getElementById('applyTemplateSelect');
+            select.innerHTML = '<option value="">テンプレートを選択</option>' +
+                templates.map(t => `<option value="${t.id}">${t.template_name}</option>`).join('');
+        }
+
+        // 容量タイプのラベル取得
+        function getCapacityTypeLabel(type) {
+            const labels = {
+                'people': '人数制限',
+                'groups': '組数制限',
+                'seats': '席数制限'
+            };
+            return labels[type] || type;
+        }
+
+        // 曜日選択の設定
+        function setupWeekdaySelector() {
+            const buttons = document.querySelectorAll('.weekday-btn');
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    btn.classList.toggle('selected');
+                });
+            });
+        }
+
+        // テンプレート保存
+        async function saveTemplate() {
+            const name = document.getElementById('templateName').value;
+            const description = document.getElementById('templateDescription').value;
+            const capacityType = document.getElementById('capacityType').value;
+            const defaultCapacity = parseInt(document.getElementById('defaultCapacity').value);
+            
+            if (!name) {
+                showStatus('テンプレート名を入力してください', 'error');
+                return;
+            }
+            
+            // 時間枠別容量を収集
+            const timeCapacities = {};
+            document.querySelectorAll('.time-input').forEach(input => {
+                const time = input.dataset.time;
+                const capacity = parseInt(input.value) || defaultCapacity;
+                timeCapacities[time] = capacity;
+            });
+            
+            try {
+                const response = await fetch(`${API_BASE}/capacity-templates/templates`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        store_id: STORE_ID,
+                        template_name: name,
+                        description: description,
+                        capacity_type: capacityType,
+                        time_capacities: timeCapacities,
+                        default_capacity: defaultCapacity
+                    })
+                });
+                
+                if (!response.ok) throw new Error('保存に失敗しました');
+                
+                showStatus('テンプレートを保存しました', 'success');
+                loadTemplates();
+                
+                // フォームをリセット
+                document.getElementById('templateName').value = '';
+                document.getElementById('templateDescription').value = '';
+            } catch (error) {
+                console.error('保存エラー:', error);
+                showStatus('保存に失敗しました', 'error');
+            }
+        }
+
+        // テンプレート適用
+        async function applyTemplate() {
+            const templateId = document.getElementById('applyTemplateSelect').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!templateId || !startDate || !endDate) {
+                showStatus('必須項目を入力してください', 'error');
+                return;
+            }
+            
+            // 選択された曜日を取得
+            const selectedDays = Array.from(document.querySelectorAll('.weekday-btn.selected'))
+                .map(btn => parseInt(btn.dataset.day));
+            
+            try {
+                const response = await fetch(`${API_BASE}/capacity-templates/templates/apply`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        store_id: STORE_ID,
+                        template_id: templateId,
+                        start_date: startDate,
+                        end_date: endDate,
+                        days_of_week: selectedDays.length > 0 ? selectedDays : null
+                    })
+                });
+                
+                if (!response.ok) throw new Error('適用に失敗しました');
+                
+                showStatus('テンプレートを適用しました', 'success');
+            } catch (error) {
+                console.error('適用エラー:', error);
+                showStatus('適用に失敗しました', 'error');
+            }
+        }
+
+        // 例外設定
+        async function setException() {
+            const date = document.getElementById('exceptionDate').value;
+            const time = document.getElementById('exceptionTime').value;
+            const type = document.getElementById('exceptionType').value;
+            const capacity = parseInt(document.getElementById('exceptionCapacity').value);
+            const reason = document.getElementById('exceptionReason').value;
+            
+            if (!date || !type || isNaN(capacity)) {
+                showStatus('必須項目を入力してください', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/capacity-templates/exceptions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        store_id: STORE_ID,
+                        exception_date: date,
+                        exception_time: time || null,
+                        capacity_type: type,
+                        capacity: capacity,
+                        reason: reason
+                    })
+                });
+                
+                if (!response.ok) throw new Error('設定に失敗しました');
+                
+                showStatus('例外を設定しました', 'success');
+                
+                // フォームをリセット
+                document.getElementById('exceptionTime').value = '';
+                document.getElementById('exceptionCapacity').value = '';
+                document.getElementById('exceptionReason').value = '';
+            } catch (error) {
+                console.error('例外設定エラー:', error);
+                showStatus('設定に失敗しました', 'error');
+            }
+        }
+
+        // プレビューチャート更新
+        function updatePreviewChart() {
+            const chart = document.getElementById('previewChart');
+            const inputs = document.querySelectorAll('.time-input');
+            
+            const maxCapacity = Math.max(...Array.from(inputs).map(i => parseInt(i.value) || 0));
+            
+            chart.innerHTML = Array.from(inputs).map(input => {
+                const value = parseInt(input.value) || 0;
+                const height = maxCapacity > 0 ? (value / maxCapacity * 100) : 0;
+                const time = input.dataset.time;
+                
+                return `
+                    <div class="bar" style="height: ${height}%">
+                        <span class="bar-value">${value}</span>
+                        <span class="bar-label">${time.split(':')[0]}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ステータス表示
+        function showStatus(message, type) {
+            const statusBar = document.getElementById('statusBar');
+            statusBar.textContent = message;
+            statusBar.className = `status-bar status-${type}`;
+            
+            setTimeout(() => {
+                statusBar.className = 'status-bar';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

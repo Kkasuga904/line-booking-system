@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約制御設定（カレンダー付き） | 飲食店予約管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        /* ヘッダー */
+        .header {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            color: #555;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: #f8f9fa;
+            border-color: #4a90e2;
+            color: #4a90e2;
+        }
+
+        /* メインコンテナ */
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        /* カレンダービュー */
+        .calendar-view {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        /* 凡例 */
+        .legend {
+            display: flex;
+            gap: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .capacity-indicator {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .capacity-full { background: #e74c3c; }
+        .capacity-high { background: #f39c12; }
+        .capacity-medium { background: #f1c40f; }
+        .capacity-low { background: #3498db; }
+        .capacity-empty { background: #2ecc71; }
+
+        /* カレンダーグリッド */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+        }
+
+        .weekday-header {
+            font-weight: 600;
+            text-align: center;
+            padding: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .weekday-header.sunday { color: #e74c3c; }
+        .weekday-header.saturday { color: #3498db; }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 8px;
+            position: relative;
+            transition: all 0.3s;
+            cursor: pointer;
+            background: white;
+        }
+
+        .calendar-day:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .calendar-day.disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+
+        .calendar-day.has-rule {
+            background: linear-gradient(135deg, #fff, #f0f7ff);
+            border-color: #4a90e2;
+        }
+
+        .calendar-day.full {
+            background: linear-gradient(135deg, #fff, #ffe8e8);
+            border-color: #e74c3c;
+        }
+
+        .calendar-day.high {
+            background: linear-gradient(135deg, #fff, #fff4e6);
+            border-color: #f39c12;
+        }
+
+        .calendar-day.medium {
+            background: linear-gradient(135deg, #fff, #fffbe6);
+            border-color: #f1c40f;
+        }
+
+        .calendar-day.low {
+            background: linear-gradient(135deg, #fff, #e6f4ff);
+            border-color: #3498db;
+        }
+
+        .calendar-day.empty {
+            background: linear-gradient(135deg, #fff, #e8f8f0);
+            border-color: #2ecc71;
+        }
+
+        .calendar-day-header {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .calendar-day-content {
+            font-size: 11px;
+            color: #666;
+        }
+
+        /* ルール設定パネル */
+        .control-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        /* ルールカード */
+        .rule-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .rule-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .rule-status-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .rule-status-badge.full {
+            background: rgba(231, 76, 60, 0.1);
+            color: #e74c3c;
+        }
+
+        .rule-status-badge.high {
+            background: rgba(243, 156, 18, 0.1);
+            color: #f39c12;
+        }
+
+        .rule-status-badge.medium {
+            background: rgba(241, 196, 15, 0.1);
+            color: #f1c40f;
+        }
+
+        .rule-status-badge.low {
+            background: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+        }
+
+        .rule-status-badge.empty {
+            background: rgba(46, 204, 113, 0.1);
+            color: #2ecc71;
+        }
+
+        .rule-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .rule-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .delete-btn {
+            padding: 6px 12px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .delete-btn:hover {
+            background: #c0392b;
+        }
+
+        .rule-info {
+            display: flex;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .info-label {
+            font-weight: 500;
+            color: #666;
+            min-width: 80px;
+        }
+
+        .info-value {
+            color: #333;
+        }
+
+        .rule-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+
+        /* モーダル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: #f5f5f7;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        /* トースト通知 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 3000;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            border-left: 4px solid #27ae60;
+        }
+
+        .toast.error {
+            border-left: 4px solid #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <!-- ヘッダー -->
+    <div class="header">
+        <div class="header-content">
+            <h1>
+                🎯 予約制御設定
+                <span style="font-size: 14px; color: #666; font-weight: normal;">カレンダービュー付き</span>
+            </h1>
+            <div class="nav-buttons">
+                <a href="/admin-full-featured.html" class="nav-btn">📋 管理画面</a>
+                <a href="/dashboard.html" class="nav-btn">📊 ダッシュボード</a>
+                <a href="/analytics.html" class="nav-btn">📈 分析</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- メインコンテナ -->
+    <div class="container">
+        <!-- カレンダービュー -->
+        <div class="calendar-view">
+            <div class="calendar-header">
+                <h2 class="panel-title">📅 ルールカレンダー表示</h2>
+                <div class="calendar-nav">
+                    <button class="btn btn-secondary" onclick="previousMonth()">◀ 前月</button>
+                    <h3 id="currentMonth" style="margin: 0 20px; font-size: 18px;"></h3>
+                    <button class="btn btn-secondary" onclick="nextMonth()">次月 ▶</button>
+                </div>
+            </div>
+            
+            <!-- 凡例 -->
+            <div class="legend">
+                <div class="legend-item">
+                    <span class="capacity-indicator capacity-full"></span>
+                    <span>満席 (90%以上)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="capacity-indicator capacity-high"></span>
+                    <span>残りわずか (70-90%)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="capacity-indicator capacity-medium"></span>
+                    <span>半分以上 (50-70%)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="capacity-indicator capacity-low"></span>
+                    <span>余裕あり (30-50%)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="capacity-indicator capacity-empty"></span>
+                    <span>空き十分 (30%未満)</span>
+                </div>
+            </div>
+            
+            <!-- カレンダーグリッド -->
+            <div class="calendar-grid">
+                <div class="weekday-header sunday">日</div>
+                <div class="weekday-header">月</div>
+                <div class="weekday-header">火</div>
+                <div class="weekday-header">水</div>
+                <div class="weekday-header">木</div>
+                <div class="weekday-header">金</div>
+                <div class="weekday-header saturday">土</div>
+            </div>
+            <div id="calendarGrid" class="calendar-grid">
+                <!-- 日付が動的に生成される -->
+            </div>
+        </div>
+
+        <!-- 新規ルール作成 -->
+        <div class="control-panel">
+            <h2 class="panel-title">新規制御ルール作成</h2>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">📅 適用日</label>
+                    <input type="date" class="form-input" id="ruleDate">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">⏰ 開始時間</label>
+                    <input type="time" class="form-input" id="startTime" value="18:00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">⏰ 終了時間</label>
+                    <input type="time" class="form-input" id="endTime" value="21:00">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">👥 最大組数</label>
+                    <input type="number" class="form-input" id="maxGroups" value="10" min="1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">👤 最大人数</label>
+                    <input type="number" class="form-input" id="maxPeople" value="30" min="1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">🍽️ 1組あたり最大人数</label>
+                    <input type="number" class="form-input" id="maxPerGroup" value="6" min="1">
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" onclick="saveRule()">💾 ルールを保存</button>
+        </div>
+
+        <!-- 保存済みルール -->
+        <div class="control-panel">
+            <h2 class="panel-title">保存済みルール一覧</h2>
+            <div id="savedRules">
+                <!-- ルールカードが動的に表示される -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 日付詳細モーダル -->
+    <div class="modal" id="dateModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">日付詳細</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div id="modalBody">
+                <!-- 詳細情報が表示される -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || 'default-store';
+        let currentRules = [];
+        let currentDate = new Date();
+        let reservationData = {}; // 実際の予約データ
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSavedRules();
+            loadReservationData();
+            renderCalendar();
+        });
+
+        // ルール読み込み
+        async function loadSavedRules() {
+            const savedRules = localStorage.getItem(`capacity_control_rules_${STORE_ID}`);
+            if (savedRules) {
+                currentRules = JSON.parse(savedRules);
+                displaySavedRules(currentRules);
+            }
+
+            // APIからも取得を試みる
+            try {
+                const response = await fetch(`/api/admin?action=capacity&store_id=${STORE_ID}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.settings && data.settings.rules) {
+                        currentRules = data.settings.rules;
+                        displaySavedRules(currentRules);
+                    }
+                }
+            } catch (error) {
+                console.log('APIからの取得エラー:', error);
+            }
+        }
+
+        // 実際の予約データを読み込み
+        async function loadReservationData() {
+            try {
+                const response = await fetch(`/api/admin?action=list&store_id=${STORE_ID}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.reservations) {
+                        // 日付ごとに予約を集計
+                        reservationData = {};
+                        data.reservations.forEach(reservation => {
+                            const date = reservation.date;
+                            if (!reservationData[date]) {
+                                reservationData[date] = {
+                                    count: 0,
+                                    people: 0,
+                                    reservations: []
+                                };
+                            }
+                            reservationData[date].count++;
+                            reservationData[date].people += parseInt(reservation.numberOfPeople) || 1;
+                            reservationData[date].reservations.push(reservation);
+                        });
+                        renderCalendar();
+                    }
+                }
+            } catch (error) {
+                console.log('予約データ読み込みエラー:', error);
+            }
+        }
+
+        // カレンダー表示
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            document.getElementById('currentMonth').textContent = `${year}年${month + 1}月`;
+            
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const prevLastDay = new Date(year, month, 0);
+            
+            const firstDayOfWeek = firstDay.getDay();
+            const lastDate = lastDay.getDate();
+            const prevLastDate = prevLastDay.getDate();
+            
+            const calendarGrid = document.getElementById('calendarGrid');
+            calendarGrid.innerHTML = '';
+            
+            // 前月の日付
+            for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+                const day = document.createElement('div');
+                day.className = 'calendar-day disabled';
+                day.innerHTML = `<div class="calendar-day-header">${prevLastDate - i}</div>`;
+                calendarGrid.appendChild(day);
+            }
+            
+            // 当月の日付
+            for (let date = 1; date <= lastDate; date++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+                const dayRules = getRulesForDate(dateStr);
+                const dayReservations = reservationData[dateStr] || { count: 0, people: 0 };
+                
+                const day = document.createElement('div');
+                day.className = 'calendar-day';
+                
+                if (dayRules.length > 0) {
+                    day.classList.add('has-rule');
+                    
+                    // 実際の予約状況に基づいて色付け
+                    const maxGroups = Math.max(...dayRules.map(r => r.maxGroups || 10));
+                    const maxPeople = Math.max(...dayRules.map(r => r.maxPeople || 30));
+                    
+                    const groupRate = dayReservations.count / maxGroups;
+                    const peopleRate = dayReservations.people / maxPeople;
+                    const rate = Math.max(groupRate, peopleRate);
+                    
+                    if (rate >= 0.9) day.classList.add('full');
+                    else if (rate >= 0.7) day.classList.add('high');
+                    else if (rate >= 0.5) day.classList.add('medium');
+                    else if (rate >= 0.3) day.classList.add('low');
+                    else day.classList.add('empty');
+                    
+                    day.innerHTML = `
+                        <div class="calendar-day-header">${date}</div>
+                        <div class="calendar-day-content">
+                            <div>📅 ルールあり</div>
+                            <div style="margin-top: 4px;">
+                                👥 ${dayReservations.count}/${maxGroups}組<br>
+                                👤 ${dayReservations.people}/${maxPeople}人
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    day.innerHTML = `
+                        <div class="calendar-day-header">${date}</div>
+                        <div class="calendar-day-content">
+                            <div style="color: #ccc;">制限なし</div>
+                            ${dayReservations.count > 0 ? `<div>👥 ${dayReservations.count}組</div>` : ''}
+                        </div>
+                    `;
+                }
+                
+                day.onclick = () => showDateDetails(dateStr, dayRules, dayReservations);
+                calendarGrid.appendChild(day);
+            }
+            
+            // 次月の日付
+            const remainingDays = 42 - (firstDayOfWeek + lastDate);
+            for (let date = 1; date <= remainingDays; date++) {
+                const day = document.createElement('div');
+                day.className = 'calendar-day disabled';
+                day.innerHTML = `<div class="calendar-day-header">${date}</div>`;
+                calendarGrid.appendChild(day);
+            }
+        }
+
+        // 日付のルール取得
+        function getRulesForDate(dateStr) {
+            return currentRules.filter(rule => {
+                return rule.date === dateStr;
+            });
+        }
+
+        // 日付詳細表示
+        function showDateDetails(dateStr, rules, reservations) {
+            const modal = document.getElementById('dateModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            
+            const formattedDate = new Date(dateStr).toLocaleDateString('ja-JP', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long'
+            });
+            
+            modalTitle.textContent = formattedDate;
+            
+            let html = '';
+            
+            if (rules.length > 0) {
+                html += '<h3>📋 設定されたルール</h3>';
+                rules.forEach((rule, i) => {
+                    html += `
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                            <div>⏰ 時間: ${rule.startTime || '18:00'} - ${rule.endTime || '21:00'}</div>
+                            <div>👥 上限: ${rule.maxGroups}組, ${rule.maxPeople}人, ${rule.maxPerGroup}人/組</div>
+                        </div>
+                    `;
+                });
+            }
+            
+            if (reservations && reservations.count > 0) {
+                html += '<h3 style="margin-top: 20px;">📅 現在の予約状況</h3>';
+                html += `
+                    <div style="background: #e8f5e9; padding: 15px; border-radius: 8px;">
+                        <div>👥 予約組数: ${reservations.count}組</div>
+                        <div>👤 予約人数: ${reservations.people}人</div>
+                    </div>
+                `;
+                
+                if (rules.length > 0) {
+                    const maxGroups = Math.max(...rules.map(r => r.maxGroups || 10));
+                    const maxPeople = Math.max(...rules.map(r => r.maxPeople || 30));
+                    const remaining = {
+                        groups: maxGroups - reservations.count,
+                        people: maxPeople - reservations.people
+                    };
+                    
+                    html += `
+                        <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                            <div>📊 残り枠</div>
+                            <div>👥 あと${remaining.groups}組まで予約可能</div>
+                            <div>👤 あと${remaining.people}人まで予約可能</div>
+                        </div>
+                    `;
+                }
+            }
+            
+            if (!rules.length && (!reservations || reservations.count === 0)) {
+                html = '<p style="text-align: center; color: #999;">この日の制限・予約はありません</p>';
+            }
+            
+            modalBody.innerHTML = html;
+            modal.classList.add('active');
+        }
+
+        // モーダルを閉じる
+        function closeModal() {
+            document.getElementById('dateModal').classList.remove('active');
+        }
+
+        // ルール保存
+        function saveRule() {
+            const rule = {
+                date: document.getElementById('ruleDate').value,
+                startTime: document.getElementById('startTime').value,
+                endTime: document.getElementById('endTime').value,
+                maxGroups: parseInt(document.getElementById('maxGroups').value),
+                maxPeople: parseInt(document.getElementById('maxPeople').value),
+                maxPerGroup: parseInt(document.getElementById('maxPerGroup').value)
+            };
+            
+            if (!rule.date) {
+                showToast('日付を選択してください', 'error');
+                return;
+            }
+            
+            currentRules.push(rule);
+            localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(currentRules));
+            
+            // APIに保存
+            saveToAPI();
+            
+            displaySavedRules(currentRules);
+            renderCalendar();
+            showToast('ルールを保存しました', 'success');
+            
+            // フォームをリセット
+            document.getElementById('ruleDate').value = '';
+        }
+
+        // APIに保存
+        async function saveToAPI() {
+            try {
+                await fetch('/api/admin?action=capacity', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        store_id: STORE_ID,
+                        rules: currentRules
+                    })
+                });
+            } catch (error) {
+                console.log('API保存エラー:', error);
+            }
+        }
+
+        // ルール表示
+        function displaySavedRules(rules) {
+            const container = document.getElementById('savedRules');
+            container.innerHTML = '';
+            
+            if (rules.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #999;">保存されたルールはありません</p>';
+                return;
+            }
+            
+            rules.forEach((rule, index) => {
+                const card = createRuleCard(rule, index);
+                container.appendChild(card);
+            });
+        }
+
+        // ルールカード作成
+        function createRuleCard(rule, index) {
+            const dateReservations = reservationData[rule.date] || { count: 0, people: 0 };
+            const groupRate = dateReservations.count / (rule.maxGroups || 10);
+            const peopleRate = dateReservations.people / (rule.maxPeople || 30);
+            const rate = Math.max(groupRate, peopleRate);
+            
+            let statusClass = '';
+            let statusText = '';
+            let statusIcon = '';
+            
+            if (rate >= 0.9) {
+                statusClass = 'full';
+                statusText = '満席';
+                statusIcon = '🔴';
+            } else if (rate >= 0.7) {
+                statusClass = 'high';
+                statusText = '残りわずか';
+                statusIcon = '🟠';
+            } else if (rate >= 0.5) {
+                statusClass = 'medium';
+                statusText = '半分以上';
+                statusIcon = '🟡';
+            } else if (rate >= 0.3) {
+                statusClass = 'low';
+                statusText = '余裕あり';
+                statusIcon = '🔵';
+            } else {
+                statusClass = 'empty';
+                statusText = '空き十分';
+                statusIcon = '🟢';
+            }
+            
+            const card = document.createElement('div');
+            card.className = 'rule-card';
+            
+            card.innerHTML = `
+                <div class="rule-status-badge ${statusClass}">
+                    <span>${statusIcon}</span>
+                    <span>${statusText}</span>
+                </div>
+                <div class="rule-header">
+                    <div class="rule-title">📅 ${rule.date}</div>
+                    <button class="delete-btn" onclick="deleteRule(${index})">削除</button>
+                </div>
+                <div class="rule-info">
+                    <span class="info-label">時間帯:</span>
+                    <span class="info-value">⏰ ${rule.startTime || '18:00'} - ${rule.endTime || '21:00'}</span>
+                </div>
+                <div class="rule-info">
+                    <span class="info-label">上限:</span>
+                    <span class="info-value">
+                        <span class="rule-tag">👥 ${rule.maxGroups}組</span>
+                        <span class="rule-tag">👤 ${rule.maxPeople}人</span>
+                        <span class="rule-tag">🍽️ ${rule.maxPerGroup}人/組</span>
+                    </span>
+                </div>
+                <div class="rule-info" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0;">
+                    <span class="info-label">現在の予約:</span>
+                    <span class="info-value">
+                        <span style="color: #666;">👥 ${dateReservations.count}/${rule.maxGroups}組</span>
+                        <span style="color: #666; margin-left: 10px;">👤 ${dateReservations.people}/${rule.maxPeople}人</span>
+                    </span>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        // ルール削除
+        function deleteRule(index) {
+            if (confirm('このルールを削除しますか？')) {
+                currentRules.splice(index, 1);
+                localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(currentRules));
+                saveToAPI();
+                displaySavedRules(currentRules);
+                renderCalendar();
+                showToast('ルールを削除しました', 'success');
+            }
+        }
+
+        // カレンダーナビゲーション
+        function previousMonth() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            renderCalendar();
+        }
+
+        function nextMonth() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            renderCalendar();
+        }
+
+        // トースト通知
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span>${type === 'success' ? '✅' : '❌'}</span>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+        
+        // ルールタイトル取得
+        function getRuleTitle(rule) {
+            if (rule.dateMode === 'single' || rule.date) {
+                return `📅 ${rule.date}`;
+            } else if (rule.dateMode === 'range') {
+                return `📆 ${rule.startDate} 〜 ${rule.endDate}`;
+            } else if (rule.dateMode === 'weekly') {
+                const days = ['日', '月', '火', '水', '木', '金', '土'];
+                const selected = [];
+                Object.keys(rule.weekdays || {}).forEach(key => {
+                    if (rule.weekdays[key]) selected.push(days[key]);
+                });
+                return `🗓️ 毎週 ${selected.join('・')}曜日`;
+            }
+            return '📅 不明';
+        }
+        
+        // 日付モード切り替え
+        function changeDateMode(mode) {
+            document.getElementById('singleDateSection').style.display = mode === 'single' ? 'flex' : 'none';
+            document.getElementById('rangeDateSection').style.display = mode === 'range' ? 'flex' : 'none';
+            document.getElementById('weeklySection').style.display = mode === 'weekly' ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>

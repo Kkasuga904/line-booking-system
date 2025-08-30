@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>背景イベントテスト</title>
+</head>
+<body>
+    <h1>カレンダー背景イベントテストページ</h1>
+    <button onclick="testCapacityBackground()">テスト実行</button>
+    <div id="result"></div>
+
+    <script>
+    function testCapacityBackground() {
+        // 今日の日付で予約制限ルールを作成
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        
+        const testRule = {
+            date: todayStr,
+            startTime: '18:00',
+            endTime: '21:00',
+            maxGroups: 5,
+            maxPeople: 20,
+            enabled: true
+        };
+        
+        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || 'default-store';
+        const key = `capacity_control_rules_${STORE_ID}`;
+        
+        // LocalStorageに保存
+        localStorage.setItem(key, JSON.stringify([testRule]));
+        
+        document.getElementById('result').innerHTML = `
+            <p>テストルールを作成しました:</p>
+            <pre>${JSON.stringify(testRule, null, 2)}</pre>
+            <p>LocalStorage key: ${key}</p>
+            <p>次に /admin-full-featured.html を開いて確認してください</p>
+        `;
+        
+        console.log('保存完了:', testRule);
+        console.log('LocalStorage内容:', localStorage.getItem(key));
+    }
+    </script>
+</body>
+</html>

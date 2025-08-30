@@ -8,6 +8,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { getEnv } from '../utils/env-helper.js';
+import { getStoreId } from '../utils/store-config.js';
 
 // Supabase初期化
 const SUPABASE_URL = 'https://faenvzzeguvlconvrqgp.supabase.co';
@@ -150,8 +151,8 @@ async function handleCreate(req, res) {
     });
   }
   
-  // store_idを環境変数から取得
-  const storeId = getEnv('STORE_ID', 'default-store');
+  // @レビュー: getStoreId()を通して店舗IDを取得
+  const storeId = getStoreId(req.body.store_id || req.query.store_id);
   const storeName = getEnv('STORE_NAME', 'レストラン');
   
   // 予約データ作成
@@ -271,7 +272,8 @@ async function handleSupabase(req, res) {
   }
   
   // store_idを取得（環境変数またはデフォルト）
-  const storeId = (process.env.STORE_ID || 'default-store').trim();
+  // @レビュー: getStoreId()を通して店舗IDを取得
+  const storeId = getStoreId(req.query.store_id);
   console.log('Fetching reservations for store_id:', storeId);
   
   // 予約データを取得（席情報も含む）

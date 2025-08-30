@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>タイムピッカー診断</title>
+</head>
+<body>
+    <h1>タイムピッカー診断ツール</h1>
+    <p>ブラウザのコンソールで以下を実行してください：</p>
+    
+    <pre>
+// 診断スクリプト
+function diagnoseTimePicker() {
+    console.log('=== タイムピッカー診断開始 ===');
+    
+    // 時間入力要素を全て取得
+    const timeInputs = document.querySelectorAll('input[type="time"], input#startTime, input#endTime, input#editStartTime, input#editEndTime');
+    
+    timeInputs.forEach((el, index) => {
+        console.log(`\n--- 入力要素 ${index + 1} ---`);
+        console.log('ID:', el.id);
+        console.log('Type:', el.type);
+        console.log('Value:', el.value);
+        console.log('Lang:', el.lang || el.getAttribute('lang'));
+        console.log('Classes:', el.className);
+        console.log('Dataset:', el.dataset);
+        
+        // ライブラリのインスタンスをチェック
+        console.log('Has flatpickr?', !!el._flatpickr);
+        console.log('Has timepicker?', !!el.timepicker);
+        console.log('Has datepicker?', !!el.datepicker);
+        console.log('Has ej2_instances?', !!el.ej2_instances);
+        console.log('Has picker?', !!el.picker);
+        
+        // 親要素のライブラリチェック
+        const parent = el.parentElement;
+        if (parent) {
+            console.log('Parent has flatpickr?', !!parent._flatpickr);
+            console.log('Parent classes:', parent.className);
+        }
+        
+        // AM/PM表示の確認
+        const computedStyles = window.getComputedStyle(el);
+        console.log('Computed appearance:', computedStyles.appearance);
+        
+        // 実際の表示値を取得
+        if (el.type === 'time') {
+            const testDate = new Date();
+            testDate.setHours(18, 0, 0, 0);
+            el.value = '18:00';
+            console.log('Test value set to 18:00, displayed as:', el.value);
+        }
+    });
+    
+    // ページ全体の言語設定
+    console.log('\n--- ページ設定 ---');
+    console.log('HTML lang:', document.documentElement.lang);
+    console.log('Body lang:', document.body.lang);
+    
+    // ライブラリの存在確認
+    console.log('\n--- ライブラリ確認 ---');
+    console.log('flatpickr exists?', typeof flatpickr !== 'undefined');
+    console.log('tempusDominus exists?', typeof tempusDominus !== 'undefined');
+    console.log('te exists?', typeof te !== 'undefined');
+    console.log('mdb exists?', typeof mdb !== 'undefined');
+    
+    console.log('\n=== 診断完了 ===');
+}
+
+// 24時間形式への変換関数
+function convertTo24Hour(timeStr) {
+    if (!timeStr) return timeStr;
+    
+    // AM/PM形式の場合変換
+    const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return timeStr; // すでに24時間形式
+    
+    let [_, hours, minutes, period] = match;
+    hours = parseInt(hours, 10);
+    
+    if (period.toUpperCase() === 'PM' && hours !== 12) {
+        hours += 12;
+    } else if (period.toUpperCase() === 'AM' && hours === 12) {
+        hours = 0;
+    }
+    
+    return `${String(hours).padStart(2, '0')}:${minutes}`;
+}
+
+// 全ての時間入力を24時間形式に強制
+function forceAll24Hour() {
+    console.log('24時間形式を強制適用中...');
+    
+    // 1. HTML言語設定
+    document.documentElement.lang = 'ja';
+    
+    // 2. 全ての時間入力に対して
+    document.querySelectorAll('input[type="time"]').forEach(input => {
+        // lang属性を設定
+        input.setAttribute('lang', 'ja');
+        
+        // ライブラリインスタンスを削除
+        if (input._flatpickr) {
+            input._flatpickr.destroy();
+        }
+        
+        // type="time"を確実に設定
+        input.type = 'time';
+        
+        // 現在の値を24時間形式に変換
+        const currentValue = input.value;
+        const converted = convertTo24Hour(currentValue);
+        if (converted !== currentValue) {
+            input.value = converted;
+            console.log(`変換: ${currentValue} → ${converted}`);
+        }
+    });
+    
+    console.log('24時間形式の強制適用完了');
+}
+
+// 実行
+diagnoseTimePicker();
+    </pre>
+    
+    <button onclick="diagnoseTimePicker()">診断実行</button>
+    <button onclick="forceAll24Hour()">24時間形式を強制</button>
+    
+    <script>
+        // ここに診断スクリプトをコピー
+        function diagnoseTimePicker() {
+            console.log('=== タイムピッカー診断開始 ===');
+            
+            const timeInputs = document.querySelectorAll('input[type="time"], input#startTime, input#endTime, input#editStartTime, input#editEndTime');
+            
+            timeInputs.forEach((el, index) => {
+                console.log(`\n--- 入力要素 ${index + 1} ---`);
+                console.log('ID:', el.id);
+                console.log('Type:', el.type);
+                console.log('Value:', el.value);
+                console.log('Lang:', el.lang || el.getAttribute('lang'));
+                console.log('Classes:', el.className);
+                console.log('Dataset:', el.dataset);
+                
+                console.log('Has flatpickr?', !!el._flatpickr);
+                console.log('Has timepicker?', !!el.timepicker);
+                console.log('Has datepicker?', !!el.datepicker);
+                console.log('Has ej2_instances?', !!el.ej2_instances);
+                console.log('Has picker?', !!el.picker);
+            });
+            
+            console.log('\n--- ページ設定 ---');
+            console.log('HTML lang:', document.documentElement.lang);
+            console.log('Body lang:', document.body.lang);
+            
+            console.log('\n--- ライブラリ確認 ---');
+            console.log('flatpickr exists?', typeof flatpickr !== 'undefined');
+            console.log('tempusDominus exists?', typeof tempusDominus !== 'undefined');
+            console.log('te exists?', typeof te !== 'undefined');
+            console.log('mdb exists?', typeof mdb !== 'undefined');
+            
+            console.log('\n=== 診断完了 ===');
+        }
+        
+        function forceAll24Hour() {
+            console.log('24時間形式を強制適用中...');
+            
+            document.documentElement.lang = 'ja';
+            
+            document.querySelectorAll('input[type="time"]').forEach(input => {
+                input.setAttribute('lang', 'ja');
+                
+                if (input._flatpickr) {
+                    input._flatpickr.destroy();
+                }
+                
+                input.type = 'time';
+            });
+            
+            console.log('24時間形式の強制適用完了');
+        }
+    </script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getStoreId } from '../utils/store-config.js';
 
 // Supabase初期化
 const SUPABASE_URL = 'https://faenvzzeguvlconvrqgp.supabase.co';
@@ -44,8 +45,8 @@ export default async function handler(req, res) {
             });
         }
         
-        // データベースに保存（環境変数のSTORE_IDまたはdefault-storeを使用）
-        const storeId = store_id || process.env.STORE_ID || 'default-store';
+        // @レビュー: getStoreId()を通して店舗IDを取得
+        const storeId = getStoreId(store_id);
         const { data: reservation, error } = await supabase
             .from('reservations')
             .insert([{

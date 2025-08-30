@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE予約テスト</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #06c755;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #05a648;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>LINE予約APIテスト</h1>
+    
+    <form id="testForm">
+        <div class="form-group">
+            <label>日付</label>
+            <input type="date" id="date" required>
+        </div>
+        
+        <div class="form-group">
+            <label>時間</label>
+            <select id="time" required>
+                <option value="">選択してください</option>
+                <option value="10:00">10:00</option>
+                <option value="10:30">10:30</option>
+                <option value="11:00">11:00</option>
+                <option value="11:30">11:30</option>
+                <option value="12:00">12:00</option>
+                <option value="12:30">12:30</option>
+                <option value="13:00">13:00</option>
+                <option value="13:30">13:30</option>
+                <option value="14:00">14:00</option>
+                <option value="14:30">14:30</option>
+                <option value="15:00">15:00</option>
+                <option value="15:30">15:30</option>
+                <option value="16:00">16:00</option>
+                <option value="16:30">16:30</option>
+                <option value="17:00">17:00</option>
+                <option value="17:30">17:30</option>
+                <option value="18:00">18:00</option>
+                <option value="18:30">18:30</option>
+                <option value="19:00">19:00</option>
+                <option value="19:30">19:30</option>
+                <option value="20:00">20:00</option>
+                <option value="20:30">20:30</option>
+                <option value="21:00">21:00</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>名前</label>
+            <input type="text" id="name" value="テストユーザー" required>
+        </div>
+        
+        <div class="form-group">
+            <label>電話番号</label>
+            <input type="tel" id="phone" value="090-0000-0000" required>
+        </div>
+        
+        <div class="form-group">
+            <label>メールアドレス</label>
+            <input type="email" id="email" value="test@example.com">
+        </div>
+        
+        <div class="form-group">
+            <label>人数</label>
+            <input type="number" id="people" value="2" min="1" max="10" required>
+        </div>
+        
+        <div class="form-group">
+            <label>メッセージ</label>
+            <textarea id="message" rows="3">テスト予約です</textarea>
+        </div>
+        
+        <button type="submit">予約送信テスト</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        // 今日の日付をデフォルトに設定
+        const today = new Date();
+        today.setDate(today.getDate() + 1); // 明日
+        document.getElementById('date').value = today.toISOString().split('T')[0];
+        
+        document.getElementById('testForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'none';
+            
+            // 送信データを構築（様々なパターンをテスト）
+            const data = {
+                // 基本フィールド
+                date: document.getElementById('date').value,
+                time: document.getElementById('time').value + ':00',
+                phone: document.getElementById('phone').value,
+                email: document.getElementById('email').value,
+                message: document.getElementById('message').value,
+                people: parseInt(document.getElementById('people').value),
+                
+                // 名前フィールド（両方送信）
+                name: document.getElementById('name').value,
+                customer_name: document.getElementById('name').value,
+                
+                // その他のフィールド
+                store_id: 'default-store',
+                user_id: 'test-user-' + Date.now(),
+                status: 'confirmed'
+            };
+            
+            console.log('送信データ:', data);
+            
+            try {
+                const response = await fetch('/api/calendar-reservation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ 予約成功！</h3>
+                        <p>予約ID: ${result.reservation?.id || 'N/A'}</p>
+                        <h4>レスポンス:</h4>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ 予約失敗</h3>
+                        <p>ステータス: ${response.status}</p>
+                        <p>エラー: ${result.error || 'Unknown error'}</p>
+                        ${result.detail ? `<p>詳細: ${result.detail}</p>` : ''}
+                        ${result.troubleshooting ? `<p>対処法: ${result.troubleshooting}</p>` : ''}
+                        <h4>レスポンス:</h4>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = `
+                    <h3>❌ ネットワークエラー</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+            
+            resultDiv.style.display = 'block';
+        });
+    </script>
+</body>
+</html>
