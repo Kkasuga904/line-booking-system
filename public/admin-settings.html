@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>営業時間設定 | LINE予約管理システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+        
+        /* ヘッダー */
+        .header {
+            position: fixed;
+            top: 0;
+            display: block;
+            right: 0;
+            height: 60px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 999;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+            text-align: center;
+            flex: 1;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        
+        .page-title:hover {
+            color: #4a90e2;
+        }
+
+        /* ハンバーガーメニュー */
+        .hamburger-menu {
+            position: relative;
+            z-index: 1001;
+        }
+
+        .hamburger-icon {
+            width: 30px;
+            height: 24px;
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hamburger-icon span {
+            display: block;
+            height: 3px;
+            width: 100%;
+            background: #333;
+            border-radius: 3px;
+            transition: 0.3s;
+        }
+
+        /* サイドバー */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            display: none; display: block;
+            width: 280px;
+            height: 100%;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            transition: 0.3s;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .sidebar.active {
+            display: block;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .sidebar-header h2 {
+            font-size: 18px;
+            margin: 0;
+            color: #333;
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            color: #666;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .nav-item:hover {
+            background: #f5f5f5;
+            color: #4a90e2;
+        }
+
+        .nav-item.active {
+            background: #e8f4fd;
+            color: #4a90e2;
+            border-left: 3px solid #4a90e2;
+        }
+
+        .nav-icon {
+            margin-right: 12px;
+            font-size: 18px;
+        }
+
+        /* オーバーレイ */
+        .overlay {
+            position: fixed;
+            top: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: 0.3s;
+            z-index: 999;
+        }
+        
+        .overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* メインコンテナ */
+        .container {
+            max-width: 1200px;
+            margin: 80px auto 30px;
+            padding: 0 20px;
+        }
+
+        /* カード */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        /* 営業時間設定 */
+        .time-settings {
+            display: grid;
+            gap: 20px;
+        }
+
+        .day-setting {
+            display: grid;
+            grid-template-columns: 120px 1fr auto;
+            gap: 20px;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .day-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .time-inputs {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .time-input {
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .day-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: #ccc;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #4a90e2;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            left: 26px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #4a90e2;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #357abd;
+        }
+
+        /* 休業日設定 */
+        .holiday-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .holiday-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .holiday-date {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .btn-remove {
+            padding: 6px 12px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .btn-remove:hover {
+            background: #c0392b;
+        }
+
+        .add-holiday {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .date-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- オーバーレイ -->
+    <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+    
+    <!-- ヘッダー -->
+    <div class="header">
+        <div class="hamburger-menu" id="hamburgerMenu">
+            <div class="hamburger-icon" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+        <h1 class="page-title" onclick="window.location.href='/admin-full-featured.html'" style="cursor: pointer;">予約管理システム</h1>
+    </div>
+
+    <!-- サイドバー -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>📋 管理メニュー</h2>
+        </div>
+        <nav class="sidebar-nav">
+            <div style="padding: 10px 20px; font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 1px;">メイン</div>
+            <a href="/admin-full-featured.html" class="nav-item">
+                <span class="nav-icon">📅</span>
+                <span>カレンダー</span>
+            </a>
+            <a href="/admin-list.html" class="nav-item">
+                <span class="nav-icon">📋</span>
+                <span>予約一覧</span>
+            </a>
+            <a href="/admin-analytics.html" class="nav-item">
+                <span class="nav-icon">📊</span>
+                <span>統計・分析</span>
+            </a>
+            <div style="padding: 10px 20px; font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px;">予約管理</div>
+            <a href="/capacity-control-enhanced.html" class="nav-item">
+                <span class="nav-icon">🎯</span>
+                <span>予約制限設定</span>
+            </a>
+            <a href="/seats-management-enhanced.html" class="nav-item">
+                <span class="nav-icon">💺</span>
+                <span>席管理・割り当て</span>
+            </a>
+            <a href="/admin-settings.html" class="nav-item active">
+                <span class="nav-icon">⏰</span>
+                <span>営業時間設定</span>
+            </a>
+            <a href="/admin-templates.html" class="nav-item">
+                <span class="nav-icon">📝</span>
+                <span>テンプレート管理</span>
+            </a>
+            <a href="/admin-customers.html" class="nav-item">
+                <span class="nav-icon">👥</span>
+                <span>顧客管理</span>
+            </a>
+            <div style="padding: 10px 20px; font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px;">高度な機能</div>
+            <a href="/admin-analytics.html" class="nav-item">
+                <span class="nav-icon">📊</span>
+                <span>詳細分析</span>
+            </a>
+            <a href="/admin-dashboard.html" class="nav-item">
+                <span class="nav-icon">🎯</span>
+                <span>ダッシュボード</span>
+            </a>
+            <a href="/admin-notifications.html" class="nav-item">
+                <span class="nav-icon">🔔</span>
+                <span>通知センター</span>
+            </a>
+            <a href="/admin-advanced.html" class="nav-item">
+                <span class="nav-icon">⚙️</span>
+                <span>詳細設定</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div class="container">
+        <!-- 営業時間設定 -->
+        <div class="card">
+            <h2 class="card-title">⏰ 営業時間設定</h2>
+            <div class="time-settings">
+                <div class="day-setting">
+                    <div class="day-name">月曜日</div>
+                    <div class="time-inputs">
+                        <input type="time" class="time-input" value="11:00">
+                        <span>〜</span>
+                        <input type="time" class="time-input" value="22:00">
+                    </div>
+                    <div class="day-toggle">
+                        <span>営業</span>
+                        <div class="toggle-switch active" onclick="toggleDay(this)"></div>
+                    </div>
+                </div>
+                
+                <div class="day-setting">
+                    <div class="day-name">火曜日</div>
+                    <div class="time-inputs">
+                        <input type="time" class="time-input" value="11:00">
+                        <span>〜</span>
+                        <input type="time" class="time-input" value="22:00">
+                    </div>
+                    <div class="day-toggle">
+                        <span>営業</span>
+                        <div class="toggle-switch active" onclick="toggleDay(this)"></div>
+                    </div>
+                </div>
+                
+                <div class="day-setting">
+                    <div class="day-name">水曜日</div>
+                    <div class="time-inputs">
+                        <input type="time" class="time-input" value="11:00">
+                        <span>〜</span>
+                        <input type="time" class="time-input" value="22:00">
+                    </div>
+                    <div class="day-toggle">
+                        <span>定休日</span>
+                        <div class="toggle-switch" onclick="toggleDay(this)"></div>
+                    </div>
+                </div>
+                
+                <div class="day-setting">
+                    <div class="day-name">木曜日</div>
+                    <div class="time-inputs">
+                        <input type="time" class="time-input" value="11:00">
+                        <span>〜</span>
+                        <input type="time" class="time-input" value="22:00">
+                    </div>
+                    <div class="day-toggle">
+                        <span>営業</span>
+                        <div class="toggle-switch active" onclick="toggleDay(this)"></div>
+                    </div>
+                </div>
+                
+                <div class="day-setting">
+                    <div class="day-name">金曜日</div>
+                    <div class="time-inputs">
+                        <input type="time" class="time-input" value="11:00">
+                        <span>〜</span>
+                        <input type="time" class="time-input" value="23:00">
+                    </div>
+                    <div class="day-toggle">
+                        <span>営業</span>
+                        <div class="toggle-switch active" onclick="toggleDay(this)"></div>
+                    </div>
+                </div>
+                
+                <div class="day-setting">
+                    <div class="day-name">土曜日</div>
+                    <div class="time-inputs">
+                        <input type="time" class="time-input" value="11:00">
+                        <span>〜</span>
+                        <input type="time" class="time-input" value="23:00">
+                    </div>
+                    <div class="day-toggle">
+                        <span>営業</span>
+                        <div class="toggle-switch active" onclick="toggleDay(this)"></div>
+                    </div>
+                </div>
+                
+                <div class="day-setting">
+                    <div class="day-name">日曜日</div>
+                    <div class="time-inputs">
+                        <input type="time" class="time-input" value="11:00">
+                        <span>〜</span>
+                        <input type="time" class="time-input" value="22:00">
+                    </div>
+                    <div class="day-toggle">
+                        <span>営業</span>
+                        <div class="toggle-switch active" onclick="toggleDay(this)"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px;">
+                <button class="btn btn-primary" onclick="saveBusinessHours()">営業時間を保存</button>
+            </div>
+        </div>
+
+        <!-- 休業日設定 -->
+        <div class="card">
+            <h2 class="card-title">🗓️ 休業日設定</h2>
+            <div class="holiday-list" id="holidayList">
+                <div class="holiday-item">
+                    <span class="holiday-date">2025年1月1日（水）- 正月休み</span>
+                    <button class="btn-remove" onclick="removeHoliday(this)">削除</button>
+                </div>
+                <div class="holiday-item">
+                    <span class="holiday-date">2025年1月2日（木）- 正月休み</span>
+                    <button class="btn-remove" onclick="removeHoliday(this)">削除</button>
+                </div>
+                <div class="holiday-item">
+                    <span class="holiday-date">2025年1月3日（金）- 正月休み</span>
+                    <button class="btn-remove" onclick="removeHoliday(this)">削除</button>
+                </div>
+            </div>
+            
+            <div class="add-holiday">
+                <input type="date" class="date-input" id="newHolidayDate">
+                <input type="text" class="date-input" id="newHolidayReason" placeholder="休業理由（任意）">
+                <button class="btn btn-primary" onclick="addHoliday()">追加</button>
+            </div>
+        </div>
+
+        <!-- ラストオーダー設定 -->
+        <div class="card">
+            <h2 class="card-title">🍽️ ラストオーダー設定</h2>
+            <div style="display: grid; gap: 20px;">
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <label style="min-width: 100px;">料理L.O.</label>
+                    <span>閉店時間の</span>
+                    <input type="number" class="time-input" value="30" style="width: 80px;">
+                    <span>分前</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <label style="min-width: 100px;">ドリンクL.O.</label>
+                    <span>閉店時間の</span>
+                    <input type="number" class="time-input" value="15" style="width: 80px;">
+                    <span>分前</span>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px;">
+                <button class="btn btn-primary" onclick="saveLastOrder()">L.O.設定を保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ハンバーガーメニューのトグル
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            const hamburger = document.querySelector('.hamburger-menu');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+            if (hamburger) {
+                hamburger.style.display = sidebar.classList.contains('active') ? 'none' : 'block';
+            }
+        }
+        
+        // メニューを閉じる
+        function closeMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            const hamburger = document.querySelector('.hamburger-menu');
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+            if (hamburger) {
+                hamburger.style.display = 'block';
+            }
+        }
+
+        // 営業日トグル
+        function toggleDay(element) {
+            element.classList.toggle('active');
+            const label = element.previousElementSibling;
+            label.textContent = element.classList.contains('active') ? '営業' : '定休日';
+        }
+
+        // 営業時間保存
+        function saveBusinessHours() {
+            alert('営業時間を保存しました');
+        }
+
+        // 休業日追加
+        function addHoliday() {
+            const date = document.getElementById('newHolidayDate').value;
+            const reason = document.getElementById('newHolidayReason').value;
+            
+            if (!date) {
+                alert('日付を選択してください');
+                return;
+            }
+            
+            const list = document.getElementById('holidayList');
+            const item = document.createElement('div');
+            item.className = 'holiday-item';
+            item.innerHTML = `
+                <span class="holiday-date">${new Date(date).toLocaleDateString('ja-JP')} ${reason ? '- ' + reason : ''}</span>
+                <button class="btn-remove" onclick="removeHoliday(this)">削除</button>
+            `;
+            list.appendChild(item);
+            
+            document.getElementById('newHolidayDate').value = '';
+            document.getElementById('newHolidayReason').value = '';
+        }
+
+        // 休業日削除
+        function removeHoliday(button) {
+            button.parentElement.remove();
+        }
+
+        // ラストオーダー保存
+        function saveLastOrder() {
+            alert('ラストオーダー設定を保存しました');
+        }
+    </script>
+</body>
+</html>

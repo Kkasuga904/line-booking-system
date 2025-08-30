@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>通知センター - 予約管理システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .hamburger-menu {
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+        }
+
+        .hamburger-menu span {
+            display: block;
+            height: 3px;
+            background: #333;
+            border-radius: 2px;
+            transition: 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            display: none; display: block;
+            top: 0;
+            width: 300px;
+            height: 100%;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .sidebar.active {
+            display: block;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .sidebar-menu a {
+            display: block;
+            padding: 15px 20px;
+            color: #333;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+
+        .sidebar-menu a:hover {
+            background: #f5f5f5;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            z-index: 999;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .notification-header {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 10px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .badge-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .notification-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .notification-list {
+            list-style: none;
+        }
+
+        .notification-item {
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border-left: 4px solid;
+            background: #f8f9fa;
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .notification-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .notification-item.unread {
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .notification-item.info {
+            border-color: #17a2b8;
+        }
+
+        .notification-item.success {
+            border-color: #28a745;
+        }
+
+        .notification-item.warning {
+            border-color: #ffc107;
+        }
+
+        .notification-item.error {
+            border-color: #dc3545;
+        }
+
+        .notification-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .icon-info {
+            background: rgba(23, 162, 184, 0.1);
+            color: #17a2b8;
+        }
+
+        .icon-success {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+        }
+
+        .icon-warning {
+            background: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+        }
+
+        .icon-error {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+        }
+
+        .notification-content {
+            flex: 1;
+        }
+
+        .notification-title {
+            font-weight: bold;
+            font-size: 15px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .notification-message {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .notification-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .notification-time {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .notification-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .action-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .action-link:hover {
+            text-decoration: underline;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .empty-text {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .empty-subtext {
+            font-size: 14px;
+            color: #bbb;
+        }
+
+        .notification-settings {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
+            font-size: 14px;
+            color: #333;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #ccc;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #667eea;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+
+        @media (max-width: 768px) {
+            .header-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-tabs {
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="hamburger-menu" onclick="toggleMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <h1 class="page-title" onclick="window.location.href='/admin-full-featured.html'">予約管理システム</h1>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>メニュー</h2>
+        </div>
+        <div class="sidebar-menu">
+            <a href="/admin-full-featured.html">ホーム</a>
+            <a href="/admin-list.html">予約一覧</a>
+            <a href="/capacity-control-enhanced.html">予約制御</a>
+            <a href="/seats-management-enhanced.html">席管理</a>
+            <a href="/admin-settings.html">営業時間設定</a>
+            <a href="/admin-templates.html">テンプレート管理</a>
+            <a href="/admin-customers.html">顧客管理</a>
+            <a href="/admin-analytics.html">統計・分析</a>
+            <a href="/admin-dashboard.html">ダッシュボード</a>
+            <a href="/admin-notifications.html">通知センター</a>
+            <a href="/admin-advanced.html">詳細設定</a>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <div class="container">
+        <div class="notification-header">
+            <div class="header-controls">
+                <div class="filter-tabs">
+                    <button class="tab-btn active" onclick="filterNotifications('all')">
+                        すべて
+                        <span class="badge-count">8</span>
+                    </button>
+                    <button class="tab-btn" onclick="filterNotifications('unread')">
+                        未読
+                        <span class="badge-count">3</span>
+                    </button>
+                    <button class="tab-btn" onclick="filterNotifications('reservation')">予約</button>
+                    <button class="tab-btn" onclick="filterNotifications('system')">システム</button>
+                    <button class="tab-btn" onclick="filterNotifications('alert')">アラート</button>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" onclick="markAllAsRead()">すべて既読</button>
+                    <button class="btn btn-primary" onclick="showSettings()">通知設定</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="notification-section">
+            <h2 class="section-title">最新の通知</h2>
+            <ul class="notification-list" id="notificationList">
+                <li class="notification-item unread success" onclick="markAsRead(this)">
+                    <div class="notification-icon icon-success">✓</div>
+                    <div class="notification-content">
+                        <div class="notification-title">新規予約が確定しました</div>
+                        <div class="notification-message">山田太郎様（4名）が本日19:00に予約されました。個室Aを割り当てました。</div>
+                        <div class="notification-meta">
+                            <span class="notification-time">🕐 5分前</span>
+                            <span>予約ID: #R2025011501</span>
+                        </div>
+                        <div class="notification-actions">
+                            <a href="#" class="action-link">詳細を見る</a>
+                            <a href="#" class="action-link">顧客情報</a>
+                        </div>
+                    </div>
+                </li>
+
+                <li class="notification-item unread warning" onclick="markAsRead(this)">
+                    <div class="notification-icon icon-warning">⚠️</div>
+                    <div class="notification-content">
+                        <div class="notification-title">満席時間帯のアラート</div>
+                        <div class="notification-message">本日18:00〜20:00の時間帯が満席になりました。キャンセル待ちが3組あります。</div>
+                        <div class="notification-meta">
+                            <span class="notification-time">🕐 30分前</span>
+                            <span>カテゴリ: 予約管理</span>
+                        </div>
+                        <div class="notification-actions">
+                            <a href="#" class="action-link">予約状況を確認</a>
+                            <a href="#" class="action-link">キャンセル待ちリスト</a>
+                        </div>
+                    </div>
+                </li>
+
+                <li class="notification-item unread error" onclick="markAsRead(this)">
+                    <div class="notification-icon icon-error">!</div>
+                    <div class="notification-content">
+                        <div class="notification-title">在庫アラート</div>
+                        <div class="notification-message">以下の商品の在庫が残り少なくなっています：ワインA（残り3本）、ビールB（残り1ケース）</div>
+                        <div class="notification-meta">
+                            <span class="notification-time">🕐 1時間前</span>
+                            <span>カテゴリ: 在庫管理</span>
+                        </div>
+                        <div class="notification-actions">
+                            <a href="#" class="action-link">発注画面へ</a>
+                            <a href="#" class="action-link">在庫詳細</a>
+                        </div>
+                    </div>
+                </li>
+
+                <li class="notification-item info" onclick="markAsRead(this)">
+                    <div class="notification-icon icon-info">ℹ️</div>
+                    <div class="notification-content">
+                        <div class="notification-title">システムメンテナンスのお知らせ</div>
+                        <div class="notification-message">明日AM2:00〜4:00にシステムメンテナンスを実施します。この間、予約システムは一時的にご利用いただけません。</div>
+                        <div class="notification-meta">
+                            <span class="notification-time">🕐 2時間前</span>
+                            <span>カテゴリ: システム</span>
+                        </div>
+                        <div class="notification-actions">
+                            <a href="#" class="action-link">詳細情報</a>
+                        </div>
+                    </div>
+                </li>
+
+                <li class="notification-item success" onclick="markAsRead(this)">
+                    <div class="notification-icon icon-success">✓</div>
+                    <div class="notification-content">
+                        <div class="notification-title">予約変更完了</div>
+                        <div class="notification-message">佐藤花子様の予約時間が18:00から19:30に変更されました。</div>
+                        <div class="notification-meta">
+                            <span class="notification-time">🕐 3時間前</span>
+                            <span>予約ID: #R2025011402</span>
+                        </div>
+                        <div class="notification-actions">
+                            <a href="#" class="action-link">変更内容を確認</a>
+                        </div>
+                    </div>
+                </li>
+
+                <li class="notification-item warning" onclick="markAsRead(this)">
+                    <div class="notification-icon icon-warning">⚠️</div>
+                    <div class="notification-content">
+                        <div class="notification-title">キャンセル発生</div>
+                        <div class="notification-message">鈴木一郎様（2名）が本日18:00の予約をキャンセルされました。</div>
+                        <div class="notification-meta">
+                            <span class="notification-time">🕐 4時間前</span>
+                            <span>予約ID: #R2025011403</span>
+                        </div>
+                        <div class="notification-actions">
+                            <a href="#" class="action-link">キャンセル待ちに通知</a>
+                        </div>
+                    </div>
+                </li>
+
+                <li class="notification-item info" onclick="markAsRead(this)">
+                    <div class="notification-icon icon-info">ℹ️</div>
+                    <div class="notification-content">
+                        <div class="notification-title">週次レポート準備完了</div>
+                        <div class="notification-message">先週の売上レポートと予約分析レポートが準備できました。</div>
+                        <div class="notification-meta">
+                            <span class="notification-time">🕐 昨日</span>
+                            <span>カテゴリ: レポート</span>
+                        </div>
+                        <div class="notification-actions">
+                            <a href="#" class="action-link">レポートを見る</a>
+                            <a href="#" class="action-link">ダウンロード</a>
+                        </div>
+                    </div>
+                </li>
+
+                <li class="notification-item success" onclick="markAsRead(this)">
+                    <div class="notification-icon icon-success">✓</div>
+                    <div class="notification-content">
+                        <div class="notification-title">VIP顧客の誕生日通知</div>
+                        <div class="notification-message">明日は田中美咲様の誕生日です。特別なサービスの準備をお忘れなく。</div>
+                        <div class="notification-meta">
+                            <span class="notification-time">🕐 昨日</span>
+                            <span>カテゴリ: 顧客管理</span>
+                        </div>
+                        <div class="notification-actions">
+                            <a href="#" class="action-link">顧客情報</a>
+                            <a href="#" class="action-link">メッセージ送信</a>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <div class="notification-settings" id="settingsPanel" style="display: none;">
+            <h2 class="section-title">通知設定</h2>
+            <div class="setting-item">
+                <span class="setting-label">新規予約の通知</span>
+                <div class="toggle-switch active" onclick="toggleSetting(this)">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">予約変更・キャンセルの通知</span>
+                <div class="toggle-switch active" onclick="toggleSetting(this)">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">満席アラート</span>
+                <div class="toggle-switch active" onclick="toggleSetting(this)">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">在庫アラート</span>
+                <div class="toggle-switch" onclick="toggleSetting(this)">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">システム通知</span>
+                <div class="toggle-switch active" onclick="toggleSetting(this)">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">レポート通知</span>
+                <div class="toggle-switch" onclick="toggleSetting(this)">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">メール通知も受け取る</span>
+                <div class="toggle-switch" onclick="toggleSetting(this)">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            const hamburger = document.querySelector('.hamburger-menu');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+            if (hamburger) {
+                hamburger.style.display = sidebar.classList.contains('active') ? 'none' : 'block';
+            }
+        }
+
+        function filterNotifications(type) {
+            // タブの切り替え
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // 実際のフィルタリング処理
+            alert(`${type}の通知を表示します`);
+        }
+
+        function markAsRead(element) {
+            element.classList.remove('unread');
+            updateUnreadCount();
+        }
+
+        function markAllAsRead() {
+            const unreadItems = document.querySelectorAll('.notification-item.unread');
+            unreadItems.forEach(item => item.classList.remove('unread'));
+            updateUnreadCount();
+            alert('すべての通知を既読にしました');
+        }
+
+        function updateUnreadCount() {
+            const unreadCount = document.querySelectorAll('.notification-item.unread').length;
+            const badges = document.querySelectorAll('.badge-count');
+            if (badges[1]) { // 未読タブのバッジ
+                badges[1].textContent = unreadCount;
+            }
+        }
+
+        function showSettings() {
+            const settingsPanel = document.getElementById('settingsPanel');
+            const notificationList = document.querySelector('.notification-section');
+            
+            if (settingsPanel.style.display === 'none') {
+                settingsPanel.style.display = 'block';
+                notificationList.style.display = 'none';
+            } else {
+                settingsPanel.style.display = 'none';
+                notificationList.style.display = 'block';
+            }
+        }
+
+        function toggleSetting(element) {
+            element.classList.toggle('active');
+        }
+    </script>
+</body>
+</html>
