@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>座席管理システム</title>
+    <!-- Admin Common CSS -->
+    <link rel="stylesheet" href="/css/admin-common.css">
+    <!-- Sidebar Menu CSS -->
+    <link rel="stylesheet" href="/css/sidebar-menu.css">
     <style>
         * {
             margin: 0;
@@ -14,6 +18,12 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #f5f5f7;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* コンテンツラッパー */
+        .content-wrapper {
             padding: 20px;
         }
         
@@ -366,7 +376,8 @@
     </style>
 </head>
 <body>
-    <div class="header">
+    <div class="content-wrapper">
+        <div class="header">
         <h1>🪑 座席管理システム</h1>
         <div class="controls">
             <div class="date-selector">
@@ -850,7 +861,8 @@
             }
         }
     </script>
+    </div><!-- content-wrapper 終了 -->
     <!-- 共通ハンバーガーメニューJS -->
-    <script src='/js/common-hamburger-menu.js' defer></script>
+    <script src='/js/sidebar-menu.js' defer></script>
 </body>
 </html>

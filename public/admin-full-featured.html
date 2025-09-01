@@ -7,12 +7,9 @@
     
     <!-- FullCalendar CSS -->
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
-    <!-- レスポンシブ修正CSS -->
-    <link href='/responsive-fix.css' rel='stylesheet' />
-    <!-- ハンバーガーメニュー左配置修正CSS -->
-    <link href='/css/hamburger-left-fix.css?v=20250831_3' rel='stylesheet' />
-    <!-- サイドメニュースタイルCSS（必ず最後） -->
-    <link href='/css/sidemenu-style.css?v=20250831' rel='stylesheet' />
+    <!-- Admin Common CSS と Sidebar Menu CSS は競合のため一時的に無効化 -->
+    <!-- <link rel="stylesheet" href="/css/admin-common.css"> -->
+    <!-- <link rel="stylesheet" href="/css/sidebar-menu.css"> -->
     
     <style>
         * {
@@ -39,7 +36,7 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             display: flex;
             align-items: center;
-            padding: 0 20px;
+            padding: 0 20px 0 60px; /* 左側にハンバーガーメニュー分の余白 */
             z-index: 999;
         }
 
@@ -58,109 +55,6 @@
             color: #4a90e2;
         }
         
-        /* ハンバーガーメニュー */
-        .hamburger-menu {
-            position: relative;
-            z-index: 1001;
-        }
-
-        .hamburger-icon {
-            width: 30px;
-            height: 24px;
-            position: relative;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .hamburger-icon span {
-            display: block;
-            height: 3px;
-            width: 100%;
-            background: #333;
-            border-radius: 3px;
-            transition: 0.3s;
-        }
-        
-        /* サイドメニュー */
-        .side-menu {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 280px;
-            height: 100%;
-            background: white;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            z-index: 1000;
-            overflow-y: auto;
-        }
-        
-        .side-menu.active {
-            display: block;
-        }
-        
-        .menu-section {
-            padding: 20px;
-            border-bottom: 1px solid #e0e0e0;
-        }
-        
-        .menu-title {
-            font-size: 12px;
-            font-weight: 600;
-            color: #666;
-            text-transform: uppercase;
-            margin-bottom: 12px;
-            letter-spacing: 0.5px;
-        }
-        
-        .menu-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 15px;
-            margin: 5px 0;
-            border-radius: 8px;
-            text-decoration: none;
-            color: #333;
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-        
-        .menu-item:hover {
-            background: #f5f5f7;
-            transform: translateX(5px);
-        }
-        
-        .menu-item.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .menu-icon {
-            width: 20px;
-            height: 20px;
-            margin-right: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        /* オーバーレイ */
-        .overlay {
-            display: none;
-            position: fixed;
-            top: 56px;
-            left: 0;
-            width: 100%;
-            height: calc(100vh - 56px);
-            background: rgba(0,0,0,0.5);
-            z-index: 998;
-        }
-        
-        .overlay.active {
-            display: block;
-        }
         
         /* クイックアクション */
         .quick-actions {
@@ -423,9 +317,135 @@
             font-weight: bold;
         }
         
-        /* ハンバーガーメニューアニメーション */
+        /* ハンバーガーメニュー */
+        .hamburger-icon {
+            position: fixed !important;
+            top: 15px !important;
+            left: 15px !important;
+            width: 45px !important;
+            height: 40px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+            padding: 10px !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15) !important;
+            z-index: 100001 !important;
+            cursor: pointer !important;
+            visibility: visible !important;
+            transition: all 0.3s ease !important;
+        }
+        
+        .hamburger-icon:hover {
+            background: rgba(255, 255, 255, 1) !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2) !important;
+            transform: scale(1.05);
+        }
+        
         .hamburger-icon span {
+            display: block !important;
+            height: 3px !important;
+            width: 100% !important;
+            background: #333 !important;
+            border-radius: 3px !important;
             transition: all 0.3s ease;
+        }
+        
+        .hamburger-icon.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+        
+        .hamburger-icon.active span:nth-child(2) {
+            opacity: 0;
+        }
+        
+        .hamburger-icon.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -6px);
+        }
+        
+        /* カレンダーの方を下げる */
+        .fc, .fc-view-harness {
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* 再発防止：全画面オーバーレイのポインターイベントを制限 */
+        .fc-scroller, .fc-view-harness {
+            pointer-events: auto;
+        }
+        
+        /* transformを持つコンテナを避ける */
+        .main-content, .header {
+            transform: none !important;
+        }
+        
+        /* サイドバー - トグル用CSS */
+        .sidebar {
+            position: fixed !important;
+            top: 0 !important;
+            left: -300px !important;
+            width: 300px !important;
+            height: 100vh !important;
+            background: #fff !important;
+            box-shadow: 2px 0 12px rgba(0,0,0,0.15) !important;
+            transition: left 0.3s ease !important;
+            z-index: 100000 !important;
+            overflow-y: auto;
+            padding: 60px 20px 20px;
+        }
+        
+        .sidebar.open {
+            left: 0 !important;
+        }
+        
+        /* オーバーレイ */
+        #pageOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 99999;
+            display: none;
+        }
+        
+        #pageOverlay.show {
+            display: block;
+        }
+        
+        body.no-scroll {
+            overflow: hidden;
+        }
+        
+        .sidebar h3 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .sidebar-menu li {
+            margin-bottom: 10px;
+        }
+        
+        .sidebar-menu a {
+            display: block;
+            padding: 10px 15px;
+            color: #666;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .sidebar-menu a:hover {
+            background: #f0f0f0;
+            color: #333;
         }
         
         .hamburger-icon.active span:nth-child(1) {
@@ -642,91 +662,71 @@
                 justify-content: center;
             }
         }
+        /* 開発中のCSS競合対策 */
+        .fc .fc-event { 
+            display: block !important; 
+            opacity: 1 !important; 
+            z-index: 10 !important; 
+        }
+        
+        /* オーバーレイ弱体化（専門家提供） */
+        .greet-overlay, .tutorial-overlay, .fc-backdrop,
+        .modal-backdrop, .overlay, .fullscreen-overlay {
+            pointer-events: none !important;
+        }
+        
+        /* FullCalendarのメニューボタンスタイル */
+        .fc-appMenu-button {
+            background: #fff !important;
+            color: #333 !important;
+            border: 1px solid #ddd !important;
+            font-size: 20px !important;
+            font-weight: bold !important;
+            padding: 5px 10px !important;
+        }
+        
+        .fc-appMenu-button:hover {
+            background: #f8f8f8 !important;
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
+    <!-- ポータル用固定ノード（JSに頼らない） -->
+    <div id="app-portals" style="position:fixed;inset:0;pointer-events:none;z-index:2147483647">
+        <!-- ハンバーガーボタン（確実に表示） -->
+        <button id="portal-hamburger" style="position:absolute;top:12px;left:12px;pointer-events:auto;width:44px;height:44px;border-radius:8px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.2);font-size:24px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;" onclick="window.toggleSidebar && window.toggleSidebar()">≡</button>
+    </div>
+    
+    <!-- ハンバーガーメニュー（旧・念のため残す） -->
+    <div class="hamburger-icon" id="hamburgerMenu" style="display:none">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+    
+    <!-- サイドバー -->
+    <div class="sidebar" id="sidebar">
+        <h3>メニュー</h3>
+        <ul class="sidebar-menu">
+            <li><a href="/public/admin-full-featured.html">📅 カレンダー</a></li>
+            <li><a href="/public/admin-latest.html">📋 予約リスト</a></li>
+            <li><a href="/public/capacity-control-enhanced.html">⚙️ 予約制限設定</a></li>
+            <li><a href="/public/analytics.html">📊 統計・分析</a></li>
+            <li><a href="#" onclick="showNotification('顧客管理は準備中です', 'info'); return false;">👥 顧客管理</a></li>
+            <li><a href="#" onclick="showNotification('設定画面は準備中です', 'info'); return false;">⚙️ 設定</a></li>
+        </ul>
+    </div>
+    
     <!-- ヘッダー -->
     <div class="header">
-        <div class="hamburger-menu" id="hamburgerMenu">
-            <div class="hamburger-icon" onclick="toggleMenu()">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </div>
         <h1 class="page-title" onclick="window.location.href='/admin-full-featured.html'" style="cursor: pointer;">予約管理システム</h1>
         <div class="quick-actions" style="margin-right: 20px;">
-            <button class="action-btn" onclick="openAddModal()">
+            <button class="action-btn" onclick="openAddModalWithCurrentDateTime()">
                 <span>➕ 予約追加</span>
             </button>
         </div>
     </div>
-    
-    <!-- サイドメニュー -->
-    <div class="side-menu" id="sideMenu">
-        <div class="menu-section">
-            <div class="menu-title">メイン</div>
-            <a href="/admin-full-featured.html" class="menu-item active">
-                <span class="menu-icon">📅</span>
-                カレンダー
-            </a>
-            <a href="/admin-list.html" class="menu-item">
-                <span class="menu-icon">📋</span>
-                予約一覧
-            </a>
-            <a href="/admin-analytics.html" class="menu-item">
-                <span class="menu-icon">📊</span>
-                統計・分析
-            </a>
-        </div>
-        
-        <div class="menu-section">
-            <div class="menu-title">予約管理</div>
-            <a href="/capacity-control-enhanced.html" class="menu-item">
-                <span class="menu-icon">🎯</span>
-                予約制限設定
-            </a>
-            <a href="/seats-management-enhanced.html" class="menu-item">
-                <span class="menu-icon">💺</span>
-                席管理・割り当て
-            </a>
-            <a href="/admin-settings.html" class="menu-item">
-                <span class="menu-icon">⏰</span>
-                営業時間設定
-            </a>
-            <a href="/admin-templates.html" class="menu-item">
-                <span class="menu-icon">📝</span>
-                テンプレート管理
-            </a>
-            <a href="/admin-customers.html" class="menu-item">
-                <span class="menu-icon">👥</span>
-                顧客管理
-            </a>
-        </div>
-        
-        <div class="menu-section">
-            <div class="menu-title">高度な機能</div>
-            <a href="/admin-analytics.html" class="menu-item">
-                <span class="menu-icon">📊</span>
-                詳細分析
-            </a>
-            <a href="/admin-dashboard.html" class="menu-item">
-                <span class="menu-icon">🎯</span>
-                ダッシュボード
-            </a>
-            <a href="/admin-notifications.html" class="menu-item">
-                <span class="menu-icon">🔔</span>
-                通知センター
-            </a>
-            <a href="/admin-advanced.html" class="menu-item">
-                <span class="menu-icon">⚙️</span>
-                詳細設定
-            </a>
-        </div>
-    </div>
-    
-    <!-- オーバーレイ -->
-    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
     
     <!-- メインコンテンツ -->
     <div class="main-content">
@@ -820,6 +820,20 @@
                     <label class="form-label">時間</label>
                     <select class="form-select" id="reservationTime" required>
                         <option value="">選択してください</option>
+                        <option value="11:00">11:00</option>
+                        <option value="11:30">11:30</option>
+                        <option value="12:00">12:00</option>
+                        <option value="12:30">12:30</option>
+                        <option value="13:00">13:00</option>
+                        <option value="13:30">13:30</option>
+                        <option value="14:00">14:00</option>
+                        <option value="14:30">14:30</option>
+                        <option value="15:00">15:00</option>
+                        <option value="15:30">15:30</option>
+                        <option value="16:00">16:00</option>
+                        <option value="16:30">16:30</option>
+                        <option value="17:00">17:00</option>
+                        <option value="17:30">17:30</option>
                         <option value="18:00">18:00</option>
                         <option value="18:30">18:30</option>
                         <option value="19:00">19:00</option>
@@ -831,11 +845,27 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">人数</label>
-                    <input type="number" class="form-input" id="numberOfPeople" min="1" max="10" required>
+                    <select class="form-select" id="numberOfPeople" required>
+                        <option value="">人数を選択</option>
+                        <option value="1">1名</option>
+                        <option value="2">2名</option>
+                        <option value="3">3名</option>
+                        <option value="4">4名</option>
+                        <option value="5">5名</option>
+                        <option value="6">6名</option>
+                        <option value="7">7名</option>
+                        <option value="8">8名</option>
+                        <option value="9">9名</option>
+                        <option value="10">10名以上</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label class="form-label">電話番号</label>
                     <input type="tel" class="form-input" id="phoneNumber" placeholder="090-1234-5678" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">メールアドレス（任意）</label>
+                    <input type="email" class="form-input" id="email" placeholder="example@email.com">
                 </div>
                 <div class="form-group">
                     <label class="form-label">ステータス</label>
@@ -877,20 +907,263 @@
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ja.js'></script>
     <script src='/time-select-dropdown.js'></script>
     <script src='/js/admin-enhancements.js'></script>
-    <!-- 共通ハンバーガーメニューJS（必ず最後にdefer） -->
-    <script src='/utils/store-config.js'></script>
-    <script src='/js/common-hamburger-menu.js' defer></script>
+    <!-- CSS読み込み -->
+    <link rel='stylesheet' href='/css/hamburger-left-fix.css'>
+    <link rel='stylesheet' href='/css/sidemenu-style.css'>
+    <!-- Sidebar Menu JS -->
+    <script src='/js/sidebar-menu.js' defer></script>
     
     <script>
+        // ============== 再発防止：URLパス自動修正 ==============
+        // publicディレクトリが含まれている場合は自動でリダイレクト
+        if (window.location.pathname.includes('/public/')) {
+            const correctPath = window.location.pathname.replace('/public/', '/');
+            console.warn('⚠️ 誤ったURLパスを検出。正しいURLにリダイレクトします:', correctPath);
+            window.location.replace(correctPath + window.location.search);
+        }
+        
+        // ============== ビルド識別子（切り分け用） ==============
+        window.__BUILD__ = '2025-09-01T15:00:00+09:00-url-fix';
+        console.log('CLIENT BUILD:', window.__BUILD__);
+        
+        // バージョン確認（自動）
+        fetch('/__version')
+            .then(r => r.json())
+            .then(v => {
+                console.log('SERVER VERSION:', v);
+                if (v.rev !== '20250901-hamburger-portal-fix') {
+                    console.warn('⚠️ 古いリビジョンを参照している可能性があります');
+                }
+            })
+            .catch(e => console.error('Version check failed:', e));
+        
+        // ============== 即効パッチA: FullCalendarヘッダー統合検証 ==============
+        setTimeout(() => {
+            const cal = document.querySelector('.fc');
+            const btn = document.querySelector('.fc-appMenu-button');
+            console.log('FullCalendar check:', {cal: !!cal, headerBtn: !!btn});
+            if (cal && !btn) {
+                console.warn('⚠️ customButtons のコードがページに載っていません（古いJSを配信中）');
+            }
+        }, 1000);
+        
+        // ============== 再発防止：ハンバーガーメニュー自己修復機能 ==============
+        // MutationObserverで常に監視し、メニューが消えたら自動復元
+        window.addEventListener('load', () => {
+            // ポータルハンバーガーの再生成関数
+            function ensureHamburgerExists() {
+                let host = document.getElementById('app-portals');
+                let hb = document.getElementById('portal-hamburger');
+                
+                // ポータルノードが消えていたら再生成
+                if (!host || !document.body.contains(host)) {
+                    console.warn('⚠️ ポータルノードが消失。再生成します。');
+                    host = document.createElement('div');
+                    host.id = 'app-portals';
+                    host.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647';
+                    document.documentElement.appendChild(host);
+                }
+                
+                // ハンバーガーボタンが消えていたら再生成
+                if (!hb || !document.body.contains(hb)) {
+                    console.warn('⚠️ ハンバーガーボタンが消失。再生成します。');
+                    hb = document.createElement('button');
+                    hb.id = 'portal-hamburger';
+                    hb.textContent = '≡';
+                    hb.style.cssText = 'position:absolute;top:12px;left:12px;pointer-events:auto;width:44px;height:44px;border-radius:8px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.2);z-index:2147483647;font-size:24px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;';
+                    hb.onclick = () => window.toggleSidebar && window.toggleSidebar();
+                    host.appendChild(hb);
+                    console.log('✅ ハンバーガーボタンを復元しました');
+                }
+                
+                // ボタンが見えない場合の診断
+                const cs = getComputedStyle(hb);
+                if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) {
+                    console.warn('⚠️ ハンバーガーボタンが非表示状態。修正します。');
+                    hb.style.display = 'flex !important';
+                    hb.style.visibility = 'visible !important';
+                    hb.style.opacity = '1 !important';
+                }
+            }
+            
+            // 初回実行
+            ensureHamburgerExists();
+            
+            // MutationObserverで監視（DOMの変更を検知）
+            const observer = new MutationObserver(() => {
+                ensureHamburgerExists();
+            });
+            
+            // body全体を監視
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['style', 'class']
+            });
+            
+            // 定期的なチェック（フェイルセーフ）
+            setInterval(ensureHamburgerExists, 5000);
+            
+            console.log('✅ ハンバーガーメニュー自己修復機能を有効化');
+        });
+        
+        // ============== 即効パッチC: 犯人オーバーレイ無効化 ==============
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const nodes = Array.from(document.querySelectorAll('*')).filter(el=>{
+                    const cs = getComputedStyle(el);
+                    const full = el.offsetWidth >= innerWidth*0.9 && el.offsetHeight >= innerHeight*0.9;
+                    const fixed = cs.position==='fixed' || cs.position==='sticky' || cs.position==='absolute';
+                    const zi = parseInt(cs.zIndex||0,10);
+                    return full && fixed && zi >= 1000 && !el.className.includes('fc');
+                });
+                console.log('Overlay suspects:', nodes.map(n=>[n.tagName, n.className, getComputedStyle(n).zIndex]));
+                nodes.forEach(n => (n.style.pointerEvents = 'none'));
+            }, 2000);
+        });
+        
         let calendar;
         let currentView = 'week';
-        // @レビュー: getStoreId()を通して店舗IDを取得
-        const STORE_ID = StoreConfig.getStoreId();
+        // 店舗ID取得（URLパラメータまたはデフォルト）
+        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
+        
+        // サイドバートグル - 最小実装
+        window.toggleSidebar = function() {
+            const sb = document.getElementById('sidebar');
+            let ov = document.getElementById('pageOverlay');
+            
+            if (!ov) {
+                ov = document.createElement('div');
+                ov.id = 'pageOverlay';
+                document.body.appendChild(ov);
+            }
+            
+            const open = !sb.classList.contains('open');
+            sb.classList.toggle('open', open);
+            ov.classList.toggle('show', open);
+            
+            if (open) {
+                ov.onclick = () => toggleSidebar();
+            }
+            
+            document.body.classList.toggle('no-scroll', open);
+            
+            // ハンバーガーアニメーション
+            const hamburger = document.getElementById('hamburgerMenu');
+            if (hamburger) hamburger.classList.toggle('active', open);
+        }
+        
+        // 予約読み込みと描画（最短パッチ版）
+        async function loadReservationsAndRender(storeId) {
+            console.log('[RESV] load start', { storeId });
+
+            // 1) APIコール
+            const url = `/api/admin?action=list&store_id=${encodeURIComponent(storeId)}`;
+            let resp, text;
+            try {
+                resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                text = await resp.text();
+            } catch (e) {
+                console.error('[RESV] fetch failed', e);
+                return;
+            }
+            if (!resp.ok) {
+                console.error('[RESV] admin list failed', resp.status, text);
+                return;
+            }
+
+            // 2) JSON パースとフィールド吸収
+            let payload;
+            try {
+                payload = JSON.parse(text);
+            } catch (e) {
+                console.error('[RESV] JSON parse error', e, text);
+                return;
+            }
+            const rows = payload.data || payload.reservations || payload.items || [];
+            console.log('[RESV] raw rows', rows.length, rows);
+            
+            // デバッグ用：生データの日付・時間をチェック
+            window.__last_rows__ = rows;  // グローバルに保存
+            const probe = rows => rows.map(r => {
+                let timeStr = r.time || '00:00:00';
+                if (timeStr.length === 5) timeStr += ':00';
+                else if (timeStr.length > 8) timeStr = timeStr.slice(0,8);
+
+                const d = typeof r.date === 'string' ? r.date
+                        : r.date instanceof Date ? r.date.toISOString().slice(0,10)
+                        : '';
+                const start = `${d}T${timeStr}`;
+                return { id: r.id, rawDate: r.date, rawTime: r.time, start, invalid: isNaN(new Date(start).getTime()) };
+            });
+            console.table(probe(rows));
+
+            // 3) FullCalendar用へ正規化（防弾化版）
+            function toFcEvent(r) {
+                // 日付：Dateでも文字列でも "YYYY-MM-DD" に
+                const dateStr = (typeof r.date === 'string')
+                    ? r.date
+                    : (r.date instanceof Date)
+                      ? r.date.toISOString().slice(0,10)
+                      : '';
+
+                // 時刻：5桁なら ":00" 追加、8桁超なら切り詰め
+                let timeStr = r.time || '00:00:00';
+                if (typeof timeStr !== 'string') timeStr = String(timeStr ?? '00:00:00');
+                if (timeStr.length === 5) timeStr += ':00';
+                else if (timeStr.length > 8) timeStr = timeStr.slice(0,8);
+
+                const start = `${dateStr}T${timeStr}`;
+                const d = new Date(start);
+                if (isNaN(d.getTime())) {
+                    console.warn('[normalize] Invalid start -> skip', { r, start });
+                    return null; // 無効なデータはスキップ
+                }
+
+                const people = r.people ?? r.peopleCount ?? r.party_size ?? r.numberOfPeople ?? '';
+                const title = r.customer_name ?? r.customerName ?? r.client ?? `予約 ${people ? people + '名' : ''}`;
+
+                return {
+                    id: String(r.id ?? `${storeId}:${dateStr}:${timeStr}`),
+                    title,
+                    start,           // 例 "2025-09-01T18:00:00"
+                    allDay: false,
+                    extendedProps: {
+                        store_id: r.store_id ?? storeId,
+                        people, 
+                        status: r.status ?? r.state,
+                        // 元データも保持
+                        customer_name: r.customer_name,
+                        customerName: r.customerName,
+                        date: dateStr,
+                        time: timeStr,
+                        numberOfPeople: people,
+                        phoneNumber: r.phone || r.phoneNumber || '',
+                        notes: r.message || r.notes || ''
+                    }
+                };
+            }
+            const events = rows.map(toFcEvent).filter(Boolean);  // nullを除外
+            console.log('[RESV] fc events', events);
+
+            // 4) 1件だけ先に addEvent して、描画確認
+            if (events.length) {
+                console.log('[RESV] preview add', events[0], new Date(events[0].start));
+                calendar.addEvent(events[0]);
+            }
+
+            // 5) ソース入れ替え
+            calendar.getEventSources().forEach(src => src.remove());
+            calendar.addEventSource(events);
+
+            console.log('[RESV] render done');
+        }
         
         // 初期化：ページ読み込み時にカレンダーと予約データを初期化
         document.addEventListener('DOMContentLoaded', function() {
             initCalendar();
-            loadReservations();
+            loadReservationsAndRender(STORE_ID);  // 新しい関数を使用
             updateStats();
             
             // 初期表示時に予約制限設定も読み込む
@@ -901,8 +1174,8 @@
             
             // LocalStorage更新時に自動で背景を更新
             window.addEventListener('storage', (e) => {
-                // @レビュー: getStoreId()を通して店舗IDを取得
-        const STORE_ID = StoreConfig.getStoreId();
+                // 店舗ID取得（URLパラメータまたはデフォルト）
+        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
                 if (e.key === `capacity_control_rules_${STORE_ID}`) {
                     console.log('Capacity rules updated, refreshing display');
                     displayCapacityControls();
@@ -910,19 +1183,83 @@
             });
         });
         
+        // 確実にボタンを表示させる（専門家の最終解決策）
+        window.addEventListener('load', () => {
+            // 1) 要素を作って <html> 直下に固定配置
+            const id = '__fixedHamburger';
+            let btn = document.getElementById(id);
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.id = id;
+                btn.type = 'button';
+                btn.textContent = '≡';
+                // CSPが厳しくても通る1行スタイル
+                btn.style.cssText = 'position:fixed;top:14px;left:14px;width:46px;height:46px;line-height:46px;text-align:center;font-size:24px;font-weight:700;background:#fff;color:#111;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.18);z-index:2147483647;cursor:pointer;user-select:none;';
+                btn.onclick = () => (window.toggleSidebar ? window.toggleSidebar() : console.warn('toggleSidebar() 未定義'));
+                document.documentElement.appendChild(btn);
+                console.log('[hamburger] Fixed menu button mounted:', btn);
+            }
+
+            // 2) 「今、左上に被ってるもの」を一時的に無効化（覆いの切り分け）
+            const topEl = document.elementFromPoint(20,20);
+            console.log('[hamburger] Element at (20,20):', topEl);
+            if (topEl && topEl !== btn) {
+                topEl.style.pointerEvents = 'none';   // クリックだけ一時無効
+                console.warn('[hamburger] Temporarily disabled pointer-events for:', topEl);
+            }
+            
+            // 3) 全画面オーバーレイを弱体化
+            (function weakenOverlays(){
+                const suspects = Array.from(document.body.querySelectorAll('*'))
+                    .filter(el => {
+                        const cs = getComputedStyle(el);
+                        if (cs.position !== 'fixed' && cs.position !== 'absolute') return false;
+                        const w = el.offsetWidth, h = el.offsetHeight;
+                        if (w < innerWidth * 0.95 || h < innerHeight * 0.95) return false; // 全画面/全幅に近い
+                        const zi = parseInt(cs.zIndex || '0', 10);
+                        return zi >= 1000; // 高z-indexのみ対象
+                    });
+                suspects.forEach(el => {
+                    el.style.pointerEvents = 'none';
+                    console.log('[overlay disabled]', el);
+                });
+            })();
+        });
+        
         // カレンダー初期化：FullCalendarの設定とレンダリング
         function initCalendar() {
+            console.log('FC init reached - FullCalendar初期化開始');
             const calendarEl = document.getElementById('calendar');
+            if (!calendarEl) {
+                console.error('Calendar element not found!');
+                return;
+            }
             calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'timeGridWeek', // 週表示をデフォルトに
                 locale: 'ja',
+                timeZone: 'local', // localに変更して安定化
                 height: 'auto',
                 slotMinTime: '08:00:00',
                 slotMaxTime: '23:00:00',
                 slotDuration: '00:30:00',
                 expandRows: true,
+                eventOverlap: true, // イベントの重複を許可
+                // カスタムメニューボタンを追加
+                customButtons: {
+                    appMenu: {
+                        text: '≡',
+                        click: () => {
+                            console.log('FC appMenu button clicked');
+                            if (window.toggleSidebar) {
+                                window.toggleSidebar();
+                            } else {
+                                console.warn('[calendar menu] toggleSidebar() 未定義');
+                            }
+                        }
+                    }
+                },
                 headerToolbar: {
-                    left: 'prev,next today',
+                    left: 'appMenu prev,next today',  // メニューボタンを左端に配置
                     center: 'title',
                     right: 'timeGridWeek,dayGridMonth,timeGridDay,listWeek' // 週表示を先頭に
                 },
@@ -939,8 +1276,21 @@
                     handleEventClick(info.event);
                 },
                 dateClick: function(info) {
-                    console.log('Calendar date clicked:', info.dateStr);
-                    openAddModal(info.dateStr);
+                    console.log('Calendar date clicked:', info);
+                    
+                    // クリックされた日付と時間を取得
+                    const clickedDate = info.dateStr;
+                    let clickedTime = null;
+                    
+                    // 週表示や日表示の場合は時間も取得できる
+                    if (info.date && !info.allDay) {
+                        const hours = info.date.getHours();
+                        const minutes = info.date.getMinutes();
+                        clickedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                    }
+                    
+                    console.log('Opening add modal for date:', clickedDate, 'time:', clickedTime);
+                    openAddModal(clickedDate, clickedTime);
                 },
                 eventDidMount: function(info) {
                     // 背景イベントのスタイル設定
@@ -1045,19 +1395,118 @@
         async function loadReservations() {
             try {
                 const response = await fetch(`/api/admin?action=list&store_id=${STORE_ID}`);
+                
+                if (!response.ok) {
+                    console.error('API Error:', response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error('Error details:', errorText);
+                    return;
+                }
+                
                 const data = await response.json();
                 
-                if (data.success && data.reservations) {
-                    displayReservations(data.reservations);
+                if (data.success && data.data) {
+                    console.log('予約データ取得成功:', data.data.length, '件');
+                    
+                    // デバッグ：取得した予約データの日付/時間を確認
+                    console.log('Raw reservation data:', data.data.map(r => ({
+                        id: r.id,
+                        date: r.date,
+                        time: r.time,
+                        name: r.customer_name || r.customerName,
+                        date_type: typeof r.date,
+                        time_type: typeof r.time
+                    })));
+                    
+                    displayReservations(data.data);
+                } else {
+                    console.error('予約データが見つかりません:', data);
                 }
             } catch (error) {
                 console.error('予約データの読み込みエラー:', error);
             }
         }
         
+        // 予約イベントを正規化する関数（専門家の指摘に基づく）
+        function normalizeToFcEvent(r) {
+            // null/undefinedチェック
+            if (!r) {
+                console.warn('normalizeToFcEvent: reservation is null');
+                return null;
+            }
+            
+            // 日付フォーマットの正規化（重要！）
+            let dateStr = r.date || '';
+            
+            // 日付が無効な場合のフォールバック
+            if (!dateStr || dateStr === 'undefined' || dateStr === 'null') {
+                console.warn('Invalid date detected:', dateStr, 'Full reservation:', r);
+                const today = new Date();
+                dateStr = today.toISOString().split('T')[0]; // 今日の日付を使用
+            }
+            
+            // タイムスタンプ形式の場合の処理
+            if (dateStr.includes('T')) {
+                dateStr = dateStr.split('T')[0];
+            }
+            
+            // 時間フォーマットの正規化
+            // DBから来る時間は "HH:MM:SS" 形式
+            // 画面から送信される時間は "HH:MM" 形式
+            let timeStr = r.time || '00:00:00';
+            
+            // 無効な時間のフォールバック
+            if (!timeStr || timeStr === 'undefined' || timeStr === 'null') {
+                console.warn('Invalid time detected:', timeStr, 'Full reservation:', r);
+                timeStr = '12:00:00'; // デフォルト時間
+            }
+            
+            // 時間形式を統一 (HH:MM:SS形式に)
+            if (timeStr.length === 5) {
+                timeStr = timeStr + ':00';  // "18:00" -> "18:00:00"
+            } else if (timeStr.length > 8) {
+                timeStr = timeStr.substring(0, 8);  // "18:00:00:00" -> "18:00:00"
+            }
+            
+            const start = `${dateStr}T${timeStr}`;
+            
+            console.log('Normalized event date:', {
+                original_date: r.date,
+                original_time: r.time,
+                normalized_date: dateStr,
+                normalized_time: timeStr,
+                final_start: start
+            });
+            
+            return {
+                id: String(r.id || `${r.store_id || STORE_ID}:${dateStr}:${timeStr}`),
+                title: `${r.customerName || r.customer_name || '予約'} (${r.numberOfPeople || r.people || r.party_size || 1}名)`,
+                start: start,  // ISO文字列
+                allDay: false,
+                backgroundColor: '#4CAF50',
+                borderColor: '#4CAF50',
+                extendedProps: {
+                    store_id: r.store_id || STORE_ID,
+                    people: r.numberOfPeople || r.people || r.party_size || 1,
+                    status: r.status || 'confirmed',
+                    originalData: r
+                }
+            };
+        }
+        
         // 予約表示：取得した予約データをカレンダーイベントとして描画
         function displayReservations(reservations) {
-            calendar.removeAllEvents();
+            // 通常の予約イベントのみ削除（背景イベントは残す）
+            const events = calendar.getEvents();
+            events.forEach(event => {
+                if (!event.display || event.display !== 'background') {
+                    event.remove();
+                }
+            });
+            
+            // データ検証とデバッグ情報
+            console.log(`Displaying ${reservations.length} reservations`);
+            console.log('API payload:', reservations); // 専門家推奨のログ
             
             // 日付ごとの予約数をカウント
             const dateCountMap = {};
@@ -1070,19 +1519,30 @@
                 dateCountMap[date].people += parseInt(reservation.numberOfPeople) || 1;
             });
             
-            // カレンダーに予約を表示
+            // カレンダーに予約を表示（正規化関数を使用）
             reservations.forEach(reservation => {
-                const dateInfo = dateCountMap[reservation.date];
-                const capacityColor = getCapacityColor(dateInfo.count, dateInfo.people, reservation.date);
+                // データ検証
+                if (!reservation.date || !reservation.time) {
+                    console.error('Invalid reservation data:', reservation);
+                    return;
+                }
                 
-                calendar.addEvent({
-                    id: reservation.id,
-                    title: `${reservation.time} ${reservation.customerName} (${reservation.numberOfPeople}名)`,
-                    start: `${reservation.date}T${reservation.time}:00`,
-                    backgroundColor: capacityColor,
-                    borderColor: capacityColor,
-                    extendedProps: reservation
-                });
+                // 正規化関数でイベントデータ作成
+                const eventData = normalizeToFcEvent(reservation);
+                
+                // 容量に基づく色設定（オプション）
+                const dateInfo = dateCountMap[reservation.date];
+                if (dateInfo) {
+                    const capacityColor = getCapacityColor(dateInfo.count, dateInfo.people, reservation.date);
+                    eventData.backgroundColor = capacityColor;
+                    eventData.borderColor = capacityColor;
+                }
+                
+                // イベント追加前のログ
+                console.log('Adding event:', eventData);
+                
+                // カレンダーにイベント追加
+                calendar.addEvent(eventData);
             });
             
             // 日付セルに背景色を追加（コメントアウト - 全日背景は不要）
@@ -1107,9 +1567,9 @@
         // 予約状況に応じた色を取得：予約数と人数から混雑度を計算して色を決定
         function getCapacityColor(count, people, date = null) {
             // LocalStorageから予約制限設定を取得
-            // @レビュー: getStoreId()を通して店舗IDを取得
-        const STORE_ID = StoreConfig.getStoreId();
-            const controls = JSON.parse(localStorage.getItem(StoreConfig.getCapacityRulesKey()) || '[]');
+            // 店舗ID取得（URLパラメータまたはデフォルト）
+        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
+            const controls = JSON.parse(localStorage.getItem(`capacity_control_rules_${STORE_ID}`) || '[]');
             let maxGroups = 20;  // デフォルトの1日の最大組数
             let maxPeople = 50;  // デフォルトの1日の最大人数
             
@@ -1153,15 +1613,70 @@
             }
         }
         
-        // モーダル開く：予約追加/編集用モーダルを表示
-        async function openAddModal(date = null) {
+        // 現在の日時で新規予約モーダルを開く（グローバルスコープに配置）
+        window.openAddModalWithCurrentDateTime = function() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const date = `${year}-${month}-${day}`;
+            
+            // 現在時刻の次の正時を計算
+            const hour = now.getHours();
+            let nextHour = hour + 1;
+            
+            // 営業時間内で調整（11:00-22:00）
+            if (nextHour < 11) {
+                nextHour = 11;
+            } else if (nextHour > 21) {
+                // 21時を過ぎている場合は翌日の11時を提案
+                const tomorrow = new Date(now);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowYear = tomorrow.getFullYear();
+                const tomorrowMonth = (tomorrow.getMonth() + 1).toString().padStart(2, '0');
+                const tomorrowDay = tomorrow.getDate().toString().padStart(2, '0');
+                window.openAddModal(`${tomorrowYear}-${tomorrowMonth}-${tomorrowDay}`, '11:00');
+                return;
+            }
+            
+            const time = `${nextHour.toString().padStart(2, '0')}:00`;
+            window.openAddModal(date, time);
+        }
+        
+        // モーダル開く：予約追加/編集用モーダルを表示（グローバルスコープに配置）
+        window.openAddModal = async function(date = null, time = null) {
             const modal = document.getElementById('addModal');
+            const form = document.getElementById('reservationForm');
+            
+            // フォームを新規作成モードにリセット
+            form.reset();
+            form.dataset.mode = 'create';  // 明示的に新規作成モードに設定
+            delete form.dataset.reservationId;  // 編集用IDをクリア
+            
             modal.classList.add('active');
             
             if (date) {
-                document.getElementById('reservationDate').value = date;
+                // 日付を正規化（YYYY-MM-DD形式にする）
+                const normalizedDate = date.split('T')[0];
+                document.getElementById('reservationDate').value = normalizedDate;
                 // 日付が設定されたら容量状態を取得して時間選択を更新
-                await updateTimeSlotAvailability(date);
+                await updateTimeSlotAvailability(normalizedDate);
+            }
+            
+            // 時間が指定されている場合は自動設定
+            if (time) {
+                document.getElementById('reservationTime').value = time;
+            } else if (!time && date) {
+                // 時間が指定されていない場合は現在時刻の次の正時を設定
+                const now = new Date();
+                const hour = now.getHours() + 1;
+                if (hour >= 11 && hour <= 21) {
+                    document.getElementById('reservationTime').value = `${hour.toString().padStart(2, '0')}:00`;
+                } else if (hour < 11) {
+                    document.getElementById('reservationTime').value = '11:00';
+                } else {
+                    document.getElementById('reservationTime').value = '19:00';
+                }
             }
         }
         
@@ -1169,10 +1684,12 @@
         async function updateTimeSlotAvailability(date) {
             if (!date) return;
             
-            console.log('Updating time slot availability for date:', date);
+            // 日付を正規化（YYYY-MM-DD形式にする）
+            const normalizedDate = date.split('T')[0];
+            console.log('Updating time slot availability for date:', normalizedDate);
             
             try {
-                const response = await fetch(`/api/capacity-status?store_id=${STORE_ID}&date=${date}`);
+                const response = await fetch(`/api/capacity-status?store_id=${STORE_ID}&date=${normalizedDate}`);
                 const data = await response.json();
                 
                 console.log('Capacity status response:', data);
@@ -1242,23 +1759,28 @@
         document.getElementById('reservationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            // モードの判定（デフォルトは新規作成）
             const isEditMode = this.dataset.mode === 'edit';
             const reservationId = this.dataset.reservationId;
             
+            console.log('Form submission mode:', {
+                mode: this.dataset.mode || 'create',
+                isEditMode: isEditMode,
+                reservationId: reservationId
+            });
+            
             const formData = {
                 customer_name: document.getElementById('customerName').value,
-                date: document.getElementById('reservationDate').value,
-                time: document.getElementById('reservationTime').value,
-                people: parseInt(document.getElementById('numberOfPeople').value),
-                party_size: parseInt(document.getElementById('numberOfPeople').value), // RPC関数用
-                customer_phone: document.getElementById('phoneNumber').value,
                 phone: document.getElementById('phoneNumber').value,
+                email: document.getElementById('email')?.value || '',
+                date: document.getElementById('reservationDate').value,
+                time: document.getElementById('reservationTime').value,  // HH:MM形式のまま送信（APIで:00追加される）
+                people: parseInt(document.getElementById('numberOfPeople').value),
                 message: document.getElementById('notes').value,
-                seat_number: document.getElementById('seatNumber')?.value || null,
+                seat_id: document.getElementById('seatNumber')?.value || null,
                 status: document.getElementById('reservationStatus')?.value || 'confirmed',
                 store_id: STORE_ID,
-                user_id: 'admin-' + Date.now(),
-                source: 'admin'
+                user_id: 'admin-' + Date.now()
             };
             
             if (isEditMode) {
@@ -1266,8 +1788,17 @@
             }
             
             try {
-                const url = isEditMode ? '/api/reservation/update' : '/api/reservation/create';
-                const response = await fetch(url, {
+                // URL APIを使った安全なURL生成（専門家推奨）
+                const action = isEditMode ? 'update' : 'create';
+                const url = new URL('/api/admin', location.origin);
+                url.searchParams.set('action', action);
+                
+                const finalUrl = url.toString();
+                console.log('Sending reservation data to:', finalUrl);
+                console.log('Request body:', formData);
+                console.log('Action parameter:', action);
+                
+                const response = await fetch(finalUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1275,12 +1806,14 @@
                     body: JSON.stringify(formData)
                 });
                 
+                console.log('Response status:', response.status);
                 const result = await response.json();
+                console.log('Reservation response:', result);
                 
                 if (result.success) {
                     alert(isEditMode ? '予約を更新しました' : '予約を追加しました');
                     closeModal();
-                    loadReservations();
+                    await loadReservations();
                 } else {
                     // 容量超過エラーの場合は詳細なメッセージを表示
                     if (result.code === 'CAPACITY_FULL') {
@@ -1290,7 +1823,7 @@
                     } else {
                         alert('エラー: ' + (result.message || result.error || '予約の処理に失敗しました'));
                     }
-                    console.log('Reservation error:', result);
+                    console.error('Reservation error:', result);
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -1316,9 +1849,9 @@
                 const response = await fetch(`/api/admin?action=list&store_id=${STORE_ID}`);
                 const data = await response.json();
                 
-                if (data.success && data.reservations) {
+                if (data.success && data.data) {
                     const today = new Date().toISOString().split('T')[0];
-                    const todayReservations = data.reservations.filter(r => r.date === today);
+                    const todayReservations = data.data.filter(r => r.date === today);
                     document.getElementById('todayCount').textContent = todayReservations.length;
                     
                     // その他の統計も更新
@@ -1805,9 +2338,9 @@
         function updateCapacityRuleWithMode(event, originalDate) {
             event.preventDefault();
             
-            // @レビュー: getStoreId()を通して店舗IDを取得
-        const STORE_ID = StoreConfig.getStoreId();
-            let rules = JSON.parse(localStorage.getItem(StoreConfig.getCapacityRulesKey()) || '[]');
+            // 店舗ID取得（URLパラメータまたはデフォルト）
+        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
+            let rules = JSON.parse(localStorage.getItem(`capacity_control_rules_${STORE_ID}`) || '[]');
             
             const dateMode = document.querySelector('input[name="editDateMode"]:checked').value;
             const startTime = document.getElementById('editStartTime').value;
@@ -1909,7 +2442,7 @@
             
             // LocalStorageに保存
             // @レビュー: getCapacityRulesKey()を通して店舗固有のキーを使用
-            localStorage.setItem(StoreConfig.getCapacityRulesKey(), JSON.stringify(rules));
+            localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(rules));
             
             // モーダルを閉じる
             document.getElementById('capacityEditModal').remove();
@@ -1934,9 +2467,9 @@
                 return;
             }
             
-            // @レビュー: getStoreId()を通して店舗IDを取得
-        const STORE_ID = StoreConfig.getStoreId();
-            const rules = JSON.parse(localStorage.getItem(StoreConfig.getCapacityRulesKey()) || '[]');
+            // 店舗ID取得（URLパラメータまたはデフォルト）
+        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
+            const rules = JSON.parse(localStorage.getItem(`capacity_control_rules_${STORE_ID}`) || '[]');
             
             // 該当するルールを削除
             const updatedRules = rules.filter(rule => {
@@ -1945,7 +2478,7 @@
             
             // LocalStorageに保存
             // @レビュー: getCapacityRulesKey()を通して店舗固有のキーを使用
-            localStorage.setItem(StoreConfig.getCapacityRulesKey(), JSON.stringify(updatedRules));
+            localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(updatedRules));
             
             // モーダルを閉じる
             document.getElementById('capacityEditModal').remove();
@@ -1955,8 +2488,8 @@
             showNotification('予約制限設定を削除しました', 'success');
         }
         
-        // 通知表示
-        function showNotification(message, type = 'info') {
+        // 通知表示（グローバルスコープに配置）
+        window.showNotification = function(message, type = 'info') {
             const notification = document.createElement('div');
             notification.style.cssText = `
                 position: fixed;
@@ -2028,9 +2561,9 @@
                 return;
             }
             
-            // @レビュー: getStoreId()を通して店舗IDを取得
-        const STORE_ID = StoreConfig.getStoreId();
-            const raw = localStorage.getItem(StoreConfig.getCapacityRulesKey());
+            // 店舗ID取得（URLパラメータまたはデフォルト）
+        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
+            const raw = localStorage.getItem(`capacity_control_rules_${STORE_ID}`);
             const controls = JSON.parse(raw || '[]');
             console.log('displayCapacityControls called with controls:', controls);
             
@@ -2098,10 +2631,16 @@
                 if (events.length > 0) {
                     // イベントを1つずつ追加してログ出力
                     events.forEach(event => {
+                        // null/undefinedチェック
+                        if (!event || !event.start || !event.end) {
+                            console.warn('Invalid background event:', event);
+                            return;
+                        }
+                        
                         console.log('Adding background event:', {
                             id: event.id,
-                            start: event.start.toISOString(),
-                            end: event.end.toISOString(),
+                            start: event.start instanceof Date ? event.start.toISOString() : event.start,
+                            end: event.end instanceof Date ? event.end.toISOString() : event.end,
                             color: event.backgroundColor,
                             display: event.display
                         });
@@ -2178,13 +2717,48 @@
             } 
             // 通常の予約の場合
             else {
-                const props = event.extendedProps;
-                openDetailModal(props);
+                // 再発防止：イベントIDの確実な取得
+                const eventId = event.id || event.extendedProps?.originalData?.id || event.extendedProps?.id;
+                
+                if (!eventId) {
+                    console.error('Failed to get event ID from:', event);
+                    showNotification('予約IDが取得できません', 'error');
+                    return;
+                }
+                
+                // イベントから予約データを構築
+                const reservation = {
+                    id: eventId,  // 確実に取得したIDを使用
+                    customerName: event.title ? event.title.split(' ')[0] : '',
+                    date: event.start ? event.start.toISOString().split('T')[0] : '',
+                    time: event.start ? event.start.toTimeString().substring(0, 5) : '',
+                    numberOfPeople: event.extendedProps?.people || event.extendedProps?.originalData?.people || 1,
+                    phoneNumber: event.extendedProps?.originalData?.phone || event.extendedProps?.phone || '',
+                    status: event.extendedProps?.status || event.extendedProps?.originalData?.status || 'confirmed',
+                    ...event.extendedProps?.originalData  // 元のデータを展開
+                };
+                
+                console.log('Opening detail modal for reservation:', {
+                    id: reservation.id,
+                    eventId: event.id,
+                    extendedPropsId: event.extendedProps?.id,
+                    originalDataId: event.extendedProps?.originalData?.id
+                });
+                
+                openDetailModal(reservation);
             }
         }
         
         // 詳細・編集モーダル
         function openDetailModal(reservation) {
+            // IDが無い場合は警告
+            if (!reservation.id) {
+                console.error('Reservation ID is missing:', reservation);
+                showNotification('予約IDが取得できません', 'error');
+                return;
+            }
+            
+            console.log('Opening detail modal with reservation ID:', reservation.id);
             const modal = document.createElement('div');
             modal.className = 'modal active';
             modal.innerHTML = `
@@ -2229,8 +2803,8 @@
                     </div>
                     <div class="form-actions">
                         <button class="action-btn secondary" onclick="this.closest('.modal').remove()">閉じる</button>
-                        <button class="action-btn" style="background: #fdcb6e; border-color: #fdcb6e;" onclick="editReservation('${reservation.id}')">編集</button>
-                        <button class="action-btn" style="background: #e74c3c; border-color: #e74c3c;" onclick="deleteReservation('${reservation.id}')">削除</button>
+                        <button class="action-btn" style="background: #fdcb6e; border-color: #fdcb6e;" onclick="editReservation('${reservation.id || ''}')">編集</button>
+                        <button class="action-btn" style="background: #e74c3c; border-color: #e74c3c;" onclick="deleteReservation('${reservation.id || ''}')">削除</button>
                     </div>
                 </div>
             `;
@@ -2284,14 +2858,18 @@
             }
         }
         
-        // 予約編集
-        function editReservation(id) {
+        // 予約編集（グローバルスコープに配置）
+        window.editReservation = function(id) {
+            console.log('Editing reservation:', id);
+            
             // 既存のモーダルを閉じる
-            document.querySelector('.modal').remove();
+            const existingModal = document.querySelector('.modal');
+            if (existingModal) existingModal.remove();
             
             // 予約データを取得
-            const event = calendar.getEventById(id);
+            const event = calendar ? calendar.getEventById(id) : null;
             if (!event) {
+                console.error('Reservation not found in calendar:', id);
                 showNotification('予約が見つかりません', 'error');
                 return;
             }
@@ -2437,26 +3015,53 @@
             }
         }
         
-        // 予約削除
-        async function deleteReservation(id) {
+        // 予約削除（グローバルスコープに配置）
+        window.deleteReservation = async function(id) {
+            // 再発防止：IDの存在と型チェック
+            if (!id || id === 'undefined' || id === 'null' || id === '') {
+                console.error('Invalid reservation ID for deletion:', id);
+                showNotification('削除エラー: 予約IDが無効です', 'error');
+                return;
+            }
+            
             if (!confirm('この予約を削除してもよろしいですか？')) return;
+            
+            console.log('Deleting reservation:', id, 'Type:', typeof id);
             
             try {
                 const response = await fetch(`/api/admin?action=delete&id=${id}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
                 
+                console.log('Delete response status:', response.status);
                 const data = await response.json();
+                console.log('Delete response data:', data);
+                
                 if (data.success || response.ok) {
-                    document.querySelector('.modal').remove();
-                    loadReservations();
+                    // モーダルが存在する場合は削除
+                    const modal = document.querySelector('.modal');
+                    if (modal) modal.remove();
+                    
+                    // カレンダーから予約を削除
+                    if (calendar) {
+                        const event = calendar.getEventById(id);
+                        if (event) event.remove();
+                    }
+                    
+                    // 予約一覧を再読み込み
+                    await loadReservations();
+                    
+                    // 成功通知
                     showNotification('予約を削除しました', 'success');
                 } else {
-                    showNotification('削除に失敗しました', 'error');
+                    showNotification(`削除に失敗しました: ${data.error || 'エラー'}`, 'error');
                 }
             } catch (error) {
                 console.error('削除エラー:', error);
-                showNotification('削除に失敗しました', 'error');
+                showNotification('削除に失敗しました: ネットワークエラー', 'error');
             }
         }
     </script>

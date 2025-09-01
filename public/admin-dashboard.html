@@ -3,664 +3,379 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ダッシュボード - 予約管理システム</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .header {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .hamburger-menu {
-            width: 30px;
-            height: 30px;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-around;
-        }
-
-        .hamburger-menu span {
-            display: block;
-            height: 3px;
-            background: #333;
-            border-radius: 2px;
-            transition: 0.3s;
-        }
-
-        .sidebar {
-            position: fixed;
-            display: none; display: block;
-            top: 0;
-            width: 300px;
-            height: 100%;
-            background: white;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            display: none;
-            z-index: 1000;
-            overflow-y: auto;
-        }
-
-        .sidebar.active {
-            display: block;
-        }
-
-        .sidebar-header {
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .sidebar-menu {
-            padding: 20px 0;
-        }
-
-        .sidebar-menu a {
-            display: block;
-            padding: 15px 20px;
-            color: #333;
-            text-decoration: none;
-            transition: background 0.3s;
-        }
-
-        .sidebar-menu a:hover {
-            background: #f5f5f5;
-        }
-
-        .overlay {
-            position: fixed;
-            top: 0;
-            display: block;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            z-index: 999;
-        }
-
-        .overlay.active {
-            display: block;
-        }
-
-        .page-title {
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-            cursor: pointer;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .welcome-section {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-
-        .welcome-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .welcome-text h2 {
-            font-size: 28px;
-            color: #333;
-            margin-bottom: 5px;
-        }
-
-        .welcome-text p {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .date-time {
-            text-align: right;
-            color: #666;
-        }
-
-        .date-time .date {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .date-time .time {
-            font-size: 24px;
-            color: #667eea;
-            font-weight: bold;
-        }
-
-        .quick-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            transition: transform 0.3s;
-            cursor: pointer;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .stat-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-
-        .icon-blue {
-            background: rgba(102, 126, 234, 0.1);
-            color: #667eea;
-        }
-
-        .icon-green {
-            background: rgba(40, 167, 69, 0.1);
-            color: #28a745;
-        }
-
-        .icon-orange {
-            background: rgba(255, 193, 7, 0.1);
-            color: #ffc107;
-        }
-
-        .icon-red {
-            background: rgba(220, 53, 69, 0.1);
-            color: #dc3545;
-        }
-
-        .stat-info {
-            flex: 1;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 5px;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .dashboard-card {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-
-        .card-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .card-action {
-            color: #667eea;
-            text-decoration: none;
-            font-size: 14px;
-        }
-
-        .card-action:hover {
-            text-decoration: underline;
-        }
-
-        .activity-list {
-            list-style: none;
-        }
-
-        .activity-item {
-            padding: 12px 0;
-            border-bottom: 1px solid #f0f0f0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .activity-item:last-child {
-            border-bottom: none;
-        }
-
-        .activity-time {
-            font-size: 12px;
-            color: #999;
-            min-width: 50px;
-        }
-
-        .activity-badge {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-
-        .badge-new {
-            background: #28a745;
-        }
-
-        .badge-cancel {
-            background: #dc3545;
-        }
-
-        .badge-modify {
-            background: #ffc107;
-        }
-
-        .activity-text {
-            flex: 1;
-            font-size: 14px;
-            color: #333;
-        }
-
-        .todo-list {
-            list-style: none;
-        }
-
-        .todo-item {
-            padding: 12px;
-            margin-bottom: 10px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .todo-checkbox {
-            width: 20px;
-            height: 20px;
-            border: 2px solid #667eea;
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .todo-checkbox.checked {
-            background: #667eea;
-            color: white;
-        }
-
-        .todo-text {
-            flex: 1;
-            font-size: 14px;
-            color: #333;
-        }
-
-        .todo-priority {
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-
-        .priority-high {
-            background: #dc3545;
-            color: white;
-        }
-
-        .priority-medium {
-            background: #ffc107;
-            color: #333;
-        }
-
-        .priority-low {
-            background: #28a745;
-            color: white;
-        }
-
-        .notification-list {
-            list-style: none;
-        }
-
-        .notification-item {
-            padding: 12px;
-            margin-bottom: 10px;
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-            border-radius: 4px;
-        }
-
-        .notification-item.info {
-            background: #d1ecf1;
-            border-color: #17a2b8;
-        }
-
-        .notification-item.warning {
-            background: #fff3cd;
-            border-color: #ffc107;
-        }
-
-        .notification-item.error {
-            background: #f8d7da;
-            border-color: #dc3545;
-        }
-
-        .notification-title {
-            font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 5px;
-            color: #333;
-        }
-
-        .notification-text {
-            font-size: 13px;
-            color: #666;
-        }
-
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .action-btn {
-            padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: transform 0.3s;
-            text-align: center;
-        }
-
-        .action-btn:hover {
-            transform: translateY(-3px);
-        }
-
-        @media (max-width: 768px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .quick-stats {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <title>予約管理システム | ダッシュボード</title>
+    
+    <!-- Dashboard Style -->
+    <link rel="stylesheet" href="/css/dashboard-style.css">
+    <!-- Sidebar Menu CSS -->
+    <link rel="stylesheet" href="/css/sidebar-menu.css">
 </head>
 <body>
-    <div class="header">
-        <div class="hamburger-menu" onclick="toggleMenu()">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-        <h1 class="page-title" onclick="window.location.href='/admin-full-featured.html'">予約管理システム</h1>
-    </div>
-
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2>メニュー</h2>
-        </div>
-        <div class="sidebar-menu">
-            <a href="/admin-full-featured.html">ホーム</a>
-            <a href="/admin-list.html">予約一覧</a>
-            <a href="/capacity-control-enhanced.html">予約制御</a>
-            <a href="/seats-management-enhanced.html">席管理</a>
-            <a href="/admin-settings.html">営業時間設定</a>
-            <a href="/admin-templates.html">テンプレート管理</a>
-            <a href="/admin-customers.html">顧客管理</a>
-            <a href="/admin-analytics.html">統計・分析</a>
-            <a href="/admin-dashboard.html">ダッシュボード</a>
-            <a href="/admin-notifications.html">通知センター</a>
-            <a href="/admin-advanced.html">詳細設定</a>
-        </div>
-    </div>
-
-    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
-
-    <div class="container">
-        <div class="welcome-section">
-            <div class="welcome-header">
-                <div class="welcome-text">
-                    <h2>おはようございます、管理者様</h2>
-                    <p>本日も素晴らしい一日になりますように</p>
-                </div>
-                <div class="date-time">
-                    <div class="date" id="currentDate"></div>
-                    <div class="time" id="currentTime"></div>
-                </div>
-            </div>
+    <div class="dashboard-container">
+        <!-- ページヘッダー -->
+        <div class="page-header">
+            <h1 class="page-title">予約管理システム</h1>
         </div>
 
-        <div class="quick-stats">
-            <div class="stat-card" onclick="window.location.href='/admin-list.html'">
-                <div class="stat-icon icon-blue">📅</div>
-                <div class="stat-info">
-                    <div class="stat-label">本日の予約</div>
-                    <div class="stat-value">24件</div>
+        <!-- 期間選択 -->
+        <div class="period-selector">
+            <span class="period-label">期間選択：</span>
+            <select class="period-select" id="periodSelect">
+                <option value="today">今日</option>
+                <option value="week" selected>今週</option>
+                <option value="month">今月</option>
+                <option value="year">今年</option>
+            </select>
+            <button class="btn-update" onclick="updateDashboard()">更新</button>
+        </div>
+
+        <!-- 統計カード -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">総予約数</div>
+                        <div class="stat-value">342</div>
+                        <div class="stat-change positive">↑ 12% 前週比</div>
+                    </div>
+                    <div class="stat-icon">📊</div>
                 </div>
             </div>
-            <div class="stat-card" onclick="window.location.href='/admin-customers.html'">
-                <div class="stat-icon icon-green">👥</div>
-                <div class="stat-info">
-                    <div class="stat-label">本日の来客予定</div>
-                    <div class="stat-value">92名</div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">売上高</div>
+                        <div class="stat-value">¥1,248,000</div>
+                        <div class="stat-change positive">↑ 8% 前週比</div>
+                    </div>
+                    <div class="stat-icon">💰</div>
                 </div>
             </div>
-            <div class="stat-card" onclick="window.location.href='/seats-management-enhanced.html'">
-                <div class="stat-icon icon-orange">🪑</div>
-                <div class="stat-info">
-                    <div class="stat-label">空席率</div>
-                    <div class="stat-value">35%</div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">平均客単価</div>
+                        <div class="stat-value">¥3,648</div>
+                        <div class="stat-change negative">↓ 3% 前週比</div>
+                    </div>
+                    <div class="stat-icon">💳</div>
                 </div>
             </div>
-            <div class="stat-card" onclick="window.location.href='/admin-analytics.html'">
-                <div class="stat-icon icon-red">💰</div>
-                <div class="stat-info">
-                    <div class="stat-label">本日の売上予測</div>
-                    <div class="stat-value">¥248,000</div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">キャンセル率</div>
+                        <div class="stat-value">4.2%</div>
+                        <div class="stat-change positive">↑ 1.5% 改善</div>
+                    </div>
+                    <div class="stat-icon">❌</div>
                 </div>
             </div>
         </div>
 
-        <div class="dashboard-grid">
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <h3 class="card-title">最近のアクティビティ</h3>
-                    <a href="/admin-list.html" class="card-action">すべて見る →</a>
-                </div>
-                <ul class="activity-list">
-                    <li class="activity-item">
-                        <span class="activity-time">10:32</span>
-                        <span class="activity-badge badge-new"></span>
-                        <span class="activity-text">山田様（4名）19:00の予約が確定</span>
-                    </li>
-                    <li class="activity-item">
-                        <span class="activity-time">10:15</span>
-                        <span class="activity-badge badge-cancel"></span>
-                        <span class="activity-text">佐藤様（2名）本日18:00の予約をキャンセル</span>
-                    </li>
-                    <li class="activity-item">
-                        <span class="activity-time">09:45</span>
-                        <span class="activity-badge badge-modify"></span>
-                        <span class="activity-text">鈴木様の予約時間を20:00→19:30に変更</span>
-                    </li>
-                    <li class="activity-item">
-                        <span class="activity-time">09:30</span>
-                        <span class="activity-badge badge-new"></span>
-                        <span class="activity-text">田中様（6名）明日12:00の予約が確定</span>
-                    </li>
-                    <li class="activity-item">
-                        <span class="activity-time">09:12</span>
-                        <span class="activity-badge badge-new"></span>
-                        <span class="activity-text">伊藤様（2名）本日20:00の予約が確定</span>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <h3 class="card-title">本日のタスク</h3>
-                    <a href="#" class="card-action">タスク追加 +</a>
-                </div>
-                <ul class="todo-list">
-                    <li class="todo-item">
-                        <div class="todo-checkbox" onclick="toggleTodo(this)"></div>
-                        <span class="todo-text">12:00 VIP個室の準備（山田様6名）</span>
-                        <span class="todo-priority priority-high">高</span>
-                    </li>
-                    <li class="todo-item">
-                        <div class="todo-checkbox" onclick="toggleTodo(this)"></div>
-                        <span class="todo-text">14:00 在庫確認と発注</span>
-                        <span class="todo-priority priority-medium">中</span>
-                    </li>
-                    <li class="todo-item">
-                        <div class="todo-checkbox checked" onclick="toggleTodo(this)">✓</div>
-                        <span class="todo-text">朝礼でのスタッフ共有</span>
-                        <span class="todo-priority priority-low">低</span>
-                    </li>
-                    <li class="todo-item">
-                        <div class="todo-checkbox" onclick="toggleTodo(this)"></div>
-                        <span class="todo-text">18:00 ディナータイムの席配置確認</span>
-                        <span class="todo-priority priority-high">高</span>
-                    </li>
-                    <li class="todo-item">
-                        <div class="todo-checkbox" onclick="toggleTodo(this)"></div>
-                        <span class="todo-text">週次レポートの準備</span>
-                        <span class="todo-priority priority-medium">中</span>
-                    </li>
-                </ul>
+        <!-- 日別予約数推移 -->
+        <div class="chart-card">
+            <h2 class="chart-header">日別予約数推移</h2>
+            <div class="chart-container">
+                <canvas id="bookingChart"></canvas>
             </div>
         </div>
 
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h3 class="card-title">重要なお知らせ</h3>
-                <a href="/admin-notifications.html" class="card-action">通知センター →</a>
-            </div>
-            <ul class="notification-list">
-                <li class="notification-item warning">
-                    <div class="notification-title">⚠️ 本日18:00-20:00は満席です</div>
-                    <div class="notification-text">キャンセル待ちのお客様が3組いらっしゃいます</div>
-                </li>
-                <li class="notification-item info">
-                    <div class="notification-title">ℹ️ システムメンテナンスのお知らせ</div>
-                    <div class="notification-text">明日AM2:00-4:00にメンテナンスを実施します</div>
-                </li>
-                <li class="notification-item error">
-                    <div class="notification-title">🔴 在庫アラート</div>
-                    <div class="notification-text">ワインA、ビールBの在庫が残り少なくなっています</div>
-                </li>
-            </ul>
-        </div>
-
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h3 class="card-title">クイックアクション</h3>
-            </div>
-            <div class="quick-actions">
-                <button class="action-btn" onclick="window.location.href='/admin-list.html'">新規予約登録</button>
-                <button class="action-btn" onclick="window.location.href='/capacity-control-enhanced.html'">予約枠調整</button>
-                <button class="action-btn" onclick="window.location.href='/admin-customers.html'">顧客検索</button>
-                <button class="action-btn" onclick="window.location.href='/admin-analytics.html'">売上確認</button>
-                <button class="action-btn" onclick="window.location.href='/admin-templates.html'">メッセージ送信</button>
-                <button class="action-btn" onclick="window.location.href='/admin-settings.html'">設定変更</button>
+        <!-- 時間帯別予約分布 -->
+        <div class="chart-card">
+            <h2 class="chart-header">時間帯別予約分布</h2>
+            <div class="chart-container">
+                <canvas id="timeDistributionChart"></canvas>
             </div>
         </div>
     </div>
 
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Sidebar Menu JS -->
+    <script src='/js/sidebar-menu.js' defer></script>
+    
     <script>
-        function toggleMenu() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('overlay');
-            const hamburger = document.querySelector('.hamburger-menu');
-            sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
-            if (hamburger) {
-                hamburger.style.display = sidebar.classList.contains('active') ? 'none' : 'block';
+        // 店舗IDを取得（URLパラメータまたはデフォルト）
+        function getStoreId() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
+        }
+
+        // ダッシュボード更新
+        async function updateDashboard() {
+            const period = document.getElementById('periodSelect').value;
+            const storeId = getStoreId();
+            
+            console.log('Updating dashboard for store:', storeId, 'period:', period);
+            
+            try {
+                // APIからデータを取得
+                const response = await fetch(`/api/dashboard-stats?store_id=${storeId}&period=${period}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 統計カードを更新
+                    updateStatCards(data.stats);
+                    // チャートを更新
+                    updateCharts(data.charts);
+                } else {
+                    console.error('Failed to fetch dashboard data:', data.error);
+                }
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
             }
         }
 
-        function updateDateTime() {
-            const now = new Date();
-            
-            // 日付の更新
-            const dateElement = document.getElementById('currentDate');
-            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
-            dateElement.textContent = now.toLocaleDateString('ja-JP', options);
-            
-            // 時刻の更新
-            const timeElement = document.getElementById('currentTime');
-            const hours = now.getHours().toString().padStart(2, '0');
-            const minutes = now.getMinutes().toString().padStart(2, '0');
-            timeElement.textContent = `${hours}:${minutes}`;
+        // 統計カードを更新
+        function updateStatCards(stats) {
+            // 総予約数
+            const bookingCard = document.querySelector('.stat-card:nth-child(1)');
+            if (bookingCard && stats.totalBookings) {
+                bookingCard.querySelector('.stat-value').textContent = stats.totalBookings.value;
+                const changeEl = bookingCard.querySelector('.stat-change');
+                changeEl.textContent = `${stats.totalBookings.change >= 0 ? '↑' : '↓'} ${Math.abs(stats.totalBookings.change)}% 前週比`;
+                changeEl.className = `stat-change ${stats.totalBookings.changeType}`;
+            }
+
+            // 売上高
+            const revenueCard = document.querySelector('.stat-card:nth-child(2)');
+            if (revenueCard && stats.totalRevenue) {
+                revenueCard.querySelector('.stat-value').textContent = stats.totalRevenue.formatted;
+                const changeEl = revenueCard.querySelector('.stat-change');
+                changeEl.textContent = `${stats.totalRevenue.change >= 0 ? '↑' : '↓'} ${Math.abs(stats.totalRevenue.change)}% 前週比`;
+                changeEl.className = `stat-change ${stats.totalRevenue.changeType}`;
+            }
+
+            // 平均客単価
+            const avgCard = document.querySelector('.stat-card:nth-child(3)');
+            if (avgCard && stats.avgOrderValue) {
+                avgCard.querySelector('.stat-value').textContent = stats.avgOrderValue.formatted;
+                const changeEl = avgCard.querySelector('.stat-change');
+                changeEl.textContent = `${stats.avgOrderValue.change >= 0 ? '↑' : '↓'} ${Math.abs(stats.avgOrderValue.change)}% 前週比`;
+                changeEl.className = `stat-change ${stats.avgOrderValue.changeType}`;
+            }
+
+            // キャンセル率
+            const cancelCard = document.querySelector('.stat-card:nth-child(4)');
+            if (cancelCard && stats.cancelRate) {
+                cancelCard.querySelector('.stat-value').textContent = `${stats.cancelRate.value}%`;
+                const changeEl = cancelCard.querySelector('.stat-change');
+                changeEl.textContent = `${stats.cancelRate.change >= 0 ? '↑' : '↓'} ${Math.abs(stats.cancelRate.change)}% 改善`;
+                changeEl.className = `stat-change ${stats.cancelRate.changeType}`;
+            }
         }
 
-        function toggleTodo(checkbox) {
-            checkbox.classList.toggle('checked');
-            if (checkbox.classList.contains('checked')) {
-                checkbox.textContent = '✓';
+        // チャートインスタンスを保持
+        let bookingChart = null;
+        let timeDistributionChart = null;
+
+        // チャートを更新
+        function updateCharts(chartData) {
+            if (chartData && chartData.daily) {
+                updateBookingChart(chartData.daily);
+            }
+            if (chartData && chartData.hourly) {
+                updateTimeDistributionChart(chartData.hourly);
+            }
+        }
+
+        // 日別予約数チャートを更新
+        function updateBookingChart(data) {
+            const ctx = document.getElementById('bookingChart').getContext('2d');
+            
+            if (bookingChart) {
+                // 既存のチャートを更新
+                bookingChart.data.labels = data.labels;
+                bookingChart.data.datasets[0].data = data.data;
+                bookingChart.update();
             } else {
-                checkbox.textContent = '';
+                // 新しいチャートを作成
+                bookingChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: '予約数',
+                            data: data.data,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    borderDash: [2, 2]
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
             }
         }
 
-        // 初期表示と1分ごとの更新
-        updateDateTime();
-        setInterval(updateDateTime, 60000);
+        // 時間帯別分布チャートを更新
+        function updateTimeDistributionChart(data) {
+            const ctx = document.getElementById('timeDistributionChart').getContext('2d');
+            
+            if (timeDistributionChart) {
+                // 既存のチャートを更新
+                timeDistributionChart.data.labels = data.labels;
+                timeDistributionChart.data.datasets[0].data = data.data;
+                timeDistributionChart.update();
+            } else {
+                // 新しいチャートを作成
+                timeDistributionChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: '予約数',
+                            data: data.data,
+                            backgroundColor: '#764ba2',
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    borderDash: [2, 2]
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // チャート初期化（デフォルトデータ）
+        function loadCharts() {
+            // 日別予約数推移
+            const ctx1 = document.getElementById('bookingChart').getContext('2d');
+            new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: ['月', '火', '水', '木', '金', '土', '日'],
+                    datasets: [{
+                        label: '予約数',
+                        data: [45, 52, 48, 65, 68, 72, 58],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                borderDash: [2, 2]
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 時間帯別予約分布
+            const ctx2 = document.getElementById('timeDistributionChart').getContext('2d');
+            new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'],
+                    datasets: [{
+                        label: '予約数',
+                        data: [8, 12, 25, 18, 15, 20, 28, 35, 42, 38, 25, 15],
+                        backgroundColor: '#764ba2',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                borderDash: [2, 2]
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ページ読み込み時にダッシュボードを初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('[Dashboard] Initializing dashboard...');
+            // サイドバーメニューの初期化を確認
+            setTimeout(() => {
+                if (!document.querySelector('.sidebar-container')) {
+                    console.error('[Dashboard] Sidebar not found, reloading sidebar-menu.js');
+                    const script = document.createElement('script');
+                    script.src = '/js/sidebar-menu.js';
+                    document.body.appendChild(script);
+                }
+            }, 100);
+            // 初回データ読み込み
+            updateDashboard();
+        });
     </script>
 </body>
 </html>
