@@ -28,7 +28,44 @@ export default async function handler(req, res) {
   
   // URLパラメータからactionを取得
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const action = url.searchParams.get('action');
+  const rawAction = url.searchParams.get('action');
+  
+  // actionパラメータの詳細ログ
+  console.log('Admin API Request:', {
+    method: req.method,
+    url: req.url,
+    rawAction: rawAction,
+    actionType: typeof rawAction,
+    actionValue: rawAction ? rawAction : 'null',
+    allParams: Array.from(url.searchParams.entries())
+  });
+  
+  // アクションパラメータの正規化と検証
+  let action = null;
+  
+  if (rawAction) {
+    // 文字列に変換し、小文字化
+    action = String(rawAction).toLowerCase().trim();
+    
+    // 不正な文字を除去（英数字とハイフンのみ許可）
+    action = action.replace(/[^a-z0-9-]/g, '');
+    
+    // 特定のパターンを検出して修正
+    if (action.includes(':')) {
+      console.log('Action contains colon, cleaning:', action);
+      action = action.split(':')[0];
+    }
+    
+    // 空文字になった場合はnullに
+    if (action === '') {
+      action = null;
+    }
+  }
+  
+  console.log('Processed action:', {
+    raw: rawAction,
+    normalized: action
+  });
   
   // GETリクエストでactionがない場合はヘルスチェック
   if (!action && req.method === 'GET') {
@@ -39,28 +76,64 @@ export default async function handler(req, res) {
     });
   }
   
+  // actionパラメータのバリデーション
+  const validActions = ['auth', 'list', 'create', 'update', 'delete', 'supabase'];
+  
   if (!action) {
-    return res.status(400).json({ error: 'actionパラメータが必要です' });
+    return res.status(400).json({ 
+      error: 'actionパラメータが必要です',
+      received: rawAction,
+      validActions: validActions
+    });
+  }
+  
+  if (!validActions.includes(action)) {
+    return res.status(400).json({ 
+      error: 'actionパラメータが無効です',
+      received: rawAction,
+      normalized: action,
+      validActions: validActions
+    });
   }
   
   try {
     switch (action) {
       case 'auth':
         return await handleAuth(req, res);
+      case 'list':
+        return await handleList(req, res);
       case 'create':
         return await handleCreate(req, res);
+      case 'update':
+        return await handleUpdate(req, res);
       case 'delete':
         return await handleDelete(req, res, url);
       case 'supabase':
         return await handleSupabase(req, res);
       default:
-        return res.status(400).json({ error: `不正なaction: ${action}` });
+        // ここには到達しないはず（事前検証済み）
+        console.error('Unexpected action in switch:', action);
+        return res.status(500).json({ 
+          error: 'Internal server error',
+          message: 'Unexpected action value after validation'
+        });
     }
-  } catch (error) {
-    console.error(`Admin API error (${action}):`, error);
-    return res.status(500).json({
-      error: 'サーバーエラーが発生しました',
-      details: error.message
+  } catch (e) {
+    // ここで"何が落ちたか"を確実に取る
+    console.error('[admin] fatal error:', {
+      url: req.originalUrl,
+      method: req.method,
+      query: req.query,
+      body: req.body,
+      action: action,
+      error: e?.message,
+      stack: e?.stack,
+    });
+    return res.status(500).json({ 
+      error: 'Admin API failed', 
+      message: e?.message,
+      action: action,
+      details: process.env.NODE_ENV === 'development' ? e?.stack : undefined
     });
   }
 }
@@ -101,6 +174,97 @@ async function handleAuth(req, res) {
     token: token,
     expiresIn: 3600 // 1時間有効
   });
+}
+
+// 予約一覧取得処理
+async function handleList(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  
+  try {
+    // URLからstore_idを取得
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const storeId = getStoreId(url.searchParams.get('store_id'));
+    
+    if (!storeId) {
+      return res.status(400).json({ error: 'store_id required' });
+    }
+    
+    console.log('Fetching reservations for store:', storeId);
+    
+    // Supabaseから予約データを取得
+    const { data, error } = await supabase
+      .from('reservations')
+      .select('*')
+      .eq('store_id', storeId)
+      .order('date', { ascending: true })
+      .order('time', { ascending: true })
+      .limit(200);
+    
+    if (error) {
+      // ← ブラウザ時だけ失敗していないかを見たい
+      console.error('Supabase error:', error);
+      return res.status(502).json({ 
+        error: 'supabase error',
+        details: error.message 
+      });
+    }
+    
+    // データを整形（admin-full-featured.htmlが期待する形式に変換）
+    // 日付と時間を確実に文字列として返す
+    const rows = (data || []).map(r => {
+      // 日付の文字列化
+      const dateStr = (typeof r.date === 'string')
+        ? r.date
+        : r.date instanceof Date
+          ? r.date.toISOString().slice(0,10)
+          : String(r.date ?? '');
+      
+      // 時間の文字列化とフォーマット調整
+      let timeStr = r.time ?? '';
+      if (typeof timeStr !== 'string') timeStr = String(timeStr ?? '');
+      if (timeStr.length === 5) timeStr += ':00';
+      else if (timeStr.length > 8) timeStr = timeStr.slice(0,8);
+      
+      return {
+        id: r.id,
+        customer_name: r.customer_name,  // フロントエンドが期待する形式も追加
+        customerName: r.customer_name,
+        date: dateStr,  // 確実に"YYYY-MM-DD"形式の文字列
+        time: timeStr,  // 確実に"HH:MM:SS"形式の文字列
+        people: r.people || 0,
+        numberOfPeople: r.people || 0, // ← ここで undefined による例外を避ける
+        status: r.status,
+        message: r.message,
+        phone: r.phone,
+        email: r.email,
+        seatId: r.seat_id,
+        seat_id: r.seat_id,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at
+      };
+    });
+    
+    console.log(`Found ${rows.length} reservations for store ${storeId}`);
+    
+    return res.status(200).json({
+      ok: true,
+      success: true, // 互換性のため両方を含める
+      data: rows,
+      rows: rows,  // 互換性のため両方を含める
+      count: rows.length
+    });
+  } catch (e) {
+    console.error('[handleList] error:', {
+      msg: e?.message,
+      stack: e?.stack
+    });
+    return res.status(500).json({ 
+      error: 'Failed to fetch reservations', 
+      message: e?.message 
+    });
+  }
 }
 
 // 予約作成処理
@@ -169,6 +333,7 @@ async function handleCreate(req, res) {
     email: email || null,
     seat_id: seat_id || null, // 席ID（オプション）
     status: 'pending',
+    source: 'admin', // 管理画面から作成
     created_at: new Date().toISOString()
   };
   
@@ -214,6 +379,93 @@ async function handleCreate(req, res) {
   return res.status(200).json({
     success: true,
     message: '予約を作成しました',
+    reservation: data[0]
+  });
+}
+
+// 予約更新処理
+async function handleUpdate(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  
+  const {
+    id,
+    customer_name,
+    date,
+    time,
+    people,
+    message,
+    phone,
+    email,
+    seat_id,
+    status
+  } = req.body;
+  
+  // 必須項目チェック
+  if (!id) {
+    return res.status(400).json({ 
+      error: '予約IDが指定されていません' 
+    });
+  }
+  
+  if (!customer_name || !date || !time || !people) {
+    return res.status(400).json({ 
+      error: '必須項目が不足しています',
+      required: ['customer_name', 'date', 'time', 'people']
+    });
+  }
+  
+  // 人数チェック（1-20名）
+  const peopleNum = parseInt(people);
+  if (peopleNum < 1 || peopleNum > 20) {
+    return res.status(400).json({ 
+      error: '人数は1〜20名の範囲で指定してください' 
+    });
+  }
+  
+  // 更新データ作成
+  const updateData = {
+    customer_name: customer_name,
+    date: date,
+    time: time.includes(':') ? time : time + ':00', // HH:MM を HH:MM:SS形式に
+    people: peopleNum,
+    message: message || null,
+    phone: phone || null,
+    email: email || null,
+    seat_id: seat_id || null,
+    status: status || 'confirmed',
+    updated_at: new Date().toISOString()
+  };
+  
+  console.log('Updating reservation:', id, updateData);
+  
+  // Supabaseで更新
+  const { data, error } = await supabase
+    .from('reservations')
+    .update(updateData)
+    .eq('id', id)
+    .select();
+  
+  if (error) {
+    console.error('Update error:', error);
+    return res.status(500).json({ 
+      error: '予約の更新に失敗しました',
+      details: error.message 
+    });
+  }
+  
+  if (!data || data.length === 0) {
+    return res.status(404).json({ 
+      error: '指定された予約が見つかりません' 
+    });
+  }
+  
+  console.log('Successfully updated reservation:', data[0]);
+  
+  return res.status(200).json({
+    success: true,
+    message: '予約を更新しました',
     reservation: data[0]
   });
 }

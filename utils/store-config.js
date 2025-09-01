@@ -9,26 +9,49 @@
  */
 
 /**
- * 店舗IDを取得する統一関数
+ * 店舗IDを取得する統一関数（純ESM版）
  * 優先順位:
- * 1. 関数引数で明示的に指定された値
- * 2. URLパラメータ (store_id)
- * 3. 環境変数 (STORE_ID)
- * 4. デフォルト値 ('default-store')
+ * 1. 明示の query (req.query.store_id)
+ * 2. パス params (req.params.store_id)
+ * 3. サブドメインから解決 (foo.localhost → foo)
+ * 4. 環境変数 (STORE_ID)
+ * 5. デフォルト値 ('default-store')
  * 
- * @param {string} explicitStoreId - 明示的に指定された店舗ID（オプション）
+ * @param {any} reqOrExplicitId - Expressのreqオブジェクト、または明示的な店舗ID
  * @returns {string} 店舗ID
  */
-function getStoreId(explicitStoreId = null) {
-  // サーバーサイド環境チェック
+export function getStoreId(reqOrExplicitId = null) {
+  // サーバーサイド環境（Node.js）
   if (typeof window === 'undefined') {
-    // Node.js環境
-    return explicitStoreId || process.env.STORE_ID || 'default-store';
+    // 文字列が直接渡された場合
+    if (typeof reqOrExplicitId === 'string') {
+      return reqOrExplicitId;
+    }
+    
+    // reqオブジェクトの場合
+    const req = reqOrExplicitId;
+    
+    // ① 明示の query
+    if (req?.query?.store_id) return String(req.query.store_id);
+    
+    // ② パス /api/s/:store_id のような場合（必要なら）
+    if (req?.params?.store_id) return String(req.params.store_id);
+    
+    // ③ サブドメインから解決 (foo.localhost → foo)
+    const host = req?.headers?.host || '';
+    const sub = host.split(':')[0].split('.')[0];
+    if (sub && sub !== 'www' && sub !== 'localhost') return sub;
+    
+    // ④ 環境変数
+    if (process.env.STORE_ID) return process.env.STORE_ID;
+    
+    // ⑤ デフォルト
+    return 'default-store';
   }
   
-  // クライアントサイド環境
-  if (explicitStoreId) {
-    return explicitStoreId;
+  // クライアントサイド環境（ブラウザ）
+  if (typeof reqOrExplicitId === 'string') {
+    return reqOrExplicitId;
   }
   
   // URLパラメータから取得
@@ -36,11 +59,6 @@ function getStoreId(explicitStoreId = null) {
   const urlStoreId = urlParams.get('store_id');
   if (urlStoreId) {
     return urlStoreId;
-  }
-  
-  // 環境変数から取得（ビルド時に埋め込まれる場合）
-  if (typeof process !== 'undefined' && process.env && process.env.STORE_ID) {
-    return process.env.STORE_ID;
   }
   
   // デフォルト値
@@ -54,7 +72,7 @@ function getStoreId(explicitStoreId = null) {
  * @param {string} storeId - 店舗ID（オプション）
  * @returns {Object} 店舗設定
  */
-function getStoreConfig(storeId = null) {
+export function getStoreConfig(storeId = null) {
   const id = getStoreId(storeId);
   
   // 現在はすべての店舗で同じ設定
@@ -85,7 +103,7 @@ function getStoreConfig(storeId = null) {
  * @param {string} storeId - 店舗ID（オプション）
  * @returns {string} 店舗固有のキー
  */
-function getStorageKey(key, storeId = null) {
+export function getStorageKey(key, storeId = null) {
   const config = getStoreConfig(storeId);
   return `${config.storagePrefix}${key}`;
 }
@@ -97,26 +115,9 @@ function getStorageKey(key, storeId = null) {
  * @param {string} storeId - 店舗ID（オプション）
  * @returns {string} LocalStorageキー
  */
-function getCapacityRulesKey(storeId = null) {
+export function getCapacityRulesKey(storeId = null) {
   const id = getStoreId(storeId);
   return `capacity_control_rules_${id}`;
 }
 
-// CommonJS/ES6両対応のエクスポート
-if (typeof module !== 'undefined' && module.exports) {
-  // Node.js環境
-  module.exports = {
-    getStoreId,
-    getStoreConfig,
-    getStorageKey,
-    getCapacityRulesKey
-  };
-} else if (typeof window !== 'undefined') {
-  // ブラウザ環境
-  window.StoreConfig = {
-    getStoreId,
-    getStoreConfig,
-    getStorageKey,
-    getCapacityRulesKey
-  };
-}
+// 各関数は既にexport functionで定義されているため、追加のexport文は不要

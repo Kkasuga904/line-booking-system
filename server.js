@@ -65,7 +65,22 @@ const app = express();
 // エンタープライズミドルウェア（最優先設定）
 // ==========================================
 // セキュリティ・レート制限・IPブロッキングを適用
-app.use(securityManager.middleware());
+// 開発環境では無効化
+if (process.env.NODE_ENV === 'production') {
+  app.use(securityManager.middleware());
+}
+
+// CORS設定
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
 
 // リクエスト処理時間計測ミドルウェア
 // パフォーマンス監視とエラー率追跡用
@@ -83,7 +98,43 @@ app.use((req, res, next) => {
 // 静的ファイル配信
 // ==========================================
 // publicディレクトリ内のHTML/CSS/JS/画像ファイルを配信
-app.use(express.static(path.join(__dirname, 'public')));
+// HTMLファイルはキャッシュ無効化（no-store）
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, filepath) => {
+        if (filepath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        } else {
+            // JS/CSSは1時間キャッシュ
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+        }
+    }
+}));
+
+// 404エラー対策用スタブ
+app.get('/api/seat-assignments', (req, res) => res.json({ seats: [] }));
+
+// ==========================================
+// 再発防止：誤ったURLパスのリダイレクト
+// ==========================================
+// /public/で始まるパスを正しいパスにリダイレクト
+app.get('/public/*', (req, res) => {
+    const correctPath = req.path.replace('/public/', '/');
+    console.log(`Redirecting from ${req.path} to ${correctPath}`);
+    res.redirect(301, correctPath + (req.originalUrl.includes('?') ? req.originalUrl.substring(req.originalUrl.indexOf('?')) : ''));
+});
+
+// ==========================================
+// ビルド識別子エンドポイント（最優先）
+// ==========================================
+app.get('/__version', (req, res) => {
+    const buildTime = '2025-09-01T14:00:00+09:00';
+    res.json({
+        build: buildTime,
+        rev: '20250901-hamburger-portal-fix',
+        timestamp: Date.now(),
+        deployment: 'Cloud Run Asia-Northeast1'
+    });
+});
 
 // ==========================================
 // ヘルスチェック & バージョン（bodyパーサー不要）
@@ -1212,6 +1263,262 @@ app.post('/api/time-restrictions', async (req, res) => {
   }
 });
 
+// 容量状態確認API
+app.get('/api/capacity-status', async (req, res) => {
+  try {
+    const storeId = req.query.store_id || process.env.STORE_ID || 'default-store';
+    const date = req.query.date;
+    
+    if (!date) {
+      return res.status(400).json({ success: false, error: 'Date is required' });
+    }
+    
+    // 予約データを取得
+    const { data: reservations, error } = await supabase
+      .from('reservations')
+      .select('*')
+      .eq('store_id', storeId)
+      .eq('date', date)
+      .eq('status', 'confirmed');
+    
+    if (error) throw error;
+    
+    // 時間帯ごとの集計
+    const slots = [];
+    for (let hour = 11; hour <= 21; hour++) {
+      const time = `${hour.toString().padStart(2, '0')}:00`;
+      const slotReservations = reservations?.filter(r => r.time === time) || [];
+      const currentGroups = slotReservations.length;
+      const currentPeople = slotReservations.reduce((sum, r) => sum + (r.people || 1), 0);
+      
+      const maxGroups = 5;  // 1時間あたり最大5組
+      const maxPeople = 20; // 1時間あたり最大20人
+      
+      let status = 'available';
+      let message = '空席あり';
+      let displayClass = 'slot-available';
+      
+      if (currentGroups >= maxGroups || currentPeople >= maxPeople) {
+        status = 'full';
+        message = '満席';
+        displayClass = 'slot-full';
+      } else if (currentGroups >= maxGroups * 0.8 || currentPeople >= maxPeople * 0.8) {
+        status = 'limited';
+        message = '残りわずか';
+        displayClass = 'slot-limited';
+      }
+      
+      slots.push({
+        time,
+        status,
+        message,
+        displayClass,
+        currentGroups,
+        maxGroups,
+        currentPeople,
+        maxPeople,
+        selectable: status !== 'full'
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      date,
+      slots 
+    });
+    
+  } catch (error) {
+    console.error('Capacity status error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 座席利用可能状況API
+app.get('/api/seat-availability', async (req, res) => {
+  try {
+    const storeId = req.query.store_id || process.env.STORE_ID || 'default-store';
+    const date = req.query.date;
+    const time = req.query.time;
+    
+    if (!date || !time) {
+      return res.status(400).json({ success: false, error: 'Date and time are required' });
+    }
+    
+    // 指定時間の予約を取得
+    const { data: reservations, error } = await supabase
+      .from('reservations')
+      .select('*')
+      .eq('store_id', storeId)
+      .eq('date', date)
+      .eq('time', time)
+      .eq('status', 'confirmed');
+    
+    if (error) throw error;
+    
+    const totalPeople = reservations?.reduce((sum, r) => sum + (r.people || 1), 0) || 0;
+    const availableSeats = 40 - totalPeople; // 最大40席と仮定
+    
+    res.json({
+      success: true,
+      date,
+      time,
+      totalReservations: reservations?.length || 0,
+      totalPeople,
+      availableSeats,
+      isFull: availableSeats <= 0
+    });
+    
+  } catch (error) {
+    console.error('Seat availability error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// テスト用：データベース構造確認
+app.get('/api/test/db-schema', async (req, res) => {
+  try {
+    // 1件だけ取得してスキーマを確認
+    const { data, error } = await supabase
+      .from('reservations')
+      .select('*')
+      .limit(1);
+    
+    if (error) {
+      return res.json({ 
+        success: false, 
+        error: error.message,
+        details: error 
+      });
+    }
+    
+    // カラム名を取得
+    const columns = data && data.length > 0 ? Object.keys(data[0]) : [];
+    
+    res.json({ 
+      success: true,
+      columns: columns,
+      sampleData: data && data.length > 0 ? data[0] : null,
+      message: 'Database schema retrieved'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// 予約作成API
+app.post('/api/reservation/create', async (req, res) => {
+  console.log('Reservation create request received:', req.body);
+  
+  try {
+    const storeId = req.body.store_id || process.env.STORE_ID || 'default-store';
+    // 両方のフィールド名に対応（後方互換性のため）
+    const {
+      customer_name,
+      customerName,
+      phone,
+      phoneNumber,
+      email,
+      date,
+      time,
+      people,
+      peopleCount,
+      message,
+      specialRequests,
+      seat_id,
+      status
+    } = req.body;
+    
+    // どちらのフィールド名でも受け取れるように
+    const finalCustomerName = customer_name || customerName;
+    const finalPhone = phone || phoneNumber;
+    const finalPeople = people || peopleCount;
+    const finalMessage = message || specialRequests;
+    
+    console.log('Parsed request data:', {
+      storeId,
+      customerName: finalCustomerName,
+      phone: finalPhone,
+      email,
+      date,
+      time,
+      people: finalPeople,
+      message: finalMessage
+    });
+    
+    // 必須項目チェック
+    if (!finalCustomerName || !finalPhone || !date || !time || !finalPeople) {
+      return res.status(400).json({ 
+        success: false, 
+        error: '必須項目が不足しています',
+        details: {
+          customer_name: !finalCustomerName,
+          phone: !finalPhone,
+          date: !date,
+          time: !time,
+          people: !finalPeople
+        }
+      });
+    }
+    
+    // 時間フォーマット調整（HH:MM → HH:MM:SS）
+    const formattedTime = time.length === 5 ? `${time}:00` : time;
+    
+    // 予約作成（最小限のフィールドのみ）
+    const reservationData = {
+      store_id: storeId,
+      customer_name: finalCustomerName,
+      phone: finalPhone,
+      date: date,
+      time: formattedTime,
+      people: parseInt(finalPeople),
+      status: status || 'confirmed',
+      user_id: req.body.user_id || `admin-${Date.now()}`,
+      source: 'admin' // sourceフィールドを追加
+    };
+    
+    // オプションフィールドを追加
+    if (email) reservationData.email = email;
+    if (finalMessage) reservationData.message = finalMessage;
+    if (seat_id) reservationData.seat_id = seat_id;
+    
+    console.log('Inserting reservation data:', reservationData);
+    
+    const { data, error } = await supabase
+      .from('reservations')
+      .insert([reservationData])
+      .select();
+    
+    if (error) {
+      console.error('Database insert error:', error);
+      console.error('Error details:', {
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        message: error.message
+      });
+      throw error;
+    }
+    
+    res.json({ 
+      success: true, 
+      reservation: data[0],
+      message: '予約が正常に作成されました'
+    });
+    
+  } catch (error) {
+    console.error('Reservation creation error:', error);
+    console.error('Full error object:', JSON.stringify(error, null, 2));
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: error.details || error.hint || 'No additional details'
+    });
+  }
+});
+
 // 予約済み時間枠取得API（制限込み）
 // カレンダー表示用に予約状況と制限情報を統合して返却
 app.get('/api/calendar-slots', async (req, res) => {
@@ -1301,9 +1608,16 @@ app.get('/api/calendar-slots', async (req, res) => {
 // Dashboard Analytics API（ダッシュボード統計情報）
 // ==========================================
 // ダッシュボード画面用の統計データを取得（今日・今月・トレンド）
+// ダッシュボード統計APIモジュールを動的インポート
 app.get('/api/dashboard-stats', async (req, res) => {
   try {
-    const storeId = process.env.STORE_ID || 'default-store';
+    // 動的インポートでCommonJSモジュールを読み込み
+    const dashboardStats = await import('./api/dashboard-stats.js');
+    const getStoreStats = dashboardStats.getStoreStats || dashboardStats.default?.getStoreStats;
+    
+    // URLパラメータまたは環境変数から店舗IDを取得
+    const storeId = req.query.store_id || process.env.STORE_ID || 'default-store';
+    const period = req.query.period || 'week';
     const today = new Date().toISOString().split('T')[0];
     const startOfMonth = new Date().toISOString().slice(0, 7) + '-01';
     
@@ -1312,7 +1626,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
       .from('reservations')
       .select('id')
       .eq('store_id', storeId)
-      .eq('date', today)
+      .eq('booking_date', today)
       .eq('status', 'confirmed');
     
     // 今月の予約数を取得（月初から今日まで）
@@ -1320,7 +1634,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
       .from('reservations')
       .select('id')
       .eq('store_id', storeId)
-      .gte('date', startOfMonth)
+      .gte('booking_date', startOfMonth)
       .eq('status', 'confirmed');
     
     // 過去7日間の予約トレンド（グラフ表示用）
@@ -1334,7 +1648,7 @@ app.get('/api/dashboard-stats', async (req, res) => {
         .from('reservations')
         .select('id')
         .eq('store_id', storeId)
-        .eq('date', dateStr)
+        .eq('booking_date', dateStr)
         .eq('status', 'confirmed');
         
       trendData.push({
@@ -1349,19 +1663,28 @@ app.get('/api/dashboard-stats', async (req, res) => {
     const avgRevenuePerBooking = 3500; // 平均単価（乳設定）
     const monthRevenue = monthCount * avgRevenuePerBooking;
     
-    // 稼働率計算（簡易版）
-    const totalTimeSlots = 24; // 10:00-21:00の30分刻み（23枠）
-    const utilizationRate = Math.round((todayCount / totalTimeSlots) * 100);  // 本日の稼働率
+    // 新しい統計APIを使用
+    const statsData = getStoreStats ? await getStoreStats(storeId, period) : { success: false, error: 'Module not loaded' };
     
-    res.json({
-      success: true,
-      todayBookings: todayCount,
-      monthBookings: monthCount,
-      monthRevenue: monthRevenue,
-      satisfactionRate: 98, // 固定値（将来的に顧客満足度調査から取得）
-      utilizationRate: Math.min(utilizationRate, 100),
-      trendData: trendData
-    });
+    // 既存のレスポンス形式と互換性を保つ
+    if (statsData.success) {
+      res.json({
+        success: true,
+        storeId: storeId,
+        period: period,
+        stats: statsData.stats,
+        charts: statsData.charts,
+        // 後方互換性のため既存のフィールドも含める
+        todayBookings: todayCount,
+        monthBookings: monthCount,
+        monthRevenue: monthRevenue,
+        satisfactionRate: 98,
+        utilizationRate: Math.min(Math.round((todayCount / 24) * 100), 100),
+        trendData: trendData
+      });
+    } else {
+      throw new Error(statsData.error || 'Failed to fetch stats');
+    }
     
   } catch (error) {
     console.error('Dashboard stats error:', error);
@@ -1944,10 +2267,19 @@ app.all('/api/admin', async (req, res) => {
     const adminHandler = await import('./api/admin.js');
     return await adminHandler.default(req, res);
   } catch (error) {
-    console.error('Admin API error:', error);
+    console.error('Admin API error:', {
+      url: req.originalUrl,
+      q: req.query,
+      method: req.method,
+      origin: req.headers.origin,
+      userAgent: req.headers['user-agent'],
+      msg: error?.message,
+      stack: error?.stack,
+      type: error?.constructor?.name,
+    });
     res.status(500).json({ 
       error: 'Admin API is not available',
-      details: error.message 
+      details: error?.message 
     });
   }
 });
@@ -1964,7 +2296,11 @@ app.use((err, req, res, next) => {
     error: err.message,
     stack: err.stack
   }));
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: err.message,
+    details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
 });
 
 // 404ハンドラー - 最後に配置

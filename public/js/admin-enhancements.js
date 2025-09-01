@@ -128,7 +128,7 @@ async function checkSeatAvailability(date, time) {
     try {
         const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || 'default-store';
         const response = await fetch(
-            `https://line-booking-api-116429620992.asia-northeast1.run.app/api/seat-availability?store_id=${STORE_ID}&date=${date}&time=${time}`
+            `/api/seat-availability?store_id=${STORE_ID}&date=${date}&time=${time}`
         );
         
         if (response.ok) {
@@ -171,27 +171,30 @@ function updateSeatAvailabilityDisplay(seats) {
 
 // 予約編集時に座席情報を読み込み
 function loadReservationForEdit(reservation) {
+    // null/undefinedチェック
+    if (!reservation) {
+        console.warn('loadReservationForEdit: reservation is null or undefined');
+        return;
+    }
+    
     currentReservation = reservation;
     
-    // 基本情報を設定
-    document.getElementById('customerName').value = reservation.customer_name || reservation.name || '';
-    document.getElementById('reservationDate').value = reservation.date || '';
-    document.getElementById('reservationTime').value = reservation.time || '';
-    document.getElementById('numberOfPeople').value = reservation.people || '';
-    document.getElementById('phoneNumber').value = reservation.customer_phone || reservation.phone || '';
-    document.getElementById('notes').value = reservation.message || '';
+    // 基本情報を設定（要素の存在確認も追加）
+    const setValueSafely = (elementId, value) => {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.value = value || '';
+        }
+    };
     
-    // ステータス設定
-    const statusSelect = document.getElementById('reservationStatus');
-    if (statusSelect) {
-        statusSelect.value = reservation.status || 'confirmed';
-    }
-    
-    // 座席設定
-    const seatSelect = document.getElementById('seatNumber');
-    if (seatSelect) {
-        seatSelect.value = reservation.seat_number || '';
-    }
+    setValueSafely('customerName', reservation.customer_name || reservation.name);
+    setValueSafely('reservationDate', reservation.date);
+    setValueSafely('reservationTime', reservation.time);
+    setValueSafely('numberOfPeople', reservation.people);
+    setValueSafely('phoneNumber', reservation.customer_phone || reservation.phone);
+    setValueSafely('notes', reservation.message);
+    setValueSafely('reservationStatus', reservation.status || 'confirmed');
+    setValueSafely('seatNumber', reservation.seat_number);
     
     // 座席オプションを更新
     updateSeatOptions();
@@ -226,7 +229,7 @@ async function assignSeatToReservation(reservationId, seatNumber) {
     if (!reservationId || !seatNumber) return;
     
     try {
-        const response = await fetch('https://line-booking-api-116429620992.asia-northeast1.run.app/api/assign-seat', {
+        const response = await fetch('/api/assign-seat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

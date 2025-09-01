@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>予約制御設定（カレンダー付き） | 飲食店予約管理</title>
+    <title>予約制御設定 - リダイレクト中...</title>
+    <script>
+        // 正しい管理画面（admin-full-featured.html）にリダイレクト
+        console.log('Redirecting to admin-full-featured.html...');
+        window.location.replace('/admin-full-featured.html');
+    </script>
+    <link rel="stylesheet" href="/css/responsive-nav.css">
     <style>
         * {
             margin: 0;
@@ -216,6 +222,82 @@
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
 
+        /* 日付モード選択のラジオボタンのスタイル */
+        .date-mode-selector input[type="radio"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #4a90e2;
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            background: white;
+            transition: all 0.3s;
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        .date-mode-selector input[type="radio"]:checked {
+            background: #4a90e2;
+            transform: scale(1.1);
+        }
+
+        .date-mode-selector input[type="radio"]:checked::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .date-mode-selector input[type="radio"]:hover {
+            border-color: #2c5aa0;
+            box-shadow: 0 0 5px rgba(74, 144, 226, 0.5);
+        }
+
+        .date-mode-selector {
+            display: flex !important;
+            gap: 25px;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa, #ffffff);
+            border-radius: 12px;
+            border: 2px solid #4a90e2;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .date-mode-label {
+            display: flex !important;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 8px 15px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+            background: white;
+        }
+
+        .date-mode-label:hover {
+            background: linear-gradient(135deg, #e8f0fe, #ffffff);
+            border-color: #4a90e2;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 6px rgba(74, 144, 226, 0.2);
+        }
+
+        .date-mode-label input[type="radio"]:checked ~ span {
+            color: #2c5aa0;
+            font-weight: 700;
+            text-shadow: 0 0 1px rgba(44, 90, 160, 0.3);
+        }
+
         /* 凡例 */
         .legend {
             display: flex;
@@ -325,6 +407,76 @@
         .calendar-day-content {
             font-size: 11px;
             color: #666;
+        }
+
+        /* カレンダーホバー詳細表示 */
+        .calendar-tooltip {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 10px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 20px;
+            width: 320px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: none;
+            pointer-events: none;
+        }
+
+        .calendar-day:hover .calendar-tooltip {
+            display: block;
+        }
+
+        .tooltip-header {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .tooltip-header h3 {
+            margin: 0 0 5px 0;
+            font-size: 12px;
+            color: #666;
+            font-weight: normal;
+        }
+
+        .tooltip-date {
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .tooltip-section {
+            margin-bottom: 12px;
+        }
+
+        .tooltip-section label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .tooltip-value {
+            font-size: 15px;
+            color: #333;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .tooltip-status {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            font-size: 13px;
+            color: #666;
+            text-align: center;
         }
 
         /* ルール設定パネル */
@@ -667,11 +819,12 @@
                 <span class="nav-icon">⚙️</span>
                 <span>詳細設定</span>
             </a>
-        </nav>
-    </div>
+        </ul>
+    </nav>
 
     <!-- メインコンテナ -->
-    <div class="container">
+    <main id="appMain">
+        <div class="container">
         <!-- カレンダービュー -->
         <div class="calendar-view">
             <div class="calendar-header">
@@ -727,18 +880,18 @@
             <h2 class="panel-title">新規制御ルール作成</h2>
             
             <!-- 日付モード選択 -->
-            <div style="display: flex; gap: 20px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <div class="date-mode-selector">
+                <label class="date-mode-label">
                     <input type="radio" name="dateMode" value="single" checked onchange="changeDateMode('single')">
-                    <span style="font-weight: 500;">📅 単日指定</span>
+                    <span>📅 単日指定</span>
                 </label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <label class="date-mode-label">
                     <input type="radio" name="dateMode" value="range" onchange="changeDateMode('range')">
-                    <span style="font-weight: 500;">📆 期間指定</span>
+                    <span>📆 期間指定</span>
                 </label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <label class="date-mode-label">
                     <input type="radio" name="dateMode" value="weekly" onchange="changeDateMode('weekly')">
-                    <span style="font-weight: 500;">🗓️ 曜日指定</span>
+                    <span>🗓️ 曜日指定</span>
                 </label>
             </div>
             
@@ -813,18 +966,35 @@
                 </div>
             </div>
             
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">👥 最大組数</label>
-                    <input type="number" class="form-input" id="maxGroups" value="10" min="1">
+            <div class="form-row" style="gap: 15px;">
+                <div class="form-group" style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <input type="checkbox" id="enableMaxGroups" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: #6b46c1;" onchange="toggleField('maxGroups')">
+                        <label for="enableMaxGroups" style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; color: #333;">
+                            <span style="color: #6b46c1;">👥</span> 最大組数
+                        </label>
+                    </div>
+                    <input type="number" class="form-input" id="maxGroups" value="10" min="1" placeholder="制限なし">
                 </div>
-                <div class="form-group">
-                    <label class="form-label">👤 最大人数</label>
-                    <input type="number" class="form-input" id="maxPeople" value="30" min="1">
+                
+                <div class="form-group" style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <input type="checkbox" id="enableMaxPeople" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: #3b82f6;" onchange="toggleField('maxPeople')">
+                        <label for="enableMaxPeople" style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; color: #333;">
+                            <span style="color: #3b82f6;">👤</span> 最大人数
+                        </label>
+                    </div>
+                    <input type="number" class="form-input" id="maxPeople" value="30" min="1" placeholder="制限なし">
                 </div>
-                <div class="form-group">
-                    <label class="form-label">🍽️ 1組あたり最大人数</label>
-                    <input type="number" class="form-input" id="maxPerGroup" value="6" min="1">
+                
+                <div class="form-group" style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <input type="checkbox" id="enableMaxPerGroup" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444;" onchange="toggleField('maxPerGroup')">
+                        <label for="enableMaxPerGroup" style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; color: #333;">
+                            <span style="color: #ef4444;">🚶</span> 1組最大
+                        </label>
+                    </div>
+                    <input type="number" class="form-input" id="maxPerGroup" value="6" min="1" placeholder="制限なし">
                 </div>
             </div>
             
@@ -851,13 +1021,30 @@
                 <!-- 詳細情報が表示される -->
             </div>
         </div>
-    </div>
+        </div>
+    </main>
 
+    <script type="module">
+        import { initNav } from '/js/nav.js';
+        initNav();
+    </script>
     <script>
         const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || 'default-store';
         let currentRules = [];
         let currentDate = new Date();
         let reservationData = {}; // 実際の予約データ
+        
+        // パフォーマンス最適化用キャッシュ
+        const rulesCache = new Map();
+
+        // デバウンス関数
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
 
         // 初期化
         document.addEventListener('DOMContentLoaded', () => {
@@ -1042,6 +1229,39 @@
                     else if (rate >= 0.3) day.classList.add('low');
                     else day.classList.add('empty');
                     
+                    // ホバー時の詳細表示を作成
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'calendar-tooltip';
+                    tooltip.innerHTML = `
+                        <div class="tooltip-header">
+                            <h3>日付</h3>
+                            <div class="tooltip-date">${currentDate.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', year: 'numeric' })}</div>
+                        </div>
+                        <div class="tooltip-section">
+                            <label>開始時間（24時間形式）</label>
+                            <div class="tooltip-value">${dayRules[0]?.startTime || '18:00'}</div>
+                        </div>
+                        <div class="tooltip-section">
+                            <label>終了時間（24時間形式）</label>
+                            <div class="tooltip-value">${dayRules[0]?.endTime || '21:00'}</div>
+                        </div>
+                        <div class="tooltip-section">
+                            <label>最大組数</label>
+                            <div class="tooltip-value">${maxGroups || '制限なし'}</div>
+                        </div>
+                        <div class="tooltip-section">
+                            <label>最大人数</label>
+                            <div class="tooltip-value">${maxPeople || '制限なし'}</div>
+                        </div>
+                        <div class="tooltip-section">
+                            <label>1組あたりの最大人数</label>
+                            <div class="tooltip-value">${dayRules[0]?.maxPerGroup || '制限なし'}</div>
+                        </div>
+                        <div class="tooltip-status">
+                            <div>現在の予約: ${dayReservations.count}組 / ${dayReservations.people}人</div>
+                        </div>
+                    `;
+                    
                     day.innerHTML = `
                         <div class="calendar-day-header">${date}</div>
                         <div class="calendar-day-content">
@@ -1052,6 +1272,8 @@
                             </div>
                         </div>
                     `;
+                    
+                    day.appendChild(tooltip);
                 } else {
                     day.innerHTML = `
                         <div class="calendar-day-header">${date}</div>
@@ -1154,14 +1376,16 @@
 
         // ルール保存：日付モードに応じて予約制限ルールを作成し保存
         function saveRule() {
+            // キャッシュクリア
+            rulesCache.clear();
             const dateMode = document.querySelector('input[name="dateMode"]:checked').value;
             const rule = {
                 dateMode: dateMode,
                 startTime: document.getElementById('startTime').value,
                 endTime: document.getElementById('endTime').value,
-                maxGroups: parseInt(document.getElementById('maxGroups').value),
-                maxPeople: parseInt(document.getElementById('maxPeople').value),
-                maxPerGroup: parseInt(document.getElementById('maxPerGroup').value)
+                maxGroups: document.getElementById('enableMaxGroups').checked ? parseInt(document.getElementById('maxGroups').value) : null,
+                maxPeople: document.getElementById('enableMaxPeople').checked ? parseInt(document.getElementById('maxPeople').value) : null,
+                maxPerGroup: document.getElementById('enableMaxPerGroup').checked ? parseInt(document.getElementById('maxPerGroup').value) : null
             };
             
             // 日付モードに応じてデータを設定し、単一日形式に展開
@@ -1388,16 +1612,34 @@
                                    placeholder="21:00" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">最大組数</label>
-                            <input type="number" class="form-input" id="editMaxGroups" value="${rule.maxGroups || 10}" min="1" required>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <input type="checkbox" id="editEnableMaxGroups" ${rule.maxGroups ? 'checked' : ''} 
+                                       style="width: 18px; height: 18px; cursor: pointer; accent-color: #6b46c1;" 
+                                       onchange="toggleEditField('MaxGroups')">
+                                <label for="editEnableMaxGroups" style="cursor: pointer; font-weight: 500;">最大組数</label>
+                            </div>
+                            <input type="number" class="form-input" id="editMaxGroups" value="${rule.maxGroups || ''}" 
+                                   min="1" placeholder="制限なし" ${!rule.maxGroups ? 'disabled style="background: #f5f5f5;"' : ''}>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">最大人数</label>
-                            <input type="number" class="form-input" id="editMaxPeople" value="${rule.maxPeople || 30}" min="1" required>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <input type="checkbox" id="editEnableMaxPeople" ${rule.maxPeople ? 'checked' : ''} 
+                                       style="width: 18px; height: 18px; cursor: pointer; accent-color: #3b82f6;" 
+                                       onchange="toggleEditField('MaxPeople')">
+                                <label for="editEnableMaxPeople" style="cursor: pointer; font-weight: 500;">最大人数</label>
+                            </div>
+                            <input type="number" class="form-input" id="editMaxPeople" value="${rule.maxPeople || ''}" 
+                                   min="1" placeholder="制限なし" ${!rule.maxPeople ? 'disabled style="background: #f5f5f5;"' : ''}>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">1組あたりの最大人数</label>
-                            <input type="number" class="form-input" id="editMaxPerGroup" value="${rule.maxPerGroup || 6}" min="1" required>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <input type="checkbox" id="editEnableMaxPerGroup" ${rule.maxPerGroup ? 'checked' : ''} 
+                                       style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444;" 
+                                       onchange="toggleEditField('MaxPerGroup')">
+                                <label for="editEnableMaxPerGroup" style="cursor: pointer; font-weight: 500;">1組あたりの最大人数</label>
+                            </div>
+                            <input type="number" class="form-input" id="editMaxPerGroup" value="${rule.maxPerGroup || ''}" 
+                                   min="1" placeholder="制限なし" ${!rule.maxPerGroup ? 'disabled style="background: #f5f5f5;"' : ''}>
                         </div>
                         <div class="form-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
                             <button type="button" class="btn secondary" onclick="this.closest('.modal').remove()">キャンセル</button>
@@ -1409,6 +1651,27 @@
             document.body.appendChild(modal);
         }
         
+        // 編集フィールドのトグル
+        function toggleEditField(fieldName) {
+            const checkbox = document.getElementById('editEnable' + fieldName);
+            const input = document.getElementById('edit' + fieldName);
+            
+            if (checkbox.checked) {
+                input.disabled = false;
+                input.style.background = 'white';
+                if (!input.value) {
+                    // デフォルト値を設定
+                    if (fieldName === 'MaxGroups') input.value = '10';
+                    else if (fieldName === 'MaxPeople') input.value = '30';
+                    else if (fieldName === 'MaxPerGroup') input.value = '6';
+                }
+            } else {
+                input.disabled = true;
+                input.style.background = '#f5f5f5';
+                input.value = '';
+            }
+        }
+        
         // ルール更新
         function updateRule(event, index) {
             event.preventDefault();
@@ -1417,9 +1680,9 @@
             // 更新値を取得
             rule.startTime = document.getElementById('editStartTime').value;
             rule.endTime = document.getElementById('editEndTime').value;
-            rule.maxGroups = parseInt(document.getElementById('editMaxGroups').value);
-            rule.maxPeople = parseInt(document.getElementById('editMaxPeople').value);
-            rule.maxPerGroup = parseInt(document.getElementById('editMaxPerGroup').value);
+            rule.maxGroups = document.getElementById('editEnableMaxGroups').checked ? parseInt(document.getElementById('editMaxGroups').value) : null;
+            rule.maxPeople = document.getElementById('editEnableMaxPeople').checked ? parseInt(document.getElementById('editMaxPeople').value) : null;
+            rule.maxPerGroup = document.getElementById('editEnableMaxPerGroup').checked ? parseInt(document.getElementById('editMaxPerGroup').value) : null;
             
             // 保存
             localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(currentRules));
@@ -1492,6 +1755,27 @@
             document.getElementById('singleDateSection').style.display = mode === 'single' ? 'flex' : 'none';
             document.getElementById('rangeDateSection').style.display = mode === 'range' ? 'flex' : 'none';
             document.getElementById('weeklySection').style.display = mode === 'weekly' ? 'block' : 'none';
+        }
+        
+        // チェックボックスによるフィールドの有効/無効切り替え
+        function toggleField(fieldId) {
+            const checkbox = document.getElementById('enable' + fieldId.charAt(0).toUpperCase() + fieldId.slice(1));
+            const input = document.getElementById(fieldId);
+            
+            if (checkbox.checked) {
+                input.disabled = false;
+                input.style.background = 'white';
+                if (!input.value) {
+                    // デフォルト値を設定
+                    if (fieldId === 'maxGroups') input.value = '10';
+                    else if (fieldId === 'maxPeople') input.value = '30';
+                    else if (fieldId === 'maxPerGroup') input.value = '6';
+                }
+            } else {
+                input.disabled = true;
+                input.style.background = '#f5f5f5';
+                input.value = '';
+            }
         }
     </script>
     <script src='/time-select-dropdown.js'></script>
