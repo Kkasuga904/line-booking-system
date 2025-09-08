@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約システムへ移動中...</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 30px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        
+        p {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+        
+        .error {
+            display: none;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        
+        .error h2 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .error-message {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 15px;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .debug-info {
+            display: none;
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 12px;
+            text-align: left;
+            font-family: monospace;
+        }
+        
+        .debug-info.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="loader"></div>
+        <h1>🌸 予約システムへ移動中</h1>
+        <p>しばらくお待ちください...</p>
+        
+        <div class="error" id="errorContainer">
+            <h2>⚠️ 接続エラー</h2>
+            <p class="error-message" id="errorMessage">
+                LIFFの初期化に失敗しました。以下のボタンから予約画面にアクセスしてください。
+            </p>
+            <div class="buttons">
+                <a href="/enhanced-booking.html" class="btn">予約画面を開く</a>
+                <a href="/liff-calendar.html" class="btn">カレンダーを開く</a>
+            </div>
+        </div>
+        
+        <div class="debug-info" id="debugInfo"></div>
+    </div>
+
+    <script>
+        // デバッグモード（URLパラメータで制御）
+        const urlParams = new URLSearchParams(window.location.search);
+        const debugMode = urlParams.get('debug') === 'true';
+        
+        function log(message, data = null) {
+            console.log(message, data);
+            if (debugMode) {
+                const debugInfo = document.getElementById('debugInfo');
+                debugInfo.classList.add('show');
+                debugInfo.innerHTML += `${new Date().toISOString()}: ${message}${data ? ' - ' + JSON.stringify(data) : ''}<br>`;
+            }
+        }
+        
+        function showError(message) {
+            document.querySelector('.loader').style.display = 'none';
+            document.querySelector('h1').textContent = '予約システム';
+            document.querySelector('p').style.display = 'none';
+            document.getElementById('errorContainer').style.display = 'block';
+            if (message) {
+                document.getElementById('errorMessage').textContent = message;
+            }
+        }
+        
+        async function initializeLiff() {
+            try {
+                // LIFF IDを取得（環境変数または固定値）
+                const liffId = '***REMOVED-ROTATE-CREDENTIAL***';
+                log('Initializing LIFF with ID', liffId);
+                
+                // LIFF初期化
+                await liff.init({ liffId: liffId });
+                log('LIFF initialized successfully');
+                
+                // LIFF環境チェック
+                const isInClient = liff.isInClient();
+                const isLoggedIn = liff.isLoggedIn();
+                
+                log('Environment check', {
+                    isInClient: isInClient,
+                    isLoggedIn: isLoggedIn,
+                    isInLiffBrowser: liff.isInClient()
+                });
+                
+                // LINEアプリ内でログインが必要な場合
+                if (isInClient && !isLoggedIn) {
+                    log('Not logged in, attempting login...');
+                    liff.login();
+                    return;
+                }
+                
+                // ユーザー情報を取得（ログイン済みの場合）
+                let userId = null;
+                let displayName = null;
+                
+                if (isLoggedIn) {
+                    try {
+                        const profile = await liff.getProfile();
+                        userId = profile.userId;
+                        displayName = profile.displayName;
+                        log('User profile retrieved', { userId: userId.substring(0, 8) + '...', displayName });
+                    } catch (error) {
+                        log('Failed to get profile', error.message);
+                    }
+                }
+                
+                // 予約画面へリダイレクト
+                const baseUrl = '/enhanced-booking.html';
+                const params = new URLSearchParams();
+                
+                if (userId) params.append('userId', userId);
+                if (displayName) params.append('name', displayName);
+                params.append('liff', 'true');
+                
+                const redirectUrl = `${baseUrl}?${params.toString()}`;
+                log('Redirecting to', redirectUrl);
+                
+                // 1秒後にリダイレクト（ユーザーに表示を見せるため）
+                setTimeout(() => {
+                    window.location.href = redirectUrl;
+                }, 1000);
+                
+            } catch (error) {
+                log('LIFF initialization error', error.message);
+                console.error('LIFF Error:', error);
+                
+                // エラー時は通常の予約画面へのリンクを表示
+                showError(`LIFFの初期化に失敗しました: ${error.message}`);
+            }
+        }
+        
+        // ページ読み込み時にLIFF初期化
+        window.addEventListener('DOMContentLoaded', () => {
+            log('Page loaded, starting initialization...');
+            
+            // LIFFが利用可能かチェック
+            if (typeof liff === 'undefined') {
+                log('LIFF SDK not loaded');
+                showError('LIFF SDKが読み込まれていません。直接予約画面にアクセスしてください。');
+                return;
+            }
+            
+            // LIFF初期化を開始
+            initializeLiff();
+        });
+        
+        // タイムアウト処理（10秒で強制的にエラー表示）
+        setTimeout(() => {
+            const errorContainer = document.getElementById('errorContainer');
+            if (errorContainer.style.display !== 'block') {
+                log('Timeout reached, showing error');
+                showError('接続がタイムアウトしました。直接予約画面にアクセスしてください。');
+            }
+        }, 10000);
+    </script>
+</body>
+</html>

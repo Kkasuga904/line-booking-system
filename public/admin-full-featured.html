@@ -4,12 +4,221 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>予約管理システム | LINE予約</title>
+    <script src="/js/common-header.js"></script>
+    
+    <!-- 専門家指示: 完全ガード版パッチ（最優先読み込み） -->
+    <script>
+    (function(){
+      // まず旧Service Workerを無効化（キャッシュ汚染対策）
+      if ('serviceWorker' in navigator) {
+        try {
+          navigator.serviceWorker.getRegistrations().then(regs => {
+            regs.forEach(r => r.unregister());
+            console.log('[SW] unregistered');
+          });
+        } catch (e) { console.warn('[SW] unregister failed', e); }
+      }
+      // 可観測なバージョン印
+      window.__FC_GUARD_VERSION__ = 'rev445-guard2';
+
+      // 隠しキーに本体を保存（DOM要素で上書きされない）
+      const FC_KEY = '__fullcalendar_instance__';
+      const EL_KEY = '__fullcalendar_element__';
+
+      // 初期化完了を待つためのPromise
+      let _resolveReady;
+      window.calendarReady = new Promise(r => (_resolveReady = r));
+
+      // window.calendar を必ずアクセサにして「上書き」をブロック（既存定義があっても再定義）
+      try { delete window.calendar; } catch(_) {}
+      Object.defineProperty(window,'calendar', {
+        get(){ return window[FC_KEY] || null; },
+        set(v){
+          console.warn('[guard] blocked write to window.calendar:', v?.tagName ? '<DOM>' : typeof v);
+          if (v && typeof v.render === 'function' && typeof v.addEvent === 'function') {
+            window[FC_KEY] = v;
+            console.log('[guard] accepted FC instance');
+          }
+        },
+        configurable: true
+      });
+
+      // 1回だけ初期化する関数（他所の重複呼び出しに強い）
+      window.initCalendarOnce = function initCalendarOnce(){
+        const el = document.getElementById('calendar');
+        if (!el) { console.error('#calendar not found'); return null; }
+        window[EL_KEY] = el;
+        // 既存のDOM/インスタンスは全て破棄してクリーンにする
+        try { window[FC_KEY]?.destroy?.(); } catch(_) {}
+        try { el.innerHTML = ''; } catch(_) {}
+        try { delete window[FC_KEY]; } catch(_) {}
+
+        const useFetch = (typeof window.fetchEvents === 'function') ? window.fetchEvents : (info, success) => {
+          // 初期描画だけでも出すため空配列で返す
+          try { success([]); } catch (_) {}
+        };
+
+        const cal = new FullCalendar.Calendar(el, {
+          initialView: 'timeGridWeek',
+          timeZone: 'local',
+          height: 'auto',
+          locale: 'ja',
+          nowIndicator: true,
+          selectable: true,
+          selectMirror: true,
+          unselectAuto: true,
+          events: useFetch,
+          // モバイル対応：日付ヘッダー表示形式を調整
+          dayHeaderFormat: function(date) {
+            if (window.innerWidth <= 767) {
+              // モバイル: 曜日と日付を改行で分割して表示
+              const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+              const d = date.date.marker;
+              return weekdays[d.getDay()] + '\n' + d.getDate();
+            } else {
+              // PC: デフォルト表示
+              return { weekday: 'short', day: 'numeric' };
+            }
+          },
+          // ヘッダーツールバーをモバイルで簡略化
+          headerToolbar: window.innerWidth <= 767 ? {
+            left: 'prev,next',
+            center: 'title',
+            right: 'today'
+          } : {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+          },
+          dateClick: (info) => {
+            try {
+              const ds = (info.dateStr || '').slice(0,10);
+              const d = info.date || new Date(info.dateStr);
+              const hh = String(d.getHours()).padStart(2,'0');
+              const mm = String(d.getMinutes()).padStart(2,'0');
+              const clickTime = `${hh}:${mm}`;
+              console.log('[calendar] dateClick', ds, clickTime);
+              
+              // その時間帯に予約制限があるかチェック
+              const capacityRule = checkCapacityRuleAtTime(ds, clickTime);
+              if (capacityRule) {
+                console.log('Capacity rule found at this time, opening edit modal');
+                openCapacityEditModalWithReservationOption(capacityRule, ds, clickTime);
+              } else {
+                openAddModal(ds, clickTime);
+              }
+            } catch(e) {
+              console.warn('[calendar] dateClick failed', e);
+              openAddModal();
+            }
+          },
+          select: (info) => {
+            try {
+              const ds = (info.startStr || '').slice(0,10);
+              const d = info.start || new Date(info.startStr);
+              const hh = String(d.getHours()).padStart(2,'0');
+              const mm = String(d.getMinutes()).padStart(2,'0');
+              const selectTime = `${hh}:${mm}`;
+              console.log('[calendar] select', ds, selectTime);
+              
+              // その時間帯に予約制限があるかチェック
+              const capacityRule = checkCapacityRuleAtTime(ds, selectTime);
+              if (capacityRule) {
+                console.log('Capacity rule found at this time, opening edit modal');
+                openCapacityEditModalWithReservationOption(capacityRule, ds, selectTime);
+              } else {
+                openAddModal(ds, selectTime);
+              }
+            } catch(e) {
+              console.warn('[calendar] select failed', e);
+            }
+          },
+          eventClick: (clickInfo) => {
+            try {
+              const r = clickInfo.event.extendedProps || {};
+              console.log('[calendar] eventClick', r);
+              
+              // 予約制御イベントかどうかチェック
+              if (r.__capacityControl) {
+                console.log('Opening capacity control edit modal for rule:', r.rule);
+                openCapacityEditModal(r.rule);
+                return;
+              }
+              
+              // 通常の予約イベント
+              openEditModal({
+                id: clickInfo.event.id,
+                customer_name: r.customer_name || r.customerName || '',
+                date: (r.date || clickInfo.event.startStr || '').slice(0,10),
+                time: (r.time || '').slice(0,5),
+                people: r.people || r.numberOfPeople || 1,
+                phone: r.phone || r.customer_phone || '',
+                message: r.message || '',
+                seat_number: r.seat_number || r.seat_code || '',
+                status: r.status || 'confirmed'
+              });
+            } catch(e) {
+              console.warn('[calendar] eventClick failed', e);
+            }
+          }
+        });
+        window[FC_KEY] = cal;              // 実体保存
+        cal.render();
+        console.log('[calendar] rendered, version=', FullCalendar?.version);
+        _resolveReady?.(cal);              // 準備完了通知
+
+        // 後追いで fetchEvents が用意されたら差し替え
+        if (useFetch !== window.fetchEvents) {
+          let tries = 0;
+          const timer = setInterval(() => {
+            if (typeof window.fetchEvents === 'function') {
+              try {
+                cal.setOption('events', window.fetchEvents);
+                cal.refetchEvents();
+                console.log('[calendar] events source attached late and refreshed');
+              } catch (e) {
+                console.warn('[calendar] failed to attach events late', e);
+              }
+              clearInterval(timer);
+            } else if (++tries > 30) { // 最大 ~15秒
+              clearInterval(timer);
+            }
+          }, 500);
+        }
+        return cal;
+      };
+
+      // DOMContentLoadedで一度だけ呼ぶ（他所が呼んでも上のガードで無害）
+      document.addEventListener('DOMContentLoaded', () => {
+        console.log('🚀 initCalendarOnce (guarded) —', window.__FC_GUARD_VERSION__);
+        // FullCalendar/CDNや関数定義の遅延読み込みに強くする
+        const tryInit = () => {
+          const hasFC = !!window.FullCalendar && !!window.FullCalendar.Calendar;
+          if (hasFC) {
+            try { window.initCalendarOnce(); } catch (e) { console.error('[guard:init]', e); }
+          } else {
+            // 500ms間隔で再試行（最大 ~10秒程度まで）
+            if (!window.__fc_init_retry__) window.__fc_init_retry__ = 0;
+            if (window.__fc_init_retry__++ < 20) setTimeout(tryInit, 500);
+          }
+        };
+        tryInit();
+      });
+    })();
+    </script>
     
     <!-- FullCalendar CSS -->
-    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
-    <!-- Admin Common CSS と Sidebar Menu CSS は競合のため一時的に無効化 -->
-    <!-- <link rel="stylesheet" href="/css/admin-common.css"> -->
-    <!-- <link rel="stylesheet" href="/css/sidebar-menu.css"> -->
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css?v=rev447' rel='stylesheet' />
+    <!-- レスポンシブ修正CSS -->
+    <link href='/responsive-fix.css' rel='stylesheet' />
+    <!-- ハンバーガーメニュー左配置修正CSS -->
+    <link href='/css/hamburger-left-fix.css?v=20250831_3' rel='stylesheet' />
+    <!-- サイドメニュースタイルCSS（必ず最後） -->
+    <link href='/css/sidemenu-style.css?v=20250831' rel='stylesheet' />
+    
+    <style id="side-kill">
+      /* disabled: サイドメニューを常時非表示にしない */
+    </style>
     
     <style>
         * {
@@ -36,7 +245,7 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             display: flex;
             align-items: center;
-            padding: 0 20px 0 60px; /* 左側にハンバーガーメニュー分の余白 */
+            padding: 0 20px;
             z-index: 999;
         }
 
@@ -49,12 +258,152 @@
             flex: 1;
             cursor: pointer;
             transition: color 0.3s;
+            user-select: none;
+            position: relative;
+            z-index: 1000;
+            pointer-events: auto !important;
         }
         
         .page-title:hover {
-            color: #4a90e2;
+            color: #667eea;
         }
         
+        .page-title a {
+            color: inherit;
+            text-decoration: none;
+            display: block;
+        }
+        
+        .page-title a:hover {
+            color: #667eea;
+            text-decoration: underline;
+        }
+        
+        /* ハンバーガーメニュー */
+        .hamburger-menu {
+            position: relative;
+            z-index: 1001;
+        }
+
+        .hamburger-icon {
+            width: 30px;
+            height: 24px;
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hamburger-icon span {
+            display: block;
+            height: 3px;
+            width: 100%;
+            background: #333;
+            border-radius: 3px;
+            transition: 0.3s;
+        }
+        
+        /* サイドメニュー */
+        .side-menu {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100%;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .side-menu.active {
+            display: block;
+        }
+        
+        /* 競合に勝つため #sideMenu に一本化（IDが確定している前提） */
+        #sideMenu {
+            position: fixed;
+            top: 0;
+            left: -320px;
+            width: 320px;
+            z-index: 9998;
+        }
+        #sideMenu.active {
+            left: 0;
+        }
+        
+        /* 既存の .side-menu が別DOMなら、どちらにも効くように複合 */
+        #sideMenu:not(.active),
+        .side-menu:not(.active) {
+            left: -320px !important;
+        }
+        #sideMenu.active,
+        .side-menu.active {
+            left: 0 !important;
+        }
+        
+        .menu-section {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .menu-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+        
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            margin: 5px 0;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #333;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .menu-item:hover {
+            background: #f5f5f7;
+            transform: translateX(5px);
+        }
+        
+        .menu-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .menu-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* オーバーレイ */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 56px;
+            left: 0;
+            width: 100%;
+            height: calc(100vh - 56px);
+            background: rgba(0,0,0,0.5);
+            z-index: 998;
+        }
+        
+        .overlay.active {
+            display: block;
+        }
         
         /* クイックアクション */
         .quick-actions {
@@ -317,135 +666,9 @@
             font-weight: bold;
         }
         
-        /* ハンバーガーメニュー */
-        .hamburger-icon {
-            position: fixed !important;
-            top: 15px !important;
-            left: 15px !important;
-            width: 45px !important;
-            height: 40px !important;
-            display: flex !important;
-            flex-direction: column !important;
-            justify-content: space-between !important;
-            padding: 10px !important;
-            background: rgba(255, 255, 255, 0.95) !important;
-            border-radius: 8px !important;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.15) !important;
-            z-index: 100001 !important;
-            cursor: pointer !important;
-            visibility: visible !important;
-            transition: all 0.3s ease !important;
-        }
-        
-        .hamburger-icon:hover {
-            background: rgba(255, 255, 255, 1) !important;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.2) !important;
-            transform: scale(1.05);
-        }
-        
+        /* ハンバーガーメニューアニメーション */
         .hamburger-icon span {
-            display: block !important;
-            height: 3px !important;
-            width: 100% !important;
-            background: #333 !important;
-            border-radius: 3px !important;
             transition: all 0.3s ease;
-        }
-        
-        .hamburger-icon.active span:nth-child(1) {
-            transform: rotate(45deg) translate(5px, 5px);
-        }
-        
-        .hamburger-icon.active span:nth-child(2) {
-            opacity: 0;
-        }
-        
-        .hamburger-icon.active span:nth-child(3) {
-            transform: rotate(-45deg) translate(7px, -6px);
-        }
-        
-        /* カレンダーの方を下げる */
-        .fc, .fc-view-harness {
-            position: relative;
-            z-index: 1;
-        }
-        
-        /* 再発防止：全画面オーバーレイのポインターイベントを制限 */
-        .fc-scroller, .fc-view-harness {
-            pointer-events: auto;
-        }
-        
-        /* transformを持つコンテナを避ける */
-        .main-content, .header {
-            transform: none !important;
-        }
-        
-        /* サイドバー - トグル用CSS */
-        .sidebar {
-            position: fixed !important;
-            top: 0 !important;
-            left: -300px !important;
-            width: 300px !important;
-            height: 100vh !important;
-            background: #fff !important;
-            box-shadow: 2px 0 12px rgba(0,0,0,0.15) !important;
-            transition: left 0.3s ease !important;
-            z-index: 100000 !important;
-            overflow-y: auto;
-            padding: 60px 20px 20px;
-        }
-        
-        .sidebar.open {
-            left: 0 !important;
-        }
-        
-        /* オーバーレイ */
-        #pageOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.35);
-            z-index: 99999;
-            display: none;
-        }
-        
-        #pageOverlay.show {
-            display: block;
-        }
-        
-        body.no-scroll {
-            overflow: hidden;
-        }
-        
-        .sidebar h3 {
-            margin-bottom: 20px;
-            color: #333;
-            font-size: 18px;
-        }
-        
-        .sidebar-menu {
-            list-style: none;
-            padding: 0;
-        }
-        
-        .sidebar-menu li {
-            margin-bottom: 10px;
-        }
-        
-        .sidebar-menu a {
-            display: block;
-            padding: 10px 15px;
-            color: #666;
-            text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-        
-        .sidebar-menu a:hover {
-            background: #f0f0f0;
-            color: #333;
         }
         
         .hamburger-icon.active span:nth-child(1) {
@@ -581,7 +804,8 @@
         .fc-timegrid .fc-bg-event {
             background: var(--fc-bg-event-color, rgba(220, 53, 69, 0.7)) !important;
             opacity: 1 !important;
-            z-index: 2 !important;
+            z-index: 1 !important; /* 背景は常にイベントの下に */
+            pointer-events: none !important; /* 背景がクリックを奪わない */
         }
         
         /* 全日イベントの背景を非表示 */
@@ -594,7 +818,7 @@
         .fc-bg-event.capacity-control {
             cursor: pointer !important;
             opacity: 0.7 !important;
-            z-index: 2 !important;
+            z-index: 1 !important;
         }
         
         .fc .capacity-control:hover,
@@ -608,13 +832,18 @@
         }
         
         .fc-timegrid-col-bg {
-            z-index: 1 !important;
+            z-index: 0 !important;
         }
         
         .fc-timegrid-col-bg .fc-bg-event {
             display: block !important;
             visibility: visible !important;
+            pointer-events: none !important;
         }
+
+        /* 予約イベント本体はクリックできる見た目に */
+        .fc .fc-event { cursor: pointer !important; z-index: 3 !important; }
+        .fc .fc-timegrid-event { z-index: 3 !important; }
         
         /* 万一セル背景がべた塗りされてる場合の可視性確保 */
         .fc-timegrid-col-bg, .fc-timegrid-slot {
@@ -662,71 +891,100 @@
                 justify-content: center;
             }
         }
-        /* 開発中のCSS競合対策 */
-        .fc .fc-event { 
-            display: block !important; 
-            opacity: 1 !important; 
-            z-index: 10 !important; 
-        }
-        
-        /* オーバーレイ弱体化（専門家提供） */
-        .greet-overlay, .tutorial-overlay, .fc-backdrop,
-        .modal-backdrop, .overlay, .fullscreen-overlay {
-            pointer-events: none !important;
-        }
-        
-        /* FullCalendarのメニューボタンスタイル */
-        .fc-appMenu-button {
-            background: #fff !important;
-            color: #333 !important;
-            border: 1px solid #ddd !important;
-            font-size: 20px !important;
-            font-weight: bold !important;
-            padding: 5px 10px !important;
-        }
-        
-        .fc-appMenu-button:hover {
-            background: #f8f8f8 !important;
-            transform: scale(1.05);
-        }
     </style>
 </head>
 <body>
-    <!-- ポータル用固定ノード（JSに頼らない） -->
-    <div id="app-portals" style="position:fixed;inset:0;pointer-events:none;z-index:2147483647">
-        <!-- ハンバーガーボタン（確実に表示） -->
-        <button id="portal-hamburger" style="position:absolute;top:12px;left:12px;pointer-events:auto;width:44px;height:44px;border-radius:8px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.2);font-size:24px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;" onclick="window.toggleSidebar && window.toggleSidebar()">≡</button>
-    </div>
-    
-    <!-- ハンバーガーメニュー（旧・念のため残す） -->
-    <div class="hamburger-icon" id="hamburgerMenu" style="display:none">
-        <span></span>
-        <span></span>
-        <span></span>
-    </div>
-    
-    <!-- サイドバー -->
-    <div class="sidebar" id="sidebar">
-        <h3>メニュー</h3>
-        <ul class="sidebar-menu">
-            <li><a href="/public/admin-full-featured.html">📅 カレンダー</a></li>
-            <li><a href="/public/admin-latest.html">📋 予約リスト</a></li>
-            <li><a href="/public/capacity-control-enhanced.html">⚙️ 予約制限設定</a></li>
-            <li><a href="/public/analytics.html">📊 統計・分析</a></li>
-            <li><a href="#" onclick="showNotification('顧客管理は準備中です', 'info'); return false;">👥 顧客管理</a></li>
-            <li><a href="#" onclick="showNotification('設定画面は準備中です', 'info'); return false;">⚙️ 設定</a></li>
-        </ul>
-    </div>
-    
     <!-- ヘッダー -->
     <div class="header">
-        <h1 class="page-title" onclick="window.location.href='/admin-full-featured.html'" style="cursor: pointer;">予約管理システム</h1>
+        <div class="hamburger-menu" id="hamburgerMenu">
+            <div class="hamburger-icon" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+        <h1 class="page-title" id="pageTitle" style="cursor: pointer;" title="クリックでトップページへ">
+            <a href="/system-settings.html" style="color: inherit; text-decoration: none;">予約管理システム</a>
+        </h1>
         <div class="quick-actions" style="margin-right: 20px;">
-            <button class="action-btn" onclick="openAddModalWithCurrentDateTime()">
+            <button class="action-btn" onclick="openAddModal()">
                 <span>➕ 予約追加</span>
+            </button>
+            <button class="action-btn" onclick="window.location.href='/system-settings.html'" style="background: #6c757d;">
+                <span>⚙️ 設定を保存</span>
             </button>
         </div>
     </div>
+    
+    <!-- サイドメニュー -->
+    <div class="side-menu" id="sideMenu">
+        <div class="menu-section">
+            <div class="menu-title">メイン</div>
+            <a href="/admin-full-featured.html" class="menu-item active" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">📅</span>
+                カレンダー
+            </a>
+            <a href="/admin-list.html" class="menu-item" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">📋</span>
+                予約一覧
+            </a>
+            <a href="/admin-analytics.html" class="menu-item" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">📊</span>
+                統計・分析
+            </a>
+        </div>
+        
+        <div class="menu-section">
+            <div class="menu-title">予約管理</div>
+            <a href="/capacity-control-enhanced.bak.html" class="menu-item" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">🎯</span>
+                予約制限設定
+            </a>
+            <a href="/seats-management-enhanced.html" class="menu-item" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">💺</span>
+                席管理・割り当て
+            </a>
+            <a href="/system-settings.html" class="menu-item" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">⚙️</span>
+                システム設定
+            </a>
+            <a href="/admin-settings.html" class="menu-item" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">⏰</span>
+                営業時間設定
+            </a>
+            <a href="/admin-templates.html" class="menu-item" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">📝</span>
+                テンプレート管理
+            </a>
+            <a href="/admin-customers.html" class="menu-item" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">👥</span>
+                顧客管理
+            </a>
+        </div>
+        
+        <div class="menu-section">
+            <div class="menu-title">高度な機能</div>
+            <a href="/admin-analytics.html" class="menu-item" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">📊</span>
+                詳細分析
+            </a>
+            <a href="/admin-dashboard.html" class="menu-item" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">🎯</span>
+                ダッシュボード
+            </a>
+            <a href="/admin-notifications.html" class="menu-item" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">🔔</span>
+                通知センター
+            </a>
+            <a href="/admin-advanced.html" class="menu-item" onclick="toggleMenu(); location.assign(this.href); return false;">
+                <span class="menu-icon">⚙️</span>
+                詳細設定
+            </a>
+        </div>
+    </div>
+    
+    <!-- オーバーレイ -->
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
     
     <!-- メインコンテンツ -->
     <div class="main-content">
@@ -747,8 +1005,8 @@
             </button>
         </div>
         
-        <!-- 統計カード -->
-        <div class="stats-grid" id="statsGrid">
+        <!-- 統計カード（一時的に非表示） -->
+        <!-- <div class="stats-grid" id="statsGrid">
             <div class="stat-card">
                 <div class="stat-label">今日の予約</div>
                 <div class="stat-value" id="todayCount">12</div>
@@ -769,12 +1027,12 @@
                 <div class="stat-value" id="avgPeople">3.5</div>
                 <div class="stat-change">→ 変化なし</div>
             </div>
-        </div>
+        </div> -->
         
         <!-- カレンダー -->
         <div class="calendar-container">
-            <!-- 予約状況凡例 -->
-            <div class="capacity-legend">
+            <!-- 予約状況凡例（一時的に非表示） -->
+            <!-- <div class="capacity-legend">
                 <div class="legend-item">
                     <div class="legend-color capacity-full"></div>
                     <span>ほぼ満席 (90%以上)</span>
@@ -795,7 +1053,7 @@
                     <div class="legend-color capacity-empty"></div>
                     <span>空き十分 (30%未満)</span>
                 </div>
-            </div>
+            </div> -->
             <div id="calendar"></div>
         </div>
     </div>
@@ -807,33 +1065,53 @@
                 <h2 class="modal-title">新規予約</h2>
                 <button class="modal-close" onclick="closeModal()">×</button>
             </div>
+            
+            <!-- 予約制限設定ボタン（常に表示） -->
+            <div id="capacityControlSection" style="margin-bottom: 20px;">
+                <!-- 制限がある場合の警告表示 -->
+                <div id="capacityWarning" style="display: none; padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; color: #856404; margin-bottom: 5px;">
+                                ⚠️ この時間帯には予約制限があります
+                            </div>
+                            <div id="capacityInfo" style="font-size: 14px; color: #856404;">
+                                <!-- 制限情報がここに表示される -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 簡単に予約制限を設定するボタン（常に表示） -->
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="action-btn" style="background: #667eea; font-size: 14px; padding: 8px 16px;" 
+                            onclick="quickAddCapacityControl()">
+                        ➕ この時間に予約制限を追加
+                    </button>
+                    <button type="button" id="editCapacityBtn" class="action-btn" style="background: #ffc107; color: #333; font-size: 14px; padding: 8px 16px; display: none;" 
+                            onclick="openCapacityControlFromAddModal()">
+                        ⚙️ 予約制限を編集
+                    </button>
+                </div>
+            </div>
+            
             <form id="reservationForm">
+                <!-- 容量警告表示エリア -->
+                <div id="capacityWarning" style="display: none; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid; background: #f8d7da; border-color: #dc3545;">
+                    <div id="capacityWarningText" style="font-weight: bold; color: #721c24; font-size: 16px;"></div>
+                </div>
                 <div class="form-group">
                     <label class="form-label">お客様名</label>
                     <input type="text" class="form-input" id="customerName" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">日付</label>
-                    <input type="date" class="form-input" id="reservationDate" required onchange="updateTimeSlotAvailability(this.value)">
+                    <input type="date" class="form-input" id="reservationDate" required onchange="updateTimeSlotAvailability(this.value); checkCapacityForReservation();">
                 </div>
                 <div class="form-group">
                     <label class="form-label">時間</label>
-                    <select class="form-select" id="reservationTime" required>
+                    <select class="form-select" id="reservationTime" required onchange="checkCapacityForReservation()">
                         <option value="">選択してください</option>
-                        <option value="11:00">11:00</option>
-                        <option value="11:30">11:30</option>
-                        <option value="12:00">12:00</option>
-                        <option value="12:30">12:30</option>
-                        <option value="13:00">13:00</option>
-                        <option value="13:30">13:30</option>
-                        <option value="14:00">14:00</option>
-                        <option value="14:30">14:30</option>
-                        <option value="15:00">15:00</option>
-                        <option value="15:30">15:30</option>
-                        <option value="16:00">16:00</option>
-                        <option value="16:30">16:30</option>
-                        <option value="17:00">17:00</option>
-                        <option value="17:30">17:30</option>
                         <option value="18:00">18:00</option>
                         <option value="18:30">18:30</option>
                         <option value="19:00">19:00</option>
@@ -845,8 +1123,8 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">人数</label>
-                    <select class="form-select" id="numberOfPeople" required>
-                        <option value="">人数を選択</option>
+                    <select class="form-input" id="numberOfPeople" required onchange="checkCapacityForReservation()">
+                        <option value="">選択してください</option>
                         <option value="1">1名</option>
                         <option value="2">2名</option>
                         <option value="3">3名</option>
@@ -856,16 +1134,21 @@
                         <option value="7">7名</option>
                         <option value="8">8名</option>
                         <option value="9">9名</option>
-                        <option value="10">10名以上</option>
+                        <option value="10">10名</option>
                     </select>
                 </div>
+                
+                <!-- 容量警告表示エリア -->
+                <div id="capacityWarning" style="display: none; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 20px;">⚠️</span>
+                        <div id="capacityWarningText" style="color: #856404; font-weight: 500;"></div>
+                    </div>
+                </div>
+                
                 <div class="form-group">
                     <label class="form-label">電話番号</label>
                     <input type="tel" class="form-input" id="phoneNumber" placeholder="090-1234-5678" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">メールアドレス（任意）</label>
-                    <input type="email" class="form-input" id="email" placeholder="example@email.com">
                 </div>
                 <div class="form-group">
                     <label class="form-label">ステータス</label>
@@ -896,6 +1179,7 @@
                 </div>
                 <div class="form-actions">
                     <button type="button" class="action-btn secondary" onclick="closeModal()">キャンセル</button>
+                    <button type="button" id="reservationDeleteBtn" class="action-btn" style="display:none; background: #e74c3c; border-color: #e74c3c;">削除</button>
                     <button type="submit" class="action-btn">予約を追加</button>
                 </div>
             </form>
@@ -903,421 +1187,558 @@
     </div>
     
     <!-- FullCalendar JS -->
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ja.js'></script>
-    <script src='/time-select-dropdown.js'></script>
-    <script src='/js/admin-enhancements.js'></script>
-    <!-- CSS読み込み -->
-    <link rel='stylesheet' href='/css/hamburger-left-fix.css'>
-    <link rel='stylesheet' href='/css/sidemenu-style.css'>
-    <!-- Sidebar Menu JS -->
-    <script src='/js/sidebar-menu.js' defer></script>
-    
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js?v=rev447'></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ja.js?v=rev447'></script>
+    <!-- Fallback loader: 別CDNからの自動フォールバック -->
     <script>
-        // ============== 再発防止：URLパス自動修正 ==============
-        // publicディレクトリが含まれている場合は自動でリダイレクト
-        if (window.location.pathname.includes('/public/')) {
-            const correctPath = window.location.pathname.replace('/public/', '/');
-            console.warn('⚠️ 誤ったURLパスを検出。正しいURLにリダイレクトします:', correctPath);
-            window.location.replace(correctPath + window.location.search);
+      (function(){
+        function inject(src){
+          var s=document.createElement('script'); s.src=src; s.async=true; document.head.appendChild(s);
+        }
+        // 1.5秒で未ロードなら unpkg を試す
+        setTimeout(function(){
+          if(!window.FullCalendar){
+            console.warn('[fc-fallback] loading from unpkg');
+            inject('https://unpkg.com/fullcalendar@5.11.3/main.min.js');
+            inject('https://unpkg.com/fullcalendar@5.11.3/locales-all.min.js');
+          }
+        },1500);
+      })();
+    </script>
+    <script>
+        // ★ 最初の最初に STORE_ID を決定（ホストから動的に・同期決定）
+        (function(){
+          window.STORE_CONFIG = window.STORE_CONFIG || {};
+          const h = (location.hostname || '').toLowerCase();
+          const params = new URLSearchParams(location.search);
+          let sid = window.STORE_CONFIG.storeId || params.get('store_id');
+          if (!sid) {
+            if (h.includes('store-a---line-booking-api') || h.includes('line-booking-api')) sid = 'store-a';
+            else if (h.includes('booking-account1')) sid = 'account1-store';
+            else if (h.includes('booking-account2')) sid = 'account2-store';
+            else sid = '***REMOVED-ROTATE-CREDENTIAL***';
+          }
+          window.STORE_ID = sid;
+          window.STORE_CONFIG.storeId = sid;
+          console.log('[STORE_ID] Fixed to:', window.STORE_ID);
+        })();
+        
+        // store-config.js が落ちても初期化を止めないためのフォールバック
+        window.STORE_CONFIG = window.STORE_CONFIG || {
+            apiBase: "/api",      // 既定
+            adminPath: "/admin",  // 既定
+            storeId: window.STORE_ID,   // 上で設定した値を使用
+        };
+        
+        // 認証情報を STORE_CONFIG に置く（store-config.js側で上書き可）
+        if (!window.STORE_CONFIG.apiKey && !window.STORE_CONFIG.adminToken) {
+            // とりあえず空（本番は store-config.js でセット）
+            window.STORE_CONFIG.apiKey = '';       // 例: 'xxxxx'
+            window.STORE_CONFIG.adminToken = '';   // 例: 'xxxxx'
         }
         
-        // ============== ビルド識別子（切り分け用） ==============
-        window.__BUILD__ = '2025-09-01T15:00:00+09:00-url-fix';
-        console.log('CLIENT BUILD:', window.__BUILD__);
-        
-        // バージョン確認（自動）
-        fetch('/__version')
-            .then(r => r.json())
-            .then(v => {
-                console.log('SERVER VERSION:', v);
-                if (v.rev !== '20250901-hamburger-portal-fix') {
-                    console.warn('⚠️ 古いリビジョンを参照している可能性があります');
-                }
-            })
-            .catch(e => console.error('Version check failed:', e));
-        
-        // ============== 即効パッチA: FullCalendarヘッダー統合検証 ==============
-        setTimeout(() => {
-            const cal = document.querySelector('.fc');
-            const btn = document.querySelector('.fc-appMenu-button');
-            console.log('FullCalendar check:', {cal: !!cal, headerBtn: !!btn});
-            if (cal && !btn) {
-                console.warn('⚠️ customButtons のコードがページに載っていません（古いJSを配信中）');
+        // 共通fetchラッパ（サーバ側認証のため、ヘッダは送らない）
+        async function apiFetch(path, options = {}) {
+            const headers = new Headers(options.headers || {});
+            // APIキーは送らない（サーバ側で管理）
+            headers.set('content-type', headers.get('content-type') || 'application/json');
+            
+            const res = await fetch(path, { ...options, headers });
+            if (res.status === 401) {
+                throw new Error('認証に失敗しました（401）。サーバ側の認証設定を確認してください。');
             }
-        }, 1000);
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`APIエラー ${res.status}: ${text}`);
+            }
+            return res.json();
+        }
         
-        // ============== 再発防止：ハンバーガーメニュー自己修復機能 ==============
-        // MutationObserverで常に監視し、メニューが消えたら自動復元
-        window.addEventListener('load', () => {
-            // ポータルハンバーガーの再生成関数
-            function ensureHamburgerExists() {
-                let host = document.getElementById('app-portals');
-                let hb = document.getElementById('portal-hamburger');
-                
-                // ポータルノードが消えていたら再生成
-                if (!host || !document.body.contains(host)) {
-                    console.warn('⚠️ ポータルノードが消失。再生成します。');
-                    host = document.createElement('div');
-                    host.id = 'app-portals';
-                    host.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647';
-                    document.documentElement.appendChild(host);
-                }
-                
-                // ハンバーガーボタンが消えていたら再生成
-                if (!hb || !document.body.contains(hb)) {
-                    console.warn('⚠️ ハンバーガーボタンが消失。再生成します。');
-                    hb = document.createElement('button');
-                    hb.id = 'portal-hamburger';
-                    hb.textContent = '≡';
-                    hb.style.cssText = 'position:absolute;top:12px;left:12px;pointer-events:auto;width:44px;height:44px;border-radius:8px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.2);z-index:2147483647;font-size:24px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;';
-                    hb.onclick = () => window.toggleSidebar && window.toggleSidebar();
-                    host.appendChild(hb);
-                    console.log('✅ ハンバーガーボタンを復元しました');
-                }
-                
-                // ボタンが見えない場合の診断
-                const cs = getComputedStyle(hb);
-                if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) {
-                    console.warn('⚠️ ハンバーガーボタンが非表示状態。修正します。');
-                    hb.style.display = 'flex !important';
-                    hb.style.visibility = 'visible !important';
-                    hb.style.opacity = '1 !important';
-                }
+        // 共通：APIレスポンスの"広め"の互換を吸収
+        function isOk(resp) {
+            if (!resp) return false;
+            // どれかが真なら成功扱い
+            return resp.ok === true || resp.success === true || resp.status === 'ok' || resp.result === 'ok';
+        }
+    </script>
+    
+    <!-- 専門家パッチ: グローバル保護セットアップ -->
+    <script>
+        // ------- 1) グローバル保護セットアップ -------
+        const FC_KEY = '__fullcalendar_instance__';     // 隠しキーに実体を保持
+        const EL_KEY = '__fullcalendar_element__';      // DOMは別キー
+
+        let _resolveReady;
+        window.calendarReady = new Promise(r => (_resolveReady = r));
+
+        // window.calendar は読み取り専用ゲッターに（上書きブロック）
+        if (!Object.getOwnPropertyDescriptor(window, 'calendar')?.get) {
+          Object.defineProperty(window, 'calendar', {
+            get() { return window[FC_KEY] || null; },
+            set(v) {
+              // ここに来るのは「誰かが上書きしようとした」時
+              console.warn('[guard] blocked write to window.calendar', v);
+              // もし実体なら採用、DOM要素なら無視（ログだけ）
+              if (v && v instanceof (window.FullCalendar?.Calendar || Function)) {
+                window[FC_KEY] = v;
+              }
+            },
+            configurable: true
+          });
+        }
+    </script>
+    <script>
+      // ハンバーガー用の初期化（killスタイルを除去し、メニューを有効化）
+      document.addEventListener('DOMContentLoaded', function(){
+        const killer = document.getElementById('side-kill');
+        if (killer) { try { killer.remove(); } catch(_) { killer.textContent=''; } }
+        const side = document.getElementById('sideMenu');
+        if (side) { 
+            // サイドメニューの初期状態を設定（非表示だが、toggleMenuで表示可能にする）
+            side.style.display = 'block';
+            console.log('Side menu initialized');
+        }
+        
+        // タイトルリンクの確認（デバッグ用）
+        const pageTitle = document.getElementById('pageTitle');
+        if (pageTitle) {
+            console.log('Page title link is ready');
+        }
+
+        // サイドメニューのリンクは明示的に遷移（環境差でクリックが無視されるケースの対策）
+        try {
+          document.querySelectorAll('#sideMenu a.menu-item').forEach(a => {
+            a.addEventListener('click', function(e){
+              e.preventDefault();
+              const href = this.getAttribute('href');
+              try { toggleMenu(); } catch(_) {}
+              if (href) window.location.assign(href);
+            }, { passive: false });
+          });
+        } catch(_) {}
+      });
+    </script>
+    
+    <!-- 必要なスクリプトを読み込み（deferで非ブロッキング） -->
+    <script src='/utils/store-config.js' defer></script>
+    
+    <!-- StoreConfig.getCapacityRulesKeyのフォールバック（store-config.js後） -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        (function(){
+            const C = (window.StoreConfig = window.StoreConfig || window.STORE_CONFIG || {});
+            C.storeId = C.storeId || (window.STORE_CONFIG && window.STORE_CONFIG.storeId) || '***REMOVED-ROTATE-CREDENTIAL***';
+            if (typeof C.getCapacityRulesKey !== 'function' || C.getCapacityRulesKey == null) {
+                C.getCapacityRulesKey = function(storeId){
+                    const id = storeId || C.storeId || '***REMOVED-ROTATE-CREDENTIAL***';
+                    // 統一: アンダースコア形式
+                    return `capacity_control_rules_${id}`;
+                };
+            }
+        })();
+    });
+    </script>
+    
+    <script src='/store-config.js'></script>
+    <script>
+      // /api/* への全fetchに認証ヘッダーを自動付与
+      (function(){
+        const orig = window.fetch;
+        window.fetch = function(input, init){
+          try{
+            const key = (window.STORE_CONFIG && window.STORE_CONFIG.adminToken) || localStorage.getItem('ADMIN_API_KEY') || '';
+            const url = (typeof input === 'string') ? input : (input && input.url) || '';
+            if (key && url && url.indexOf('/api/') === 0) {
+              const h = new Headers((init && init.headers) || (typeof input !== 'string' ? input.headers : undefined) || {});
+              h.set('x-api-key', key);
+              h.set('Authorization', `Bearer ${key}`);
+              init = Object.assign({}, init, { headers: h });
+            }
+          } catch(_) {}
+          return orig.call(this, input, init);
+        };
+      })();
+    </script>
+    <script>
+      // Admin APIキーの自動ロードと簡易プロンプト
+      (function(){
+        try {
+          // localStorage → STORE_CONFIG へ反映
+          if (!window.STORE_CONFIG) window.STORE_CONFIG = {};
+          if (!window.STORE_CONFIG.adminToken) {
+            const saved = localStorage.getItem('ADMIN_API_KEY') || '';
+            if (saved) window.STORE_CONFIG.adminToken = saved;
+          }
+          // 未設定なら一度だけ入力を促す（キャンセル可）
+          if (!window.STORE_CONFIG.adminToken) {
+            // プロンプト無効化 - デフォルト値を使用
+            window.STORE_CONFIG.adminToken = '***REMOVED-ROTATE-CREDENTIAL***';
+            try { localStorage.setItem('ADMIN_API_KEY', '***REMOVED-ROTATE-CREDENTIAL***'); } catch(_) {}
+          }
+        } catch(_) {}
+      })();
+    </script>
+    <script src='/time-select-dropdown.js?v=rev445-guard2' defer></script>
+    <script src='/js/admin-enhancements.js?v=rev445-guard2' defer></script>
+    
+    <script>
+        // 認証ラッパー（専門家推奨）
+        window.STORE_CONFIG = window.STORE_CONFIG || {};
+        window.STORE_CONFIG.adminToken = window.STORE_CONFIG.adminToken || '';
+        
+        async function apiFetch(path, options = {}) {
+            const headers = new Headers(options.headers || {});
+            const t = window.STORE_CONFIG.adminToken;
+            if (t) { 
+                headers.set('x-api-key', t); 
+                headers.set('authorization', `Bearer ${t}`); 
+            }
+            if (options.body && !headers.get('content-type')) {
+                headers.set('content-type', 'application/json');
             }
             
-            // 初回実行
-            ensureHamburgerExists();
-            
-            // MutationObserverで監視（DOMの変更を検知）
-            const observer = new MutationObserver(() => {
-                ensureHamburgerExists();
-            });
-            
-            // body全体を監視
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                attributeFilter: ['style', 'class']
-            });
-            
-            // 定期的なチェック（フェイルセーフ）
-            setInterval(ensureHamburgerExists, 5000);
-            
-            console.log('✅ ハンバーガーメニュー自己修復機能を有効化');
-        });
+            const res = await fetch(path, { ...options, headers });
+            const text = await res.text();
+            if (!res.ok) throw new Error(`API ${res.status}: ${text.slice(0, 200)}`);
+            try { 
+                return JSON.parse(text); 
+            } catch { 
+                return { ok: true, raw: text }; 
+            }
+        }
         
-        // ============== 即効パッチC: 犯人オーバーレイ無効化 ==============
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const nodes = Array.from(document.querySelectorAll('*')).filter(el=>{
-                    const cs = getComputedStyle(el);
-                    const full = el.offsetWidth >= innerWidth*0.9 && el.offsetHeight >= innerHeight*0.9;
-                    const fixed = cs.position==='fixed' || cs.position==='sticky' || cs.position==='absolute';
-                    const zi = parseInt(cs.zIndex||0,10);
-                    return full && fixed && zi >= 1000 && !el.className.includes('fc');
-                });
-                console.log('Overlay suspects:', nodes.map(n=>[n.tagName, n.className, getComputedStyle(n).zIndex]));
-                nodes.forEach(n => (n.style.pointerEvents = 'none'));
-            }, 2000);
-        });
+        // 重複した定義を削除（上で既に定義済み）
         
         let calendar;
         let currentView = 'week';
-        // 店舗ID取得（URLパラメータまたはデフォルト）
-        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
         
-        // サイドバートグル - 最小実装
-        window.toggleSidebar = function() {
-            const sb = document.getElementById('sidebar');
-            let ov = document.getElementById('pageOverlay');
-            
-            if (!ov) {
-                ov = document.createElement('div');
-                ov.id = 'pageOverlay';
-                document.body.appendChild(ov);
-            }
-            
-            const open = !sb.classList.contains('open');
-            sb.classList.toggle('open', open);
-            ov.classList.toggle('show', open);
-            
-            if (open) {
-                ov.onclick = () => toggleSidebar();
-            }
-            
-            document.body.classList.toggle('no-scroll', open);
-            
-            // ハンバーガーアニメーション
-            const hamburger = document.getElementById('hamburgerMenu');
-            if (hamburger) hamburger.classList.toggle('active', open);
-        }
-        
-        // 予約読み込みと描画（最短パッチ版）
-        async function loadReservationsAndRender(storeId) {
-            console.log('[RESV] load start', { storeId });
-
-            // 1) APIコール
-            const url = `/api/admin?action=list&store_id=${encodeURIComponent(storeId)}`;
-            let resp, text;
-            try {
-                resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
-                text = await resp.text();
-            } catch (e) {
-                console.error('[RESV] fetch failed', e);
-                return;
-            }
-            if (!resp.ok) {
-                console.error('[RESV] admin list failed', resp.status, text);
-                return;
-            }
-
-            // 2) JSON パースとフィールド吸収
-            let payload;
-            try {
-                payload = JSON.parse(text);
-            } catch (e) {
-                console.error('[RESV] JSON parse error', e, text);
-                return;
-            }
-            const rows = payload.data || payload.reservations || payload.items || [];
-            console.log('[RESV] raw rows', rows.length, rows);
-            
-            // デバッグ用：生データの日付・時間をチェック
-            window.__last_rows__ = rows;  // グローバルに保存
-            const probe = rows => rows.map(r => {
-                let timeStr = r.time || '00:00:00';
-                if (timeStr.length === 5) timeStr += ':00';
-                else if (timeStr.length > 8) timeStr = timeStr.slice(0,8);
-
-                const d = typeof r.date === 'string' ? r.date
-                        : r.date instanceof Date ? r.date.toISOString().slice(0,10)
-                        : '';
-                const start = `${d}T${timeStr}`;
-                return { id: r.id, rawDate: r.date, rawTime: r.time, start, invalid: isNaN(new Date(start).getTime()) };
+        // 専門家推奨の初期化順序（依存関係を明確化）
+        function waitFor(condition, timeout = 12000) {
+            return new Promise((resolve, reject) => {
+                const startTime = Date.now();
+                function check() {
+                    if (condition()) return resolve();
+                    if (Date.now() - startTime > timeout) return reject(new Error('timeout'));
+                    requestAnimationFrame(check);
+                }
+                check();
             });
-            console.table(probe(rows));
+        }
 
-            // 3) FullCalendar用へ正規化（防弾化版）
-            function toFcEvent(r) {
-                // 日付：Dateでも文字列でも "YYYY-MM-DD" に
-                const dateStr = (typeof r.date === 'string')
-                    ? r.date
-                    : (r.date instanceof Date)
-                      ? r.date.toISOString().slice(0,10)
-                      : '';
+        function showInlineError(error) {
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#f44336;color:white;padding:10px;border-radius:4px;z-index:9999';
+            errorDiv.textContent = `エラー: ${error.message}`;
+            document.body.appendChild(errorDiv);
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
 
-                // 時刻：5桁なら ":00" 追加、8桁超なら切り詰め
-                let timeStr = r.time || '00:00:00';
-                if (typeof timeStr !== 'string') timeStr = String(timeStr ?? '00:00:00');
-                if (timeStr.length === 5) timeStr += ':00';
-                else if (timeStr.length > 8) timeStr = timeStr.slice(0,8);
+        // 予約送信関数
+        async function submitReservation(data) {
+            try {
+                const url = `${window.STORE_CONFIG.apiBase || '/api'}/reservation/create`;
+                const result = await apiFetch(url, { 
+                    method: 'POST', 
+                    body: JSON.stringify({...data, store_id: window.STORE_ID}) 
+                });
+                if (isOk(result)) {
+                    console.log('✅ 予約作成成功:', result);
+                    if (window.calendar) {
+                        window.calendar.refetchEvents();
+                    }
+                    return result;
+                } else {
+                    throw new Error(result.error || '予約の作成に失敗しました');
+                }
+            } catch (error) {
+                console.error('予約作成エラー:', error);
+                throw error;
+            }
+        }
 
-                const start = `${dateStr}T${timeStr}`;
-                const d = new Date(start);
-                if (isNaN(d.getTime())) {
-                    console.warn('[normalize] Invalid start -> skip', { r, start });
-                    return null; // 無効なデータはスキップ
+        // 初期化：依存関係を待ってから実行
+        (async () => {
+            try {
+                // FullCalendarの読み込み完了を待つ
+                await waitFor(() => !!window.FullCalendar, 4000);
+                console.log('✅ FullCalendar loaded');
+                
+                // STORE_CONFIG準備確認
+                if (!window.STORE_CONFIG) {
+                    throw new Error('STORE_CONFIG not initialized');
+                }
+                
+                // DBから予約制限ルールを読み込む
+                console.log('Loading capacity rules from DB...');
+                await loadCapacityRulesFromDB();
+                
+                // カレンダーを初期化
+                console.log('DOMContentLoaded - starting init');
+                let calendar = null;
+                try {
+                    console.log('initCalendarOnce called');
+                    calendar = initCalendarOnce();
+                    console.log('initCalendarOnce result:', calendar);
+                } catch (e) {
+                    console.warn('initCalendarOnce threw, will fallback:', e);
                 }
 
-                const people = r.people ?? r.peopleCount ?? r.party_size ?? r.numberOfPeople ?? '';
-                const title = r.customer_name ?? r.customerName ?? r.client ?? `予約 ${people ? people + '名' : ''}`;
-
-                return {
-                    id: String(r.id ?? `${storeId}:${dateStr}:${timeStr}`),
-                    title,
-                    start,           // 例 "2025-09-01T18:00:00"
-                    allDay: false,
-                    extendedProps: {
-                        store_id: r.store_id ?? storeId,
-                        people, 
-                        status: r.status ?? r.state,
-                        // 元データも保持
-                        customer_name: r.customer_name,
-                        customerName: r.customerName,
-                        date: dateStr,
-                        time: timeStr,
-                        numberOfPeople: people,
-                        phoneNumber: r.phone || r.phoneNumber || '',
-                        notes: r.message || r.notes || ''
+                // フォールバック: window.calendar が実体でない（DOMなど）の場合は直接初期化
+                const isFC = (obj) => !!obj && typeof obj.render === 'function' && typeof obj.addEvent === 'function';
+                if (!isFC(window.calendar)) {
+                    const el = document.getElementById('calendar');
+                    if (el && window.FullCalendar && window.FullCalendar.Calendar) {
+                        const evSrc = (typeof window.fetchEvents === 'function') ? window.fetchEvents : (i, ok) => { try { ok([]); } catch(_){} };
+                        try {
+                            const cal = new window.FullCalendar.Calendar(el, {
+                                initialView: 'timeGridWeek',
+                                timeZone: 'local',
+                                height: 'auto',
+                                locale: 'ja',
+                                nowIndicator: true,
+                                selectable: true,
+                                selectMirror: true,
+                                unselectAuto: true,
+                                events: evSrc,
+                                // モバイル対応：日付ヘッダー表示形式を調整
+                                dayHeaderFormat: function(date) {
+                                    if (window.innerWidth <= 767) {
+                                        // モバイル: 曜日と日付を改行で分割して表示
+                                        const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+                                        const d = date.date.marker;
+                                        return weekdays[d.getDay()] + '\n' + d.getDate();
+                                    } else {
+                                        // PC: デフォルト表示
+                                        return { weekday: 'short', day: 'numeric' };
+                                    }
+                                },
+                                // ヘッダーツールバーをモバイルで簡略化
+                                headerToolbar: window.innerWidth <= 767 ? {
+                                    left: 'prev,next',
+                                    center: 'title',
+                                    right: 'today'
+                                } : {
+                                    left: 'prev,next today',
+                                    center: 'title',
+                                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                                },
+                                dateClick: (info) => {
+                                    try {
+                                        const ds = (info.dateStr || '').slice(0,10);
+                                        const d = info.date || new Date(info.dateStr);
+                                        const hh = String(d.getHours()).padStart(2,'0');
+                                        const mm = String(d.getMinutes()).padStart(2,'0');
+                                        const clickTime = `${hh}:${mm}`;
+                                        
+                                        // その時間帯に予約制限があるかチェック
+                                        const capacityRule = checkCapacityRuleAtTime(ds, clickTime);
+                                        if (capacityRule) {
+                                            console.log('Capacity rule found at this time, opening edit modal');
+                                            openCapacityEditModalWithReservationOption(capacityRule, ds, clickTime);
+                                        } else {
+                                            openAddModal(ds, clickTime);
+                                        }
+                                    } catch (e) {
+                                        console.warn('[fallback] dateClick failed', e);
+                                        openAddModal();
+                                    }
+                                },
+                                select: (info) => {
+                                    try {
+                                        const ds = (info.startStr || '').slice(0,10);
+                                        const d = info.start || new Date(info.startStr);
+                                        const hh = String(d.getHours()).padStart(2,'0');
+                                        const mm = String(d.getMinutes()).padStart(2,'0');
+                                        const selectTime = `${hh}:${mm}`;
+                                        
+                                        // その時間帯に予約制限があるかチェック
+                                        const capacityRule = checkCapacityRuleAtTime(ds, selectTime);
+                                        if (capacityRule) {
+                                            console.log('Capacity rule found at this time, opening edit modal');
+                                            openCapacityEditModalWithReservationOption(capacityRule, ds, selectTime);
+                                        } else {
+                                            openAddModal(ds, selectTime);
+                                        }
+                                    } catch (e) {
+                                        console.warn('[fallback] select failed', e);
+                                    }
+                                },
+                                eventClick: (clickInfo) => {
+                                    try {
+                                        const r = clickInfo.event.extendedProps || {};
+                                        openEditModal({
+                                            id: clickInfo.event.id,
+                                            customer_name: r.customer_name || r.customerName || '',
+                                            date: (r.date || clickInfo.event.startStr || '').slice(0,10),
+                                            time: (r.time || '').slice(0,5),
+                                            people: r.people || r.numberOfPeople || 1,
+                                            phone: r.phone || r.customer_phone || '',
+                                            message: r.message || '',
+                                            seat_number: r.seat_number || r.seat_code || '',
+                                            status: r.status || 'confirmed'
+                                        });
+                                    } catch (e) {
+                                        console.warn('[fallback] eventClick failed', e);
+                                    }
+                                }
+                            });
+                            // 可能なら window.calendar にも反映（ゲッター保護あり）
+                            try { window.calendar = cal; } catch (_) {}
+                            cal.render();
+                            console.log('[fallback] calendar rendered');
+                            // 後追いソース差し替え
+                            if (evSrc !== window.fetchEvents && typeof window.fetchEvents === 'function') {
+                                cal.setOption('events', window.fetchEvents);
+                                cal.refetchEvents();
+                                console.log('[fallback] events attached and refreshed');
+                            }
+                            calendar = cal;
+                        } catch (e2) {
+                            console.error('[fallback] calendar init failed', e2);
+                        }
                     }
+                }
+                
+                // グローバル関数をエクスポート
+                window.submitReservation = submitReservation;
+                window.refreshCalendar = () => window.calendar?.refetchEvents();
+                window.testCreateReservation = async () => {
+                    const mockData = {
+                        customer_name: 'テスト太郎',
+                        phone: '090-1234-5678',
+                        date: '2025-09-05',
+                        time: '18:00',
+                        people: 2,
+                        store_id: '***REMOVED-ROTATE-CREDENTIAL***'
+                    };
+                    return await submitReservation(mockData);
                 };
+                
+                console.log('✅ Calendar system initialized');
+                
+                // localStorage のデバッグ情報を出力
+                console.log('=== LocalStorage Debug ===');
+                const STORE_ID = '***REMOVED-ROTATE-CREDENTIAL***';
+                const capacityRulesKey = `capacity_control_rules_${STORE_ID}`;
+                console.log('Checking key:', capacityRulesKey);
+                const storedData = localStorage.getItem(capacityRulesKey);
+                console.log('Stored data:', storedData);
+                if (storedData) {
+                    try {
+                        const parsed = JSON.parse(storedData);
+                        console.log('Parsed data:', parsed);
+                        console.log('Array length:', parsed.length);
+                    } catch (e) {
+                        console.error('Parse error:', e);
+                    }
+                }
+                console.log('=== End Debug ===');
+                
+                // 容量制御ルールを表示
+                setTimeout(() => {
+                    console.log('Calling displayCapacityControls after calendar init...');
+                    console.log('window.calendar available:', !!window.calendar);
+                    console.log('window.calendarReady available:', !!window.calendarReady);
+                    
+                    // 直接calendar objectを使って実行
+                    if (window.calendar) {
+                        console.log('Using direct calendar object...');
+                        displayCapacityControlsDirect(window.calendar).catch(console.error);
+                    } else {
+                        console.log('Using promise-based approach...');
+                        displayCapacityControls().catch(console.error);
+                    }
+                }, 500);
+                
+            } catch (e) {
+                console.error('[boot]', e);
+                showInlineError(e);
             }
-            const events = rows.map(toFcEvent).filter(Boolean);  // nullを除外
-            console.log('[RESV] fc events', events);
-
-            // 4) 1件だけ先に addEvent して、描画確認
-            if (events.length) {
-                console.log('[RESV] preview add', events[0], new Date(events[0].start));
-                calendar.addEvent(events[0]);
-            }
-
-            // 5) ソース入れ替え
-            calendar.getEventSources().forEach(src => src.remove());
-            calendar.addEventSource(events);
-
-            console.log('[RESV] render done');
-        }
-        
-        // 初期化：ページ読み込み時にカレンダーと予約データを初期化
-        document.addEventListener('DOMContentLoaded', function() {
-            initCalendar();
-            loadReservationsAndRender(STORE_ID);  // 新しい関数を使用
-            updateStats();
+        })();
             
-            // 初期表示時に予約制限設定も読み込む
-            setTimeout(() => {
-                console.log('Initial displayCapacityControls call');
-                displayCapacityControls();
-            }, 500);
+            // 初期表示時の予約制限設定読み込みは、initCalendar内で行うため削除
+            
+            // 定期的に予約を自動更新（5分ごと）
+            setInterval(() => {
+                console.log('📅 自動更新: 予約データを再取得');
+                loadReservations();
+            }, 5 * 60 * 1000);
+            
+            // グローバル関数として予約更新を公開
+            window.refreshCalendar = async () => {
+                console.log('🔄 カレンダーを手動更新');
+                await loadReservations();
+                if (window.calendar) {
+                    window.calendar.refetchEvents();
+                    console.log('✅ カレンダー更新完了');
+                }
+            };
+            
+            // 予約作成成功時の自動更新関数
+            window.onReservationCreated = async (reservation) => {
+                console.log('📝 新規予約作成:', reservation);
+                await window.refreshCalendar();
+            };
             
             // LocalStorage更新時に自動で背景を更新
             window.addEventListener('storage', (e) => {
-                // 店舗ID取得（URLパラメータまたはデフォルト）
-        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
+                // @レビュー: getStoreId()を通して店舗IDを取得
+        const STORE_ID = '***REMOVED-ROTATE-CREDENTIAL***';
                 if (e.key === `capacity_control_rules_${STORE_ID}`) {
                     console.log('Capacity rules updated, refreshing display');
-                    displayCapacityControls();
+                    window.calendarReady.then(() => displayCapacityControls());
                 }
             });
-        });
         
-        // 確実にボタンを表示させる（専門家の最終解決策）
-        window.addEventListener('load', () => {
-            // 1) 要素を作って <html> 直下に固定配置
-            const id = '__fixedHamburger';
-            let btn = document.getElementById(id);
-            if (!btn) {
-                btn = document.createElement('button');
-                btn.id = id;
-                btn.type = 'button';
-                btn.textContent = '≡';
-                // CSPが厳しくても通る1行スタイル
-                btn.style.cssText = 'position:fixed;top:14px;left:14px;width:46px;height:46px;line-height:46px;text-align:center;font-size:24px;font-weight:700;background:#fff;color:#111;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.18);z-index:2147483647;cursor:pointer;user-select:none;';
-                btn.onclick = () => (window.toggleSidebar ? window.toggleSidebar() : console.warn('toggleSidebar() 未定義'));
-                document.documentElement.appendChild(btn);
-                console.log('[hamburger] Fixed menu button mounted:', btn);
+        // ---- 4) events 関数（専門家版）
+        async function fetchEvents(info, success) {
+          try {
+            const base = window.STORE_CONFIG?.apiBase || '/api';
+            const tryStores = Array.from(new Set([
+              window.STORE_ID,
+              'store-a',
+              '***REMOVED-ROTATE-CREDENTIAL***',
+              'account1-store',
+              'account2-store'
+            ].filter(Boolean)));
+
+            let rows = [];
+            let usedStore = null;
+            for (const sid of tryStores) {
+              const qs = new URLSearchParams({ start: info.startStr, end: info.endStr, store_id: sid });
+              const url = `${base}/admin/list?${qs}`.replace('/api/api/','/api/');
+              console.log('[events] fetching:', url);
+              const res = await apiFetch(url);
+              const list = Array.isArray(res?.items) ? res.items
+                         : Array.isArray(res?.data) ? res.data
+                         : Array.isArray(res?.rows) ? res.rows
+                         : [];
+              if (Array.isArray(list) && list.length > 0) {
+                rows = list; usedStore = sid; break;
+              }
             }
 
-            // 2) 「今、左上に被ってるもの」を一時的に無効化（覆いの切り分け）
-            const topEl = document.elementFromPoint(20,20);
-            console.log('[hamburger] Element at (20,20):', topEl);
-            if (topEl && topEl !== btn) {
-                topEl.style.pointerEvents = 'none';   // クリックだけ一時無効
-                console.warn('[hamburger] Temporarily disabled pointer-events for:', topEl);
-            }
-            
-            // 3) 全画面オーバーレイを弱体化
-            (function weakenOverlays(){
-                const suspects = Array.from(document.body.querySelectorAll('*'))
-                    .filter(el => {
-                        const cs = getComputedStyle(el);
-                        if (cs.position !== 'fixed' && cs.position !== 'absolute') return false;
-                        const w = el.offsetWidth, h = el.offsetHeight;
-                        if (w < innerWidth * 0.95 || h < innerHeight * 0.95) return false; // 全画面/全幅に近い
-                        const zi = parseInt(cs.zIndex || '0', 10);
-                        return zi >= 1000; // 高z-indexのみ対象
-                    });
-                suspects.forEach(el => {
-                    el.style.pointerEvents = 'none';
-                    console.log('[overlay disabled]', el);
-                });
-            })();
-        });
-        
-        // カレンダー初期化：FullCalendarの設定とレンダリング
-        function initCalendar() {
-            console.log('FC init reached - FullCalendar初期化開始');
-            const calendarEl = document.getElementById('calendar');
-            if (!calendarEl) {
-                console.error('Calendar element not found!');
-                return;
-            }
-            calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'timeGridWeek', // 週表示をデフォルトに
-                locale: 'ja',
-                timeZone: 'local', // localに変更して安定化
-                height: 'auto',
-                slotMinTime: '08:00:00',
-                slotMaxTime: '23:00:00',
-                slotDuration: '00:30:00',
-                expandRows: true,
-                eventOverlap: true, // イベントの重複を許可
-                // カスタムメニューボタンを追加
-                customButtons: {
-                    appMenu: {
-                        text: '≡',
-                        click: () => {
-                            console.log('FC appMenu button clicked');
-                            if (window.toggleSidebar) {
-                                window.toggleSidebar();
-                            } else {
-                                console.warn('[calendar menu] toggleSidebar() 未定義');
-                            }
-                        }
-                    }
-                },
-                headerToolbar: {
-                    left: 'appMenu prev,next today',  // メニューボタンを左端に配置
-                    center: 'title',
-                    right: 'timeGridWeek,dayGridMonth,timeGridDay,listWeek' // 週表示を先頭に
-                },
-                buttonText: {
-                    today: '今日',
-                    month: '月',
-                    week: '週',
-                    day: '日',
-                    list: 'リスト'
-                },
-                editable: true,
-                dayMaxEvents: true,
-                eventClick: function(info) {
-                    handleEventClick(info.event);
-                },
-                dateClick: function(info) {
-                    console.log('Calendar date clicked:', info);
-                    
-                    // クリックされた日付と時間を取得
-                    const clickedDate = info.dateStr;
-                    let clickedTime = null;
-                    
-                    // 週表示や日表示の場合は時間も取得できる
-                    if (info.date && !info.allDay) {
-                        const hours = info.date.getHours();
-                        const minutes = info.date.getMinutes();
-                        clickedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                    }
-                    
-                    console.log('Opening add modal for date:', clickedDate, 'time:', clickedTime);
-                    openAddModal(clickedDate, clickedTime);
-                },
-                eventDidMount: function(info) {
-                    // 背景イベントのスタイル設定
-                    if (info.event.extendedProps?.__capacityControl) {
-                        // 予約制限の背景のみ表示（allDayイベントは無視）
-                        console.log('Mounting capacity control event:', info.event.id, 'color:', info.event.backgroundColor);
-                        
-                        const bgColor = info.event.backgroundColor || 'rgba(220, 53, 69, 0.7)';
-                        info.el.style.setProperty('background-color', bgColor, 'important');
-                        info.el.style.setProperty('opacity', '1', 'important');  // 透明度を上げる
-                        info.el.style.setProperty('z-index', '2', 'important');
-                        info.el.style.setProperty('pointer-events', 'auto', 'important');  // クリック可能に
-                        info.el.style.setProperty('cursor', 'pointer', 'important');
-                        info.el.classList.add('capacity-control');
-                    } else if (info.event.display === 'background' && !info.event.allDay) {
-                        // 時間指定の背景イベントのみ処理（全日イベントは無視）
-                        const bgColor = info.event.backgroundColor || 'rgba(220, 53, 69, 0.7)';
-                        info.el.style.setProperty('background-color', bgColor, 'important');
-                        info.el.style.setProperty('opacity', '1', 'important');
-                        info.el.style.setProperty('z-index', '2', 'important');
-                    }
-                }
+            console.log('[events] fetched=', rows.length, 'store_id=', usedStore || tryStores[0]);
+            const evs = rows.map(r => {
+              const name = r.customer_name ?? r.customerName ?? '予約';
+              const people = r.people ?? r.numberOfPeople ?? 1;
+              const date = (r.date || r.start_date || r.start)?.slice(0,10);
+              const hhmm = (r.time || '').slice(0,5) || '00:00';
+              return {
+                id: r.id,
+                title: `${hhmm} ${name} (${people}名)`,
+                start: `${date}T${hhmm}:00`,
+                allDay: false,
+                backgroundColor: getStatusColor(r.status),
+                extendedProps: { ...r, customerName: name, numberOfPeople: people }
+              };
             });
-            calendar.render();
-            
-            // グローバルに公開（デバッグ用）
-            window.calendar = calendar;
+            console.log('[events] mapped=', evs.length, evs.slice(0,2));
+            success(evs);
+          } catch (e) {
+            console.error('[events] failure', e);
+            success([]); // fail-safe: 表示は続行
+          }
         }
         
         // メニュー開閉：サイドメニューとオーバーレイの表示切り替え
@@ -1326,9 +1747,19 @@
             const overlay = document.getElementById('overlay');
             const hamburgerIcon = document.querySelector('.hamburger-icon');
             
-            if (menu) menu.classList.toggle('active');
-            if (overlay) overlay.classList.toggle('active');
-            if (hamburgerIcon) hamburgerIcon.classList.toggle('active');
+            if (menu) {
+                // display: blockを確実に設定
+                if (menu.style.display === 'none' || !menu.style.display) {
+                    menu.style.display = 'block';
+                }
+                menu.classList.toggle('active');
+            }
+            if (overlay) {
+                overlay.classList.toggle('active');
+            }
+            if (hamburgerIcon) {
+                hamburgerIcon.classList.toggle('active');
+            }
         }
         
         // 編集フォームの座席ヒント更新
@@ -1366,183 +1797,150 @@
             return capacityMap[seatId] || 0;
         }
         
+        // 今日の日付に戻る関数（グローバルに公開）
+        window.goToToday = function() {
+            console.log('goToToday called');
+            
+            // カレンダーインスタンスを取得（複数の方法で試す）
+            const cal = window.calendar || window.__fullcalendar_instance__ || null;
+            
+            if (cal && typeof cal.today === 'function') {
+                try {
+                    // 今日の日付に移動
+                    cal.today();
+                    // 週表示に切り替え
+                    cal.changeView('timeGridWeek');
+                    
+                    // タブのアクティブ状態を更新
+                    const tabs = document.querySelectorAll('.tab');
+                    tabs.forEach(tab => {
+                        tab.classList.remove('active');
+                        if (tab.textContent.includes('週')) {
+                            tab.classList.add('active');
+                        }
+                    });
+                    
+                    console.log('Calendar returned to today in week view');
+                } catch (e) {
+                    console.error('Error in goToToday:', e);
+                }
+            } else {
+                console.warn('Calendar instance not found, trying calendarReady...');
+                // calendarReadyを待って再試行
+                if (window.calendarReady) {
+                    window.calendarReady.then(function(calInstance) {
+                        if (calInstance) {
+                            calInstance.today();
+                            calInstance.changeView('timeGridWeek');
+                            const tabs = document.querySelectorAll('.tab');
+                            tabs.forEach(tab => {
+                                tab.classList.remove('active');
+                                if (tab.textContent.includes('週')) {
+                                    tab.classList.add('active');
+                                }
+                            });
+                            console.log('Calendar returned to today via promise');
+                        }
+                    });
+                } else {
+                    // 最終手段：ページリロード
+                    window.location.reload();
+                }
+            }
+        }
+        
         // タブ切り替え：カレンダービューの切り替え（月/週/日/リスト/アジェンダ）
         function switchTab(view) {
             const tabs = document.querySelectorAll('.tab');
             tabs.forEach(tab => tab.classList.remove('active'));
-            event.target.classList.add('active');
             
-            switch(view) {
-                case 'month':
-                    calendar.changeView('dayGridMonth');
-                    break;
-                case 'week':
-                    calendar.changeView('timeGridWeek');
-                    break;
-                case 'day':
-                    calendar.changeView('timeGridDay');
-                    break;
-                case 'list':
-                    calendar.changeView('listWeek');
-                    break;
-                case 'agenda':
-                    calendar.changeView('listMonth');
-                    break;
+            // クリックされたタブをアクティブにする
+            tabs.forEach(tab => {
+                if (tab.textContent.includes('月') && view === 'month') tab.classList.add('active');
+                else if (tab.textContent.includes('週') && view === 'week') tab.classList.add('active');
+                else if (tab.textContent.includes('日表示') && view === 'day') tab.classList.add('active');
+                else if (tab.textContent.includes('リスト') && view === 'list') tab.classList.add('active');
+                else if (tab.textContent.includes('アジェンダ') && view === 'agenda') tab.classList.add('active');
+            });
+            
+            // window.calendarが存在する場合のみビューを変更
+            if (window.calendar) {
+                switch(view) {
+                    case 'month':
+                        window.calendar.changeView('dayGridMonth');
+                        break;
+                    case 'week':
+                        window.calendar.changeView('timeGridWeek');
+                        break;
+                    case 'day':
+                        window.calendar.changeView('timeGridDay');
+                        break;
+                    case 'list':
+                        window.calendar.changeView('listWeek');
+                        break;
+                    case 'agenda':
+                        window.calendar.changeView('listMonth');
+                        break;
+                }
             }
         }
         
         // 予約データ読み込み：APIから予約一覧を取得してカレンダーに表示
         async function loadReservations() {
             try {
-                const response = await fetch(`/api/admin?action=list&store_id=${STORE_ID}`);
-                
-                if (!response.ok) {
-                    console.error('API Error:', response.status, response.statusText);
-                    const errorText = await response.text();
-                    console.error('Error details:', errorText);
-                    return;
-                }
-                
-                const data = await response.json();
-                
-                if (data.success && data.data) {
-                    console.log('予約データ取得成功:', data.data.length, '件');
-                    
-                    // デバッグ：取得した予約データの日付/時間を確認
-                    console.log('Raw reservation data:', data.data.map(r => ({
-                        id: r.id,
-                        date: r.date,
-                        time: r.time,
-                        name: r.customer_name || r.customerName,
-                        date_type: typeof r.date,
-                        time_type: typeof r.time
-                    })));
-                    
-                    displayReservations(data.data);
-                } else {
-                    console.error('予約データが見つかりません:', data);
+                // カレンダーのイベントを再取得
+                if (window.calendar) {
+                    window.calendar.refetchEvents();
+                    console.log('📊 カレンダーイベントを再取得しました');
                 }
             } catch (error) {
                 console.error('予約データの読み込みエラー:', error);
             }
         }
         
-        // 予約イベントを正規化する関数（専門家の指摘に基づく）
-        function normalizeToFcEvent(r) {
-            // null/undefinedチェック
-            if (!r) {
-                console.warn('normalizeToFcEvent: reservation is null');
-                return null;
-            }
-            
-            // 日付フォーマットの正規化（重要！）
-            let dateStr = r.date || '';
-            
-            // 日付が無効な場合のフォールバック
-            if (!dateStr || dateStr === 'undefined' || dateStr === 'null') {
-                console.warn('Invalid date detected:', dateStr, 'Full reservation:', r);
-                const today = new Date();
-                dateStr = today.toISOString().split('T')[0]; // 今日の日付を使用
-            }
-            
-            // タイムスタンプ形式の場合の処理
-            if (dateStr.includes('T')) {
-                dateStr = dateStr.split('T')[0];
-            }
-            
-            // 時間フォーマットの正規化
-            // DBから来る時間は "HH:MM:SS" 形式
-            // 画面から送信される時間は "HH:MM" 形式
-            let timeStr = r.time || '00:00:00';
-            
-            // 無効な時間のフォールバック
-            if (!timeStr || timeStr === 'undefined' || timeStr === 'null') {
-                console.warn('Invalid time detected:', timeStr, 'Full reservation:', r);
-                timeStr = '12:00:00'; // デフォルト時間
-            }
-            
-            // 時間形式を統一 (HH:MM:SS形式に)
-            if (timeStr.length === 5) {
-                timeStr = timeStr + ':00';  // "18:00" -> "18:00:00"
-            } else if (timeStr.length > 8) {
-                timeStr = timeStr.substring(0, 8);  // "18:00:00:00" -> "18:00:00"
-            }
-            
-            const start = `${dateStr}T${timeStr}`;
-            
-            console.log('Normalized event date:', {
-                original_date: r.date,
-                original_time: r.time,
-                normalized_date: dateStr,
-                normalized_time: timeStr,
-                final_start: start
-            });
-            
-            return {
-                id: String(r.id || `${r.store_id || STORE_ID}:${dateStr}:${timeStr}`),
-                title: `${r.customerName || r.customer_name || '予約'} (${r.numberOfPeople || r.people || r.party_size || 1}名)`,
-                start: start,  // ISO文字列
-                allDay: false,
-                backgroundColor: '#4CAF50',
-                borderColor: '#4CAF50',
-                extendedProps: {
-                    store_id: r.store_id || STORE_ID,
-                    people: r.numberOfPeople || r.people || r.party_size || 1,
-                    status: r.status || 'confirmed',
-                    originalData: r
-                }
-            };
-        }
-        
         // 予約表示：取得した予約データをカレンダーイベントとして描画
         function displayReservations(reservations) {
-            // 通常の予約イベントのみ削除（背景イベントは残す）
-            const events = calendar.getEvents();
-            events.forEach(event => {
-                if (!event.display || event.display !== 'background') {
-                    event.remove();
+            // 現在のイベントを保持して差分更新を行う
+            if (!reservations || reservations.length === 0) {
+                console.log('⚠️ 予約データが空です。既存のイベントを保持します。');
+                return; // 空の場合は何もしない（全削除を防ぐ）
+            }
+            
+            // 安全にイベントを更新
+            console.log(`📅 ${reservations.length}件の予約を表示`);
+            calendar.removeAllEvents();
+            
+            // 時間帯ごとの予約数をカウント（容量制限チェック用）
+            const timeSlotMap = {};
+            reservations.forEach(reservation => {
+                const key = `${reservation.date}_${reservation.time.slice(0,5)}`;
+                if (!timeSlotMap[key]) {
+                    timeSlotMap[key] = { date: reservation.date, time: reservation.time.slice(0,5), count: 0, people: 0, reservations: [] };
                 }
+                timeSlotMap[key].count++;
+                timeSlotMap[key].people += parseInt(reservation.numberOfPeople) || 1;
+                timeSlotMap[key].reservations.push(reservation);
             });
             
-            // データ検証とデバッグ情報
-            console.log(`Displaying ${reservations.length} reservations`);
-            console.log('API payload:', reservations); // 専門家推奨のログ
-            
-            // 日付ごとの予約数をカウント
-            const dateCountMap = {};
+            // カレンダーに予約を表示（容量状態に応じた色付き）
             reservations.forEach(reservation => {
-                const date = reservation.date;
-                if (!dateCountMap[date]) {
-                    dateCountMap[date] = { count: 0, people: 0 };
-                }
-                dateCountMap[date].count++;
-                dateCountMap[date].people += parseInt(reservation.numberOfPeople) || 1;
-            });
-            
-            // カレンダーに予約を表示（正規化関数を使用）
-            reservations.forEach(reservation => {
-                // データ検証
-                if (!reservation.date || !reservation.time) {
-                    console.error('Invalid reservation data:', reservation);
-                    return;
-                }
+                const slotKey = `${reservation.date}_${reservation.time.slice(0,5)}`;
+                const slotInfo = timeSlotMap[slotKey];
+                const capacityStatus = getTimeSlotCapacityStatus(reservation.date, reservation.time.slice(0,5), slotInfo.count, slotInfo.people);
                 
-                // 正規化関数でイベントデータ作成
-                const eventData = normalizeToFcEvent(reservation);
-                
-                // 容量に基づく色設定（オプション）
-                const dateInfo = dateCountMap[reservation.date];
-                if (dateInfo) {
-                    const capacityColor = getCapacityColor(dateInfo.count, dateInfo.people, reservation.date);
-                    eventData.backgroundColor = capacityColor;
-                    eventData.borderColor = capacityColor;
-                }
-                
-                // イベント追加前のログ
-                console.log('Adding event:', eventData);
-                
-                // カレンダーにイベント追加
-                calendar.addEvent(eventData);
+                calendar.addEvent({
+                    id: reservation.id,
+                    title: `${reservation.time} ${reservation.customerName} (${reservation.numberOfPeople}名)`,
+                    start: `${reservation.date}T${reservation.time}:00`,
+                    backgroundColor: capacityStatus.color,
+                    borderColor: capacityStatus.borderColor || capacityStatus.color,
+                    textColor: capacityStatus.textColor || '#fff',
+                    extendedProps: {
+                        ...reservation,
+                        capacityStatus: capacityStatus.status,
+                        capacityMessage: capacityStatus.message
+                    }
+                });
             });
             
             // 日付セルに背景色を追加（コメントアウト - 全日背景は不要）
@@ -1560,46 +1958,246 @@
             // 予約制限設定の期間も背景色として表示
             setTimeout(() => {
                 console.log('Calling displayCapacityControls from loadReservations');
-                displayCapacityControls();
+                window.calendarReady.then(() => displayCapacityControls());
             }, 100);
         }
         
-        // 予約状況に応じた色を取得：予約数と人数から混雑度を計算して色を決定
-        function getCapacityColor(count, people, date = null) {
-            // LocalStorageから予約制限設定を取得
-            // 店舗ID取得（URLパラメータまたはデフォルト）
-        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
-            const controls = JSON.parse(localStorage.getItem(`capacity_control_rules_${STORE_ID}`) || '[]');
-            let maxGroups = 20;  // デフォルトの1日の最大組数
-            let maxPeople = 50;  // デフォルトの1日の最大人数
+        // キャパシティルールの背景色を取得
+        function getCapacityRuleColor(rule) {
+            // 有効な制限があるかチェック
+            const hasLimits = (rule.maxGroups !== null && rule.maxGroups !== undefined) ||
+                             (rule.maxPeople !== null && rule.maxPeople !== undefined) ||
+                             (rule.maxPerGroup !== null && rule.maxPerGroup !== undefined);
+                             
+            if (!hasLimits) {
+                return 'rgba(108, 117, 125, 0.1)';  // グレー: 制限なし
+            }
             
-            // 該当する日付の制限設定を探す
-            if (date && controls.length > 0) {
-                const matchingRules = controls.filter(rule => rule.date === date);
-                
-                if (matchingRules.length > 0) {
-                    // 複数のルールがある場合は最も制限の厳しいものを使用
-                    maxGroups = Math.min(...matchingRules.map(r => r.maxGroups || 20));
-                    maxPeople = Math.min(...matchingRules.map(r => r.maxPeople || 50));
+            // 制限の種類によって色を分ける
+            if (rule.maxGroups !== null) {
+                if (rule.maxGroups <= 5) {
+                    return 'rgba(220, 53, 69, 0.2)';   // 赤系: 厳しい制限
+                } else if (rule.maxGroups <= 10) {
+                    return 'rgba(255, 193, 7, 0.2)';   // 黄色系: 中程度の制限
+                } else {
+                    return 'rgba(40, 167, 69, 0.2)';   // 緑系: 緩い制限
                 }
             }
             
-            const groupRate = count / maxGroups;
-            const peopleRate = people / maxPeople;
+            return 'rgba(0, 123, 255, 0.2)';  // 青系: その他の制限
+        }
+        
+        // 時間帯ごとの容量状態を取得
+        function getTimeSlotCapacityStatus(date, time, currentGroups, currentPeople) {
+            // 該当する容量制限ルールを探す
+            const capacityRule = checkCapacityRuleAtTime(date, time);
+            
+            if (!capacityRule) {
+                // 制限なしの場合はデフォルト色
+                return {
+                    status: 'available',
+                    message: '制限なし',
+                    color: '#3498db',
+                    borderColor: '#2980b9',
+                    textColor: '#fff'
+                };
+            }
+            
+            // 制限に対する使用率を計算
+            let groupRate = 0;
+            let peopleRate = 0;
+            
+            if (capacityRule.maxGroups !== null && capacityRule.maxGroups !== undefined) {
+                groupRate = currentGroups / capacityRule.maxGroups;
+            }
+            if (capacityRule.maxPeople !== null && capacityRule.maxPeople !== undefined) {
+                peopleRate = currentPeople / capacityRule.maxPeople;
+            }
+            
             const rate = Math.max(groupRate, peopleRate);
             
+            // 容量状態に応じた色とメッセージを返す
             if (rate >= 1.0) {
-                return '#8b0000';  // 暗赤：完全満席
-            } else if (rate >= 0.9) {
-                return '#e74c3c';  // 赤：ほぼ満席
-            } else if (rate >= 0.7) {
-                return '#f39c12';  // オレンジ：残りわずか
-            } else if (rate >= 0.5) {
-                return '#f1c40f';  // 黄色：半分以上
-            } else if (rate >= 0.3) {
-                return '#3498db';  // 青：余裕あり
+                return {
+                    status: 'full',
+                    message: `満席 (${currentGroups}/${capacityRule.maxGroups || '∞'}組)`,
+                    color: '#dc3545',  // 赤：満席
+                    borderColor: '#a02530',
+                    textColor: '#fff'
+                };
+            } else if (rate >= 0.8) {
+                return {
+                    status: 'nearly_full',
+                    message: `残りわずか (${currentGroups}/${capacityRule.maxGroups || '∞'}組)`,
+                    color: '#fd7e14',  // オレンジ：ほぼ満席
+                    borderColor: '#d96800',
+                    textColor: '#fff'
+                };
+            } else if (rate >= 0.6) {
+                return {
+                    status: 'limited',
+                    message: `予約可 (${currentGroups}/${capacityRule.maxGroups || '∞'}組)`,
+                    color: '#ffc107',  // 黄色：半分以上
+                    borderColor: '#d39e00',
+                    textColor: '#000'
+                };
             } else {
-                return '#2ecc71';  // 緑：空き十分
+                return {
+                    status: 'available',
+                    message: `空きあり (${currentGroups}/${capacityRule.maxGroups || '∞'}組)`,
+                    color: '#28a745',  // 緑：余裕あり
+                    borderColor: '#1e7e34',
+                    textColor: '#fff'
+                };
+            }
+        }
+        
+        // 予約状況に応じた色を取得（後方互換性のため残す）
+        function getCapacityColor(count, people, date = null) {
+            const time = '12:00'; // デフォルト時間
+            const status = getTimeSlotCapacityStatus(date, time, count, people);
+            return status.color;
+        }
+        
+        // リアルタイムで容量をチェックして警告を表示
+        async function checkCapacityForReservation() {
+            const date = document.getElementById('reservationDate').value;
+            const time = document.getElementById('reservationTime').value;
+            const people = parseInt(document.getElementById('numberOfPeople').value) || 1;
+            
+            const warningDiv = document.getElementById('capacityWarning');
+            const warningText = document.getElementById('capacityWarningText');
+            
+            if (!date || !time || !warningDiv || !warningText) {
+                if (warningDiv) warningDiv.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const capacityCheck = await checkCapacityBeforeCreate(date, time.slice(0, 5), people);
+                
+                if (!capacityCheck.allowed) {
+                    warningText.innerHTML = '⚠️ <strong style="font-size: 18px;">容量制限を超過します！</strong><br>' +
+                        capacityCheck.message.replace(/\n/g, '<br>') + 
+                        '<br><strong>現在: ' + capacityCheck.current.groups + '組 / ' + 
+                        capacityCheck.current.people + '名</strong>';
+                    warningDiv.style.display = 'block';
+                    warningDiv.style.background = '#f8d7da';
+                    warningDiv.style.borderColor = '#dc3545';
+                    warningDiv.style.borderWidth = '2px';
+                    warningText.style.color = '#721c24';
+                } else if (capacityCheck.limits && 
+                          (capacityCheck.limits.maxGroups && capacityCheck.current.groups >= capacityCheck.limits.maxGroups * 0.8 ||
+                           capacityCheck.limits.maxPeople && capacityCheck.current.people >= capacityCheck.limits.maxPeople * 0.8)) {
+                    // 80%以上使用している場合は警告
+                    warningText.innerHTML = '⚠️ <strong>残り枠わずか</strong><br>' +
+                        '現在: ' + capacityCheck.current.groups + '/' + (capacityCheck.limits.maxGroups || '∞') + '組、' +
+                        capacityCheck.current.people + '/' + (capacityCheck.limits.maxPeople || '∞') + '名';
+                    warningDiv.style.display = 'block';
+                    warningDiv.style.background = '#fff3cd';
+                    warningDiv.style.borderColor = '#ffc107';
+                    warningDiv.style.borderWidth = '2px';
+                    warningText.style.color = '#856404';
+                } else {
+                    warningDiv.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Capacity check error:', error);
+                if (warningDiv) warningDiv.style.display = 'none';
+            }
+        }
+        
+        // 予約作成前の容量チェック
+        async function checkCapacityBeforeCreate(date, time, people) {
+            try {
+                // 該当する容量制限ルールを取得
+                const timeOnly = time.slice(0, 5); // HH:MM形式に統一
+                console.log('Checking capacity rule for:', date, timeOnly);
+                const capacityRule = checkCapacityRuleAtTime(date, timeOnly);
+                console.log('Found capacity rule:', capacityRule);
+                
+                if (!capacityRule) {
+                    // 制限がない場合は許可
+                    console.log('No capacity rule found, allowing');
+                    return { allowed: true, message: '制限なし' };
+                }
+                
+                // 現在の予約状況を取得
+                const response = await fetch(`/api/capacity-status?date=${date}&store_id=${window.STORE_ID || 'store-a'}`);
+                const data = await response.json();
+                console.log('Current capacity status:', data);
+                
+                // 該当時間帯の予約を集計
+                let currentGroups = 0;
+                let currentPeople = 0;
+                
+                if (data.success && data.items) {
+                    data.items.forEach(item => {
+                        // 時間の比較を正確に行う
+                        const itemTime = (item.time || '').slice(0, 5);
+                        if (itemTime === timeOnly) {
+                            currentGroups++;
+                            currentPeople += parseInt(item.people) || 1;
+                        }
+                    });
+                } else if (data.ok && data.items) {
+                    // ok フィールドも確認
+                    data.items.forEach(item => {
+                        const itemTime = (item.time || '').slice(0, 5);
+                        if (itemTime === timeOnly) {
+                            currentGroups++;
+                            currentPeople += parseInt(item.people) || 1;
+                        }
+                    });
+                }
+                
+                console.log('Current usage:', { groups: currentGroups, people: currentPeople });
+                
+                // 新規予約を追加した場合の数値
+                const newGroups = currentGroups + 1;
+                const newPeople = currentPeople + people;
+                
+                // 制限チェック
+                let exceeded = false;
+                let message = '';
+                
+                if (capacityRule.maxGroups !== null && capacityRule.maxGroups !== undefined && newGroups > capacityRule.maxGroups) {
+                    exceeded = true;
+                    message = `組数制限を超えています（最大${capacityRule.maxGroups}組）`;
+                    console.log('Groups exceeded:', newGroups, '>', capacityRule.maxGroups);
+                }
+                
+                if (capacityRule.maxPeople !== null && capacityRule.maxPeople !== undefined && newPeople > capacityRule.maxPeople) {
+                    exceeded = true;
+                    message = message ? message + '\n' : '';
+                    message += `人数制限を超えています（最大${capacityRule.maxPeople}名）`;
+                    console.log('People exceeded:', newPeople, '>', capacityRule.maxPeople);
+                }
+                
+                if (capacityRule.maxPerGroup !== null && capacityRule.maxPerGroup !== undefined && people > capacityRule.maxPerGroup) {
+                    exceeded = true;
+                    message = message ? message + '\n' : '';
+                    message += `1組あたりの人数制限を超えています（最大${capacityRule.maxPerGroup}名）`;
+                    console.log('Per group exceeded:', people, '>', capacityRule.maxPerGroup);
+                }
+                
+                return {
+                    allowed: !exceeded,
+                    message: message || '予約可能',
+                    current: { groups: currentGroups, people: currentPeople },
+                    limits: {
+                        maxGroups: capacityRule.maxGroups,
+                        maxPeople: capacityRule.maxPeople,
+                        maxPerGroup: capacityRule.maxPerGroup
+                    }
+                };
+            } catch (error) {
+                console.error('Capacity check error:', error);
+                // エラーの場合は警告のみ表示して続行可能
+                return { 
+                    allowed: true, 
+                    message: '容量チェックエラー（続行可能）' 
+                };
             }
         }
         
@@ -1613,70 +2211,61 @@
             }
         }
         
-        // 現在の日時で新規予約モーダルを開く（グローバルスコープに配置）
-        window.openAddModalWithCurrentDateTime = function() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = (now.getMonth() + 1).toString().padStart(2, '0');
-            const day = now.getDate().toString().padStart(2, '0');
-            const date = `${year}-${month}-${day}`;
-            
-            // 現在時刻の次の正時を計算
-            const hour = now.getHours();
-            let nextHour = hour + 1;
-            
-            // 営業時間内で調整（11:00-22:00）
-            if (nextHour < 11) {
-                nextHour = 11;
-            } else if (nextHour > 21) {
-                // 21時を過ぎている場合は翌日の11時を提案
-                const tomorrow = new Date(now);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                const tomorrowYear = tomorrow.getFullYear();
-                const tomorrowMonth = (tomorrow.getMonth() + 1).toString().padStart(2, '0');
-                const tomorrowDay = tomorrow.getDate().toString().padStart(2, '0');
-                window.openAddModal(`${tomorrowYear}-${tomorrowMonth}-${tomorrowDay}`, '11:00');
-                return;
-            }
-            
-            const time = `${nextHour.toString().padStart(2, '0')}:00`;
-            window.openAddModal(date, time);
-        }
-        
-        // モーダル開く：予約追加/編集用モーダルを表示（グローバルスコープに配置）
-        window.openAddModal = async function(date = null, time = null) {
+        // モーダル開く：予約追加/編集用モーダルを表示
+        async function openAddModal(date = null, time = null) {
             const modal = document.getElementById('addModal');
-            const form = document.getElementById('reservationForm');
-            
-            // フォームを新規作成モードにリセット
-            form.reset();
-            form.dataset.mode = 'create';  // 明示的に新規作成モードに設定
-            delete form.dataset.reservationId;  // 編集用IDをクリア
-            
+            // 強制的に最前面に表示（重ね順や display の競合を無視）
+            if (modal.parentElement !== document.body) {
+                try { document.body.appendChild(modal); } catch(_) {}
+            }
             modal.classList.add('active');
+            modal.style.display = 'flex';
+            modal.style.zIndex = '2000';
+            console.log('[modal] openAddModal shown');
+
+            // タイトルとボタンの表示をモードで切替
+            const form = document.getElementById('reservationForm');
+            const isEdit = form?.dataset.mode === 'edit';
+            const titleEl = modal.querySelector('.modal-title');
+            const submitBtn = modal.querySelector('.form-actions button[type="submit"]');
+            const deleteBtn = document.getElementById('reservationDeleteBtn');
+            if (titleEl) titleEl.textContent = isEdit ? '予約を編集' : '新規予約';
+            if (submitBtn) submitBtn.textContent = isEdit ? '予約を更新' : '予約を追加';
+            // 編集時のみ削除ボタンを表示・動作割当
+            if (deleteBtn) {
+                if (isEdit && form?.dataset?.reservationId) {
+                    deleteBtn.style.display = '';
+                    deleteBtn.onclick = async () => {
+                        try {
+                            await deleteReservation(form.dataset.reservationId);
+                        } catch (e) {
+                            console.warn('delete failed', e);
+                        } finally {
+                            closeModal();
+                        }
+                    };
+                } else {
+                    deleteBtn.style.display = 'none';
+                    deleteBtn.onclick = null;
+                }
+            }
             
             if (date) {
-                // 日付を正規化（YYYY-MM-DD形式にする）
-                const normalizedDate = date.split('T')[0];
-                document.getElementById('reservationDate').value = normalizedDate;
+                document.getElementById('reservationDate').value = date;
                 // 日付が設定されたら容量状態を取得して時間選択を更新
-                await updateTimeSlotAvailability(normalizedDate);
+                await updateTimeSlotAvailability(date);
             }
-            
-            // 時間が指定されている場合は自動設定
             if (time) {
-                document.getElementById('reservationTime').value = time;
-            } else if (!time && date) {
-                // 時間が指定されていない場合は現在時刻の次の正時を設定
-                const now = new Date();
-                const hour = now.getHours() + 1;
-                if (hour >= 11 && hour <= 21) {
-                    document.getElementById('reservationTime').value = `${hour.toString().padStart(2, '0')}:00`;
-                } else if (hour < 11) {
-                    document.getElementById('reservationTime').value = '11:00';
-                } else {
-                    document.getElementById('reservationTime').value = '19:00';
+                const sel = document.getElementById('reservationTime');
+                // 選択肢に無い場合は動的に追加（:00/:30以外の時刻にも対応）
+                let val = time.slice(0,5);
+                if (!Array.from(sel.options).some(o => o.value === val)) {
+                    const opt = document.createElement('option');
+                    opt.value = val;
+                    opt.textContent = val;
+                    sel.appendChild(opt);
                 }
+                sel.value = val;
             }
         }
         
@@ -1684,12 +2273,10 @@
         async function updateTimeSlotAvailability(date) {
             if (!date) return;
             
-            // 日付を正規化（YYYY-MM-DD形式にする）
-            const normalizedDate = date.split('T')[0];
-            console.log('Updating time slot availability for date:', normalizedDate);
+            console.log('Updating time slot availability for date:', date);
             
             try {
-                const response = await fetch(`/api/capacity-status?store_id=${STORE_ID}&date=${normalizedDate}`);
+                const response = await fetch(`/api/capacity-status?store_id=${window.STORE_ID}&date=${date}`);
                 const data = await response.json();
                 
                 console.log('Capacity status response:', data);
@@ -1751,69 +2338,127 @@
         // モーダル閉じる：モーダルを非表示にしてフォームをリセット
         function closeModal() {
             const modal = document.getElementById('addModal');
+            if (!modal) return;
             modal.classList.remove('active');
-            document.getElementById('reservationForm').reset();
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+            const f = document.getElementById('reservationForm');
+            f.reset();
+            delete f.dataset.mode;
+            delete f.dataset.reservationId;
+            // タイトルとボタンをデフォルトへ戻す
+            const titleEl = modal.querySelector('.modal-title');
+            const submitBtn = modal.querySelector('.form-actions button[type="submit"]');
+            if (titleEl) titleEl.textContent = '新規予約';
+            if (submitBtn) submitBtn.textContent = '予約を追加';
         }
         
         // フォーム送信：予約の新規作成または更新をAPIに送信
         document.getElementById('reservationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // モードの判定（デフォルトは新規作成）
             const isEditMode = this.dataset.mode === 'edit';
             const reservationId = this.dataset.reservationId;
             
-            console.log('Form submission mode:', {
-                mode: this.dataset.mode || 'create',
-                isEditMode: isEditMode,
-                reservationId: reservationId
-            });
-            
             const formData = {
                 customer_name: document.getElementById('customerName').value,
-                phone: document.getElementById('phoneNumber').value,
-                email: document.getElementById('email')?.value || '',
                 date: document.getElementById('reservationDate').value,
-                time: document.getElementById('reservationTime').value,  // HH:MM形式のまま送信（APIで:00追加される）
+                time: document.getElementById('reservationTime').value,
                 people: parseInt(document.getElementById('numberOfPeople').value),
+                party_size: parseInt(document.getElementById('numberOfPeople').value), // RPC関数用
+                customer_phone: document.getElementById('phoneNumber').value,
+                phone: document.getElementById('phoneNumber').value,
                 message: document.getElementById('notes').value,
-                seat_id: document.getElementById('seatNumber')?.value || null,
+                seat_number: document.getElementById('seatNumber')?.value || null,
                 status: document.getElementById('reservationStatus')?.value || 'confirmed',
-                store_id: STORE_ID,
-                user_id: 'admin-' + Date.now()
+                store_id: window.STORE_ID,
+                user_id: 'admin-' + Date.now(),
+                source: 'admin'
             };
             
             if (isEditMode) {
                 formData.id = reservationId;
             }
             
+            // 新規作成時は容量チェックを行う
+            if (!isEditMode) {
+                console.log('🔍 Checking capacity for:', formData.date, formData.time, formData.people);
+                const capacityCheck = await checkCapacityBeforeCreate(formData.date, formData.time.slice(0, 5), formData.people);
+                console.log('📊 Capacity check result:', capacityCheck);
+                
+                if (!capacityCheck.allowed) {
+                    // 大きな警告モーダルを表示
+                    const warningModal = document.createElement('div');
+                    warningModal.className = 'modal active';
+                    warningModal.style.zIndex = '10000';
+                    warningModal.innerHTML = `
+                        <div class="modal-content" style="max-width: 550px; border: 3px solid #dc3545; box-shadow: 0 10px 30px rgba(220, 53, 69, 0.5);">
+                            <div class="modal-header" style="background: #dc3545; color: white; padding: 20px;">
+                                <h2 class="modal-title" style="font-size: 24px;">⚠️ 容量制限警告</h2>
+                            </div>
+                            <div class="modal-body" style="padding: 30px;">
+                                <div style="background: #f8d7da; border: 2px solid #f5c6cb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                    <h3 style="color: #721c24; margin-bottom: 15px; font-size: 20px;">${capacityCheck.message}</h3>
+                                    <div style="font-size: 18px; color: #721c24; line-height: 1.8;">
+                                        <p><strong>現在の予約状況:</strong></p>
+                                        <p style="margin-left: 20px;">📊 組数: <strong>${capacityCheck.current.groups}組</strong> / 最大 <strong>${capacityCheck.limits.maxGroups || '∞'}組</strong></p>
+                                        <p style="margin-left: 20px;">👥 人数: <strong>${capacityCheck.current.people}名</strong> / 最大 <strong>${capacityCheck.limits.maxPeople || '∞'}名</strong></p>
+                                    </div>
+                                </div>
+                                <div style="text-align: center; padding: 10px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
+                                    <p style="font-size: 18px; color: #856404; margin: 10px 0;">⚠️ この予約を作成すると<strong style="color: #dc3545;">制限を超過</strong>します</p>
+                                    <p style="font-size: 16px; color: #856404; font-weight: bold;">それでも予約を作成しますか？</p>
+                                </div>
+                            </div>
+                            <div class="modal-footer" style="justify-content: center; gap: 20px; padding: 20px;">
+                                <button onclick="this.closest('.modal').remove(); window.capacityOverride = false;" class="btn" style="background: #6c757d; color: white; padding: 12px 40px; font-size: 16px; border-radius: 5px; cursor: pointer;">キャンセル</button>
+                                <button onclick="this.closest('.modal').remove(); window.capacityOverride = true;" class="btn" style="background: #dc3545; color: white; padding: 12px 40px; font-size: 16px; border-radius: 5px; cursor: pointer;">強制的に予約作成</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(warningModal);
+                    
+                    // モーダルの応答を待つ
+                    await new Promise(resolve => {
+                        const checkInterval = setInterval(() => {
+                            if (window.capacityOverride !== undefined) {
+                                clearInterval(checkInterval);
+                                resolve();
+                            }
+                        }, 100);
+                    });
+                    
+                    if (!window.capacityOverride) {
+                        delete window.capacityOverride;
+                        return; // 予約作成をキャンセル
+                    }
+                    delete window.capacityOverride;
+                }
+            }
+            
             try {
-                // URL APIを使った安全なURL生成（専門家推奨）
-                const action = isEditMode ? 'update' : 'create';
-                const url = new URL('/api/admin', location.origin);
-                url.searchParams.set('action', action);
-                
-                const finalUrl = url.toString();
-                console.log('Sending reservation data to:', finalUrl);
-                console.log('Request body:', formData);
-                console.log('Action parameter:', action);
-                
-                const response = await fetch(finalUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-                
-                console.log('Response status:', response.status);
-                const result = await response.json();
-                console.log('Reservation response:', result);
+                // 時刻を必ず HH:MM(:SS) に正規化
+                if (formData.time && /^\d{2}:\d{2}$/.test(formData.time)) {
+                    formData.time = formData.time + ':00';
+                } else if (formData.time && /^\d{1}:\d{2}$/.test(formData.time)) {
+                    formData.time = ('0' + formData.time) + ':00';
+                }
+
+                // APIを統一: /api/admin?action=create|update を使用
+                const base = (window.STORE_CONFIG?.apiBase || '/api');
+                // 作成は認証不要の専用エンドポイントを使用、更新時はIDをクエリパラメータに含める
+                const url  = isEditMode ? `${base}/admin?action=update&id=${reservationId}` : `${base}/reservation/create`;
+                const result = await apiFetch(url, { method: 'POST', body: JSON.stringify(formData) });
                 
                 if (result.success) {
                     alert(isEditMode ? '予約を更新しました' : '予約を追加しました');
                     closeModal();
-                    await loadReservations();
+                    // カレンダー再取得
+                    if (window.calendar) {
+                        window.calendar.refetchEvents();
+                    } else {
+                        await loadReservations();
+                    }
                 } else {
                     // 容量超過エラーの場合は詳細なメッセージを表示
                     if (result.code === 'CAPACITY_FULL') {
@@ -1823,7 +2468,7 @@
                     } else {
                         alert('エラー: ' + (result.message || result.error || '予約の処理に失敗しました'));
                     }
-                    console.error('Reservation error:', result);
+                    console.log('Reservation error:', result);
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -1834,11 +2479,59 @@
             delete this.dataset.mode;
             delete this.dataset.reservationId;
         });
+
+        // 編集用モーダルを開く
+        function openEditModal(reservation) {
+            const f = document.getElementById('reservationForm');
+            f.dataset.mode = 'edit';
+            f.dataset.reservationId = reservation.id;
+            
+            // 値設定
+            document.getElementById('customerName').value = reservation.customer_name || '';
+            document.getElementById('reservationDate').value = reservation.date || '';
+            // 時刻は選択肢に無い場合もセット
+            const sel = document.getElementById('reservationTime');
+            const tval = (reservation.time || '').slice(0,5);
+            if (tval) {
+              if (!Array.from(sel.options).some(o => o.value === tval)) {
+                const opt = document.createElement('option'); opt.value = tval; opt.textContent = tval; sel.appendChild(opt);
+              }
+              sel.value = tval;
+            }
+            document.getElementById('numberOfPeople').value = reservation.people || 1;
+            document.getElementById('phoneNumber').value = reservation.phone || '';
+            document.getElementById('notes').value = reservation.message || '';
+            const statusSel = document.getElementById('reservationStatus');
+            if (statusSel) statusSel.value = reservation.status || 'confirmed';
+            const seatSel = document.getElementById('seatNumber');
+            if (seatSel && reservation.seat_number) {
+              if (!Array.from(seatSel.options).some(o => o.value === reservation.seat_number)) {
+                const o = document.createElement('option'); o.value = reservation.seat_number; o.textContent = reservation.seat_number; seatSel.appendChild(o);
+              }
+              seatSel.value = reservation.seat_number;
+            }
+            
+            // モーダルを開く
+            openAddModal(reservation.date, tval);
+        }
+
+        // 背景クリック・Escで閉じる
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('addModal');
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeModal();
+                });
+            }
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeModal();
+            });
+        });
         
         // データ更新：予約データと統計情報を再読み込み
         function refreshData() {
             loadReservations();
-            updateStats();
+            // updateStats(); // 統計カード非表示のため一時的にコメントアウト
             showNotification('データを更新しました', 'success');
         }
         
@@ -1846,12 +2539,12 @@
         async function updateStats() {
             // 実際のデータから計算
             try {
-                const response = await fetch(`/api/admin?action=list&store_id=${STORE_ID}`);
+                const response = await fetch(`/api/admin?action=list&store_id=${window.STORE_ID}`);
                 const data = await response.json();
                 
-                if (data.success && data.data) {
+                if (data.success && data.reservations) {
                     const today = new Date().toISOString().split('T')[0];
-                    const todayReservations = data.data.filter(r => r.date === today);
+                    const todayReservations = data.reservations.filter(r => r.date === today);
                     document.getElementById('todayCount').textContent = todayReservations.length;
                     
                     // その他の統計も更新
@@ -1967,30 +2660,582 @@
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
                             <div class="form-group" style="position: relative;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <input type="checkbox" id="newUseMaxGroups" checked onchange="toggleCapacityField('newMaxGroups', this.checked)" style="cursor: pointer;">
+                                    <input type="checkbox" id="newUseMaxGroups" onchange="toggleCapacityField('newMaxGroups', this.checked)" style="cursor: pointer;">
                                     <label class="form-label" style="margin: 0; cursor: pointer;" for="newUseMaxGroups">👥 最大組数</label>
                                 </div>
-                                <input type="number" class="form-input" id="newMaxGroups" value="10" min="1" placeholder="制限なし">
+                                <input type="number" class="form-input" id="newMaxGroups" value="1" min="1" placeholder="制限なし" disabled>
                             </div>
                             <div class="form-group" style="position: relative;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <input type="checkbox" id="newUseMaxPeople" checked onchange="toggleCapacityField('newMaxPeople', this.checked)" style="cursor: pointer;">
+                                    <input type="checkbox" id="newUseMaxPeople" onchange="toggleCapacityField('newMaxPeople', this.checked)" style="cursor: pointer;">
                                     <label class="form-label" style="margin: 0; cursor: pointer;" for="newUseMaxPeople">👤 最大人数</label>
                                 </div>
-                                <input type="number" class="form-input" id="newMaxPeople" value="40" min="1" placeholder="制限なし">
+                                <input type="number" class="form-input" id="newMaxPeople" value="" min="1" placeholder="制限なし" disabled>
                             </div>
                             <div class="form-group" style="position: relative;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <input type="checkbox" id="newUseMaxPerGroup" checked onchange="toggleCapacityField('newMaxPerGroup', this.checked)" style="cursor: pointer;">
+                                    <input type="checkbox" id="newUseMaxPerGroup" onchange="toggleCapacityField('newMaxPerGroup', this.checked)" style="cursor: pointer;">
                                     <label class="form-label" style="margin: 0; cursor: pointer;" for="newUseMaxPerGroup">🪑 1組最大</label>
                                 </div>
-                                <input type="number" class="form-input" id="newMaxPerGroup" value="8" min="1" placeholder="制限なし">
+                                <input type="number" class="form-input" id="newMaxPerGroup" value="" min="1" placeholder="制限なし" disabled>
                             </div>
                         </div>
                         
                         <div class="form-actions">
                             <button type="button" class="action-btn secondary" onclick="this.closest('.modal').remove()">キャンセル</button>
                             <button type="submit" class="action-btn">作成</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // DBから読み込んだ予約制限ルールを保存
+        let dbCapacityRules = [];
+        
+        // DBから予約制限ルールを読み込む
+        async function loadCapacityRulesFromDB() {
+            try {
+                console.log('[capacity] Loading rules from DB for ***REMOVED-ROTATE-CREDENTIAL***');
+                
+                // ***REMOVED-ROTATE-CREDENTIAL***のルールのみ読み込む（重複を防ぐため）
+                const response = await fetch('/api/capacity-rules?store_id=***REMOVED-ROTATE-CREDENTIAL***');
+                const data = await response.json();
+                
+                if (data.success && data.rules) {
+                    dbCapacityRules = data.rules.map(rule => ({
+                        date: rule.date,
+                        startTime: rule.start_time ? rule.start_time.slice(0, 5) : '00:00',
+                        endTime: rule.end_time ? rule.end_time.slice(0, 5) : '23:59',
+                        maxGroups: rule.max_groups || null,
+                        maxPeople: rule.max_people || null,
+                        maxPerGroup: rule.max_per_group || null
+                    }));
+                    console.log('[capacity] Loaded rules from DB:', dbCapacityRules);
+                    
+                    // LocalStorageにも保存（キャッシュとして、常に***REMOVED-ROTATE-CREDENTIAL***）
+                    const STORE_ID = '***REMOVED-ROTATE-CREDENTIAL***';
+                    const capacityRulesKey = `capacity_control_rules_${STORE_ID}`;
+                    localStorage.setItem(capacityRulesKey, JSON.stringify(dbCapacityRules));
+                    
+                    // カレンダーをリフレッシュ
+                    if (window.calendar) {
+                        window.calendar.refetchEvents();
+                    }
+                } else {
+                    console.log('[capacity] No rules found in DB or error:', data);
+                }
+            } catch (error) {
+                console.error('[capacity] Failed to load rules from DB:', error);
+                // DBから読み込めない場合はLocalStorageから読み込む
+                const STORE_ID = '***REMOVED-ROTATE-CREDENTIAL***';
+                const capacityRulesKey = `capacity_control_rules_${STORE_ID}`;
+                dbCapacityRules = JSON.parse(localStorage.getItem(capacityRulesKey) || '[]');
+            }
+        }
+        
+        // 指定した日時に予約制限があるかチェック
+        function checkCapacityRuleAtTime(date, time) {
+            // DBから読み込んだルールを優先的に使用
+            const rules = dbCapacityRules.length > 0 ? dbCapacityRules : (() => {
+                const STORE_ID = '***REMOVED-ROTATE-CREDENTIAL***';
+                const capacityRulesKey = `capacity_control_rules_${STORE_ID}`;
+                return JSON.parse(localStorage.getItem(capacityRulesKey) || '[]');
+            })();
+            
+            console.log('[checkCapacityRuleAtTime] Checking for:', date, time);
+            console.log('[checkCapacityRuleAtTime] Available rules:', rules);
+            
+            // 時刻を分単位に変換
+            const [checkHour, checkMin] = time.split(':').map(Number);
+            const checkMinutes = checkHour * 60 + checkMin;
+            
+            // ルールをチェック
+            for (const rule of rules) {
+                if (rule.date !== date) continue;
+                
+                const [startHour, startMin] = (rule.startTime || '00:00').split(':').map(Number);
+                const [endHour, endMin] = (rule.endTime || '23:59').split(':').map(Number);
+                const startMinutes = startHour * 60 + startMin;
+                const endMinutes = endHour * 60 + endMin;
+                
+                console.log(`[checkCapacityRuleAtTime] Rule time range: ${rule.startTime}-${rule.endTime}, check time: ${time}`);
+                console.log(`[checkCapacityRuleAtTime] Minutes comparison: ${checkMinutes} >= ${startMinutes} && ${checkMinutes} <= ${endMinutes}`);
+                
+                // 時間範囲内かチェック（終了時刻を含む）
+                if (checkMinutes >= startMinutes && checkMinutes <= endMinutes) {
+                    console.log('[checkCapacityRuleAtTime] Rule matched:', rule);
+                    return rule;
+                }
+            }
+            
+            return null;
+        }
+        
+        // デバウンス用フラグ
+        let isOpeningModal = false;
+        
+        // 新規予約モーダルで選択された日時の予約制限をチェック
+        function checkCapacityForReservation() {
+            const date = document.getElementById('reservationDate').value;
+            const time = document.getElementById('reservationTime').value;
+            const capacityWarning = document.getElementById('capacityWarning');
+            const capacityInfo = document.getElementById('capacityInfo');
+            const editBtn = document.getElementById('editCapacityBtn');
+            
+            if (!date || !time) {
+                capacityWarning.style.display = 'none';
+                editBtn.style.display = 'none';
+                return;
+            }
+            
+            // 予約制限があるかチェック
+            const capacityRule = checkCapacityRuleAtTime(date, time);
+            
+            if (capacityRule) {
+                // 制限がある場合は警告と編集ボタンを表示
+                capacityWarning.style.display = 'block';
+                editBtn.style.display = 'inline-block';
+                capacityInfo.innerHTML = `現在の制限: 最大${capacityRule.maxGroups || '∞'}組 / 最大${capacityRule.maxPeople || '∞'}人`;
+                
+                // 制限チェック（実際に制限を適用）
+                checkCapacityLimit(date, time);
+            } else {
+                // 制限がない場合は警告と編集ボタンを非表示
+                capacityWarning.style.display = 'none';
+                editBtn.style.display = 'none';
+            }
+        }
+        
+        // 簡単に予約制限を追加
+        window.quickAddCapacityControl = function() {
+            const date = document.getElementById('reservationDate').value;
+            const time = document.getElementById('reservationTime').value;
+            
+            if (!date || !time) {
+                showNotification('日付と時間を選択してください', 'warning');
+                return;
+            }
+            
+            // 既存の制限があるかチェック
+            const existingRule = checkCapacityRuleAtTime(date, time);
+            if (existingRule) {
+                showNotification('この時間帯には既に制限が設定されています', 'info');
+                openCapacityControlFromAddModal();
+                return;
+            }
+            
+            // 簡単に制限を追加（デフォルト値: 最大1組）
+            const STORE_ID = '***REMOVED-ROTATE-CREDENTIAL***';
+            const capacityRulesKey = `capacity_control_rules_${STORE_ID}`;
+            let rules = JSON.parse(localStorage.getItem(capacityRulesKey) || '[]');
+            
+            // 終了時間を自動計算（開始時間から1時間後）
+            const [hour, min] = time.split(':').map(Number);
+            const endHour = hour + 1;
+            const endTime = endHour < 24 ? `${String(endHour).padStart(2, '0')}:${String(min).padStart(2, '0')}` : '23:59';
+            
+            const newRule = {
+                date: date,
+                startTime: time,
+                endTime: endTime,
+                maxGroups: 1,  // デフォルト: 最大1組
+                maxPeople: null,
+                maxPerGroup: null,
+                dateMode: 'single'
+            };
+            
+            rules.push(newRule);
+            localStorage.setItem(capacityRulesKey, JSON.stringify(rules));
+            
+            // サーバーにも保存
+            saveCapacityRulesToServer(date, rules);
+            
+            // UI更新
+            checkCapacityForReservation();
+            window.calendarReady.then(() => displayCapacityControls());
+            
+            showNotification(`${date} ${time}〜${endTime} に予約制限（最大1組）を設定しました`, 'success');
+        }
+        
+        // サーバーに容量制限ルールを保存
+        async function saveCapacityRulesToServer(date, rules) {
+            console.log(`🔧 saveCapacityRulesToServer called for ${date} with ${rules.filter(r => r.date === date).length} rules`);
+            try {
+                // 常に***REMOVED-ROTATE-CREDENTIAL***を使用して重複を防ぐ
+                const storeId = '***REMOVED-ROTATE-CREDENTIAL***';
+                const response = await fetch('/api/capacity-rules', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        storeId: storeId,
+                        date: date,
+                        rules: rules.filter(r => r.date === date) // 指定日のルールのみ送信
+                    })
+                });
+                
+                if (!response.ok) {
+                    console.error('Failed to save capacity rules to server:', response.status);
+                    const errorText = await response.text();
+                    console.error('Error details:', errorText);
+                    showNotification('保存に失敗しました: ' + response.status, 'error');
+                } else {
+                    const result = await response.json();
+                    console.log(`✅ Saved ${rules.filter(r => r.date === date).length} capacity rules for ${date} to server:`, result);
+                    
+                    // DBから最新のルールを再読み込み
+                    await loadCapacityRulesFromDB();
+                    
+                    // カレンダーを更新
+                    if (window.calendar) {
+                        window.calendarReady.then(() => {
+                            displayCapacityControls();
+                            // カレンダーを強制的に再レンダリング
+                            window.calendar.render();
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error saving capacity rules to server:', error);
+                showNotification('保存エラー: ' + error.message, 'error');
+            }
+        }
+        
+        // 予約制限をチェックして、制限を超えている場合は警告
+        async function checkCapacityLimit(date, time) {
+            const capacityRule = checkCapacityRuleAtTime(date, time);
+            if (!capacityRule) return true;
+            
+            // 現在の予約数を取得
+            const currentReservations = await getCurrentReservationCount(date, time);
+            
+            // 制限チェック
+            if (capacityRule.maxGroups && currentReservations.groups >= capacityRule.maxGroups) {
+                showNotification(`この時間帯は既に満席です（最大${capacityRule.maxGroups}組）`, 'error');
+                // 保存ボタンを無効化
+                const submitBtn = document.querySelector('#reservationForm button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = '満席（予約不可）';
+                    submitBtn.style.background = '#dc3545';
+                }
+                return false;
+            }
+            
+            if (capacityRule.maxPeople) {
+                const peopleCount = parseInt(document.getElementById('numberOfPeople').value) || 0;
+                if (currentReservations.totalPeople + peopleCount > capacityRule.maxPeople) {
+                    showNotification(`この時間帯の人数制限を超えています（最大${capacityRule.maxPeople}人）`, 'error');
+                    return false;
+                }
+            }
+            
+            // 制限内の場合は保存ボタンを有効化
+            const submitBtn = document.querySelector('#reservationForm button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '保存';
+                submitBtn.style.background = '#667eea';
+            }
+            
+            return true;
+        }
+        
+        // 現在の予約数を取得
+        async function getCurrentReservationCount(date, time) {
+            // カレンダーから予約を取得
+            if (window.calendar) {
+                const events = window.calendar.getEvents();
+                let groups = 0;
+                let totalPeople = 0;
+                
+                events.forEach(event => {
+                    const eventDate = event.start.toISOString().split('T')[0];
+                    const eventTime = event.start.toTimeString().slice(0, 5);
+                    
+                    if (eventDate === date && eventTime === time && event.extendedProps.status !== 'cancelled') {
+                        groups++;
+                        totalPeople += event.extendedProps.numberOfPeople || 1;
+                    }
+                });
+                
+                return { groups, totalPeople };
+            }
+            
+            return { groups: 0, totalPeople: 0 };
+        }
+        
+        // 新規予約モーダルから予約制限設定モーダルを開く
+        window.openCapacityControlFromAddModal = function() {
+            const date = document.getElementById('reservationDate').value;
+            const time = document.getElementById('reservationTime').value;
+            
+            if (!date || !time) {
+                showNotification('日付と時間を選択してください', 'warning');
+                return;
+            }
+            
+            // 既存の制限を取得
+            const capacityRule = checkCapacityRuleAtTime(date, time);
+            
+            if (capacityRule) {
+                // 既存の制限がある場合は編集モーダルを開く
+                closeModal(); // 新規予約モーダルを閉じる
+                openCapacityEditModalWithReservationOption(capacityRule, date, time);
+            } else {
+                // 制限がない場合は新規作成モーダルを開く
+                closeModal(); // 新規予約モーダルを閉じる
+                openCapacityCreateModalForTime(date, time);
+            }
+        }
+        
+        // 特定の日時で新規予約制限を作成するモーダルを開く
+        window.openCapacityCreateModalForTime = function(date, time) {
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.id = 'capacityCreateModal';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">予約制限設定</h2>
+                        <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+                    </div>
+                    
+                    <!-- 新規予約作成ボタン -->
+                    <div style="margin-bottom: 20px; padding: 15px; background: #e8f4fd; border-radius: 8px; border: 1px solid #2196F3;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: 600; color: #1976D2; margin-bottom: 5px;">
+                                    📅 ${date} ${time} の予約
+                                </div>
+                                <div style="font-size: 14px; color: #555;">
+                                    新しい予約制限を設定できます
+                                </div>
+                            </div>
+                            <button class="action-btn" style="background: #2196F3;" 
+                                    onclick="this.closest('.modal').remove(); openAddModal('${date}', '${time}');">
+                                ➕ 新規予約作成
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <form id="capacityCreateForm" onsubmit="createCapacityRuleWithMode(event); return false;">
+                        <input type="hidden" id="newRuleDate" value="${date}">
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group">
+                                <label class="form-label">⏰ 開始時間</label>
+                                <input type="text" class="form-input" id="newStartTime" value="${time}" 
+                                       pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" 
+                                       placeholder="18:00" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">⏰ 終了時間</label>
+                                <input type="text" class="form-input" id="newEndTime" value="21:00" 
+                                       pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" 
+                                       placeholder="21:00" required>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                            <div class="form-group">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" id="newUseMaxGroups" checked>
+                                    <label class="form-label" style="margin: 0;">👥 最大組数</label>
+                                </div>
+                                <input type="number" class="form-input" id="newMaxGroups" value="1" min="1">
+                            </div>
+                            <div class="form-group">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" id="newUseMaxPeople">
+                                    <label class="form-label" style="margin: 0;">👤 最大人数</label>
+                                </div>
+                                <input type="number" class="form-input" id="newMaxPeople" min="1" disabled>
+                            </div>
+                            <div class="form-group">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" id="newUseMaxPerGroup">
+                                    <label class="form-label" style="margin: 0;">🪑 1組最大</label>
+                                </div>
+                                <input type="number" class="form-input" id="newMaxPerGroup" min="1" disabled>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="action-btn secondary" onclick="this.closest('.modal').remove()">キャンセル</button>
+                            <button type="submit" class="action-btn" style="background: #667eea;">保存</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // チェックボックスのイベントリスナーを追加
+            document.getElementById('newUseMaxGroups').addEventListener('change', function() {
+                document.getElementById('newMaxGroups').disabled = !this.checked;
+            });
+            document.getElementById('newUseMaxPeople').addEventListener('change', function() {
+                document.getElementById('newMaxPeople').disabled = !this.checked;
+            });
+            document.getElementById('newUseMaxPerGroup').addEventListener('change', function() {
+                document.getElementById('newMaxPerGroup').disabled = !this.checked;
+            });
+        }
+        
+        // 予約制限の編集モーダル（新規予約ボタン付き）
+        function openCapacityEditModalWithReservationOption(rule, date, time) {
+            // デバウンス処理
+            if (isOpeningModal) {
+                console.log('Modal is already opening, skipping duplicate call');
+                return;
+            }
+            
+            // 既存のモーダルが開いている場合は何もしない
+            const existingModal = document.getElementById('capacityEditModal');
+            if (existingModal) {
+                console.log('Modal already exists, skipping');
+                return;
+            }
+            
+            isOpeningModal = true;
+            setTimeout(() => { isOpeningModal = false; }, 500); // 500ms後にリセット
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.id = 'capacityEditModal';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">予約制限設定</h2>
+                        <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+                    </div>
+                    
+                    <!-- 新規予約作成ボタン -->
+                    <div style="margin-bottom: 20px; padding: 15px; background: #e8f4fd; border-radius: 8px; border: 1px solid #2196F3;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: 600; color: #1976D2; margin-bottom: 5px;">
+                                    📅 ${date} ${time} の予約
+                                </div>
+                                <div style="font-size: 14px; color: #555;">
+                                    現在の制限: 最大${rule.maxGroups || '∞'}組 / 最大${rule.maxPeople || '∞'}人
+                                </div>
+                            </div>
+                            <button class="action-btn" style="background: #2196F3;" 
+                                    onclick="this.closest('.modal').remove(); openAddModal('${date}', '${time}');">
+                                ➕ 新規予約作成
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <form id="capacityEditForm" onsubmit="updateCapacityRuleWithMode(event, '${rule.date || date}', '${rule.startTime || time}', '${rule.endTime || (rule.endTime || '23:59')}'); return false;">
+                        <!-- 以下は既存のフォーム内容 -->
+                        <div style="border-top: 1px solid #e0e0e0; padding-top: 20px;">
+                            <h3 style="font-size: 16px; margin-bottom: 15px;">制限設定の編集</h3>
+                        </div>
+                        
+                        <!-- 適用範囲選択 -->
+                        <div style="display: flex; gap: 15px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="editDateMode" value="single" checked onchange="changeEditDateMode('single')">
+                                <span style="font-weight: 500;">この日のみ</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="editDateMode" value="range" onchange="changeEditDateMode('range')">
+                                <span style="font-weight: 500;">期間で適用</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="editDateMode" value="weekly" onchange="changeEditDateMode('weekly')">
+                                <span style="font-weight: 500;">同じ曜日に適用</span>
+                            </label>
+                        </div>
+                        
+                        <!-- 単日（デフォルト） -->
+                        <div id="editSingleSection" class="form-group">
+                            <label class="form-label">📅 日付</label>
+                            <input type="date" class="form-input" id="editDate" value="${rule.date || date}" onchange="updateWeekdayLabel(this.value)">
+                        </div>
+                        
+                        <!-- 期間指定（非表示） -->
+                        <div id="editRangeSection" style="display: none;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                <div class="form-group">
+                                    <label class="form-label">📅 開始日</label>
+                                    <input type="date" class="form-input" id="editStartDate" value="${rule.date}">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">📅 終了日</label>
+                                    <input type="date" class="form-input" id="editEndDate" value="${rule.date}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 曜日指定（非表示） -->
+                        <div id="editWeeklySection" style="display: none;">
+                            <div class="form-group">
+                                <label class="form-label">🗓️ 適用期間</label>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <input type="date" class="form-input" id="editWeeklyStart" value="${rule.date}">
+                                    <input type="date" class="form-input" id="editWeeklyEnd" value="${(() => {
+                                        const d = new Date(rule.date);
+                                        d.setMonth(d.getMonth() + 3);
+                                        return d.toISOString().split('T')[0];
+                                    })()}">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" id="weeklyDayLabel">同じ曜日（${['日','月','火','水','木','金','土'][new Date(rule.date).getDay()]}曜日）に適用</label>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group">
+                                <label class="form-label">⏰ 開始時間</label>
+                                <input type="text" class="form-input" id="editStartTime" value="${rule.startTime}" 
+                                       pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" 
+                                       placeholder="18:00" required
+                                       onchange="validateTimeRange('edit')">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">⏰ 終了時間</label>
+                                <input type="text" class="form-input" id="editEndTime" value="${rule.endTime}" 
+                                       pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" 
+                                       placeholder="21:00" required
+                                       onchange="validateTimeRange('edit')">
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                            <div class="form-group" style="position: relative;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" id="useMaxGroups" ${rule.maxGroups !== null ? 'checked' : ''} onchange="toggleCapacityField('editMaxGroups', this.checked)" style="cursor: pointer;">
+                                    <label class="form-label" style="margin: 0; cursor: pointer;" for="useMaxGroups">👥 最大組数</label>
+                                </div>
+                                <input type="number" class="form-input" id="editMaxGroups" value="${rule.maxGroups || ''}" min="1" placeholder="制限なし" ${rule.maxGroups === null ? 'disabled' : ''}>
+                            </div>
+                            <div class="form-group" style="position: relative;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" id="useMaxPeople" ${rule.maxPeople !== null ? 'checked' : ''} onchange="toggleCapacityField('editMaxPeople', this.checked)" style="cursor: pointer;">
+                                    <label class="form-label" style="margin: 0; cursor: pointer;" for="useMaxPeople">👤 最大人数</label>
+                                </div>
+                                <input type="number" class="form-input" id="editMaxPeople" value="${rule.maxPeople || ''}" min="1" placeholder="制限なし" ${rule.maxPeople === null ? 'disabled' : ''}>
+                            </div>
+                            <div class="form-group" style="position: relative;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" id="useMaxPerGroup" ${rule.maxPerGroup !== null ? 'checked' : ''} onchange="toggleCapacityField('editMaxPerGroup', this.checked)" style="cursor: pointer;">
+                                    <label class="form-label" style="margin: 0; cursor: pointer;" for="useMaxPerGroup">🪑 1組最大</label>
+                                </div>
+                                <input type="number" class="form-input" id="editMaxPerGroup" value="${rule.maxPerGroup || ''}" min="1" placeholder="制限なし" ${rule.maxPerGroup === null ? 'disabled' : ''}>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="action-btn secondary" onclick="deleteCapacityRule('${rule.date}', '${rule.startTime}', '${rule.endTime}')">削除</button>
+                            <button type="button" class="action-btn secondary" onclick="this.closest('.modal').remove()">キャンセル</button>
+                            <button type="submit" class="action-btn" style="background: #667eea;">保存</button>
                         </div>
                     </form>
                 </div>
@@ -2009,7 +3254,7 @@
                         <h2 class="modal-title">予約制限設定の編集</h2>
                         <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
                     </div>
-                    <form id="capacityEditForm" onsubmit="updateCapacityRuleWithMode(event, '${rule.date}'); return false;">
+                    <form id="capacityEditForm" onsubmit="updateCapacityRuleWithMode(event, '${rule.date}', '${rule.startTime}', '${rule.endTime}'); return false;">
                         <!-- 適用範囲選択 -->
                         <div style="display: flex; gap: 15px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
@@ -2084,24 +3329,24 @@
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
                             <div class="form-group" style="position: relative;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <input type="checkbox" id="useMaxGroups" checked onchange="toggleCapacityField('editMaxGroups', this.checked)" style="cursor: pointer;">
+                                    <input type="checkbox" id="useMaxGroups" ${rule.maxGroups !== null ? 'checked' : ''} onchange="toggleCapacityField('editMaxGroups', this.checked)" style="cursor: pointer;">
                                     <label class="form-label" style="margin: 0; cursor: pointer;" for="useMaxGroups">👥 最大組数</label>
                                 </div>
-                                <input type="number" class="form-input" id="editMaxGroups" value="${rule.maxGroups || ''}" min="1" placeholder="制限なし">
+                                <input type="number" class="form-input" id="editMaxGroups" value="${rule.maxGroups || ''}" min="1" placeholder="制限なし" ${rule.maxGroups === null ? 'disabled' : ''}>
                             </div>
                             <div class="form-group" style="position: relative;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <input type="checkbox" id="useMaxPeople" checked onchange="toggleCapacityField('editMaxPeople', this.checked)" style="cursor: pointer;">
+                                    <input type="checkbox" id="useMaxPeople" ${rule.maxPeople !== null ? 'checked' : ''} onchange="toggleCapacityField('editMaxPeople', this.checked)" style="cursor: pointer;">
                                     <label class="form-label" style="margin: 0; cursor: pointer;" for="useMaxPeople">👤 最大人数</label>
                                 </div>
-                                <input type="number" class="form-input" id="editMaxPeople" value="${rule.maxPeople || ''}" min="1" placeholder="制限なし">
+                                <input type="number" class="form-input" id="editMaxPeople" value="${rule.maxPeople || ''}" min="1" placeholder="制限なし" ${rule.maxPeople === null ? 'disabled' : ''}>
                             </div>
                             <div class="form-group" style="position: relative;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <input type="checkbox" id="useMaxPerGroup" ${rule.maxPerGroup ? 'checked' : ''} onchange="toggleCapacityField('editMaxPerGroup', this.checked)" style="cursor: pointer;">
+                                    <input type="checkbox" id="useMaxPerGroup" ${rule.maxPerGroup !== null ? 'checked' : ''} onchange="toggleCapacityField('editMaxPerGroup', this.checked)" style="cursor: pointer;">
                                     <label class="form-label" style="margin: 0; cursor: pointer;" for="useMaxPerGroup">🪑 1組最大</label>
                                 </div>
-                                <input type="number" class="form-input" id="editMaxPerGroup" value="${rule.maxPerGroup || ''}" min="1" placeholder="制限なし" ${!rule.maxPerGroup ? 'disabled style="opacity: 0.5;"' : ''}>
+                                <input type="number" class="form-input" id="editMaxPerGroup" value="${rule.maxPerGroup || ''}" min="1" placeholder="制限なし" ${rule.maxPerGroup === null ? 'disabled' : ''}>
                             </div>
                         </div>
                         
@@ -2124,7 +3369,12 @@
                 field.style.opacity = enabled ? '1' : '0.5';
                 if (!enabled) {
                     field.removeAttribute('required');
-                    field.value = '';
+                    // 値をクリアしない - 既存の値を保持
+                } else {
+                    // 有効にする時にプレースホルダーをクリア（デフォルト値がある場合）
+                    if (field.placeholder && !field.value) {
+                        field.value = '1'; // デフォルト値を設定
+                    }
                 }
             }
         }
@@ -2178,7 +3428,7 @@
         }
         
         // 日付モード切り替え（編集用）：編集時の適用範囲を切り替え
-        function changeEditDateMode(mode) {
+        window.changeEditDateMode = function(mode) {
             const single = document.getElementById('editSingleSection');
             const range = document.getElementById('editRangeSection');
             const weekly = document.getElementById('editWeeklySection');
@@ -2245,6 +3495,13 @@
             const maxPeople = useMaxPeople ? parseInt(document.getElementById('newMaxPeople').value) : null;
             const maxPerGroup = useMaxPerGroup ? parseInt(document.getElementById('newMaxPerGroup').value) : null;
             
+            // デバッグ用ログ
+            console.log('[createCapacityRule] Debug info:');
+            console.log('  useMaxGroups:', useMaxGroups, 'maxGroups:', maxGroups);
+            console.log('  useMaxPeople:', useMaxPeople, 'maxPeople:', maxPeople);
+            console.log('  useMaxPerGroup:', useMaxPerGroup, 'maxPerGroup:', maxPerGroup);
+            console.log('  maxPeople field value:', document.getElementById('newMaxPeople')?.value);
+            
             let rules = [];
             
             if (dateMode === 'single') {
@@ -2304,7 +3561,7 @@
             
             // LocalStorageに保存
             // @レビュー: getStoreId()を通して店舗IDを取得
-            const STORE_ID = StoreConfig.getStoreId();
+            const STORE_ID = '***REMOVED-ROTATE-CREDENTIAL***';
             const storageKey = `capacity_control_rules_${STORE_ID}`;
             let existingRules = JSON.parse(localStorage.getItem(storageKey) || '[]');
             
@@ -2329,18 +3586,19 @@
             document.getElementById('capacityCreateModal').remove();
             
             // カレンダーを更新
-            displayCapacityControls();
+            window.calendarReady.then(() => displayCapacityControls());
             
             showNotification(`${rules.length}件の予約制限を作成しました`, 'success');
         }
         
         // 予約制限ルールを更新（モード対応）：既存ルールを編集モードに応じて更新
-        function updateCapacityRuleWithMode(event, originalDate) {
+        window.updateCapacityRuleWithMode = function(event, originalDate, originalStartTime, originalEndTime) {
             event.preventDefault();
             
-            // 店舗ID取得（URLパラメータまたはデフォルト）
-        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
-            let rules = JSON.parse(localStorage.getItem(`capacity_control_rules_${STORE_ID}`) || '[]');
+            // 店舗IDを取得
+            const STORE_ID = '***REMOVED-ROTATE-CREDENTIAL***';
+            const capacityRulesKey = `capacity_control_rules_${STORE_ID}`;
+            let rules = JSON.parse(localStorage.getItem(capacityRulesKey) || '[]');
             
             const dateMode = document.querySelector('input[name="editDateMode"]:checked').value;
             const startTime = document.getElementById('editStartTime').value;
@@ -2369,9 +3627,14 @@
             const maxPeople = useMaxPeople ? parseInt(document.getElementById('editMaxPeople').value) : null;
             const maxPerGroup = useMaxPerGroup ? parseInt(document.getElementById('editMaxPerGroup').value) : null;
             
-            // 元のルールを削除
-            const originalStartTime = rules.find(r => r.date === originalDate)?.startTime;
-            const originalEndTime = rules.find(r => r.date === originalDate)?.endTime;
+            // デバッグ用ログ
+            console.log('[updateCapacityRuleWithMode] Debug info:');
+            console.log('  useMaxGroups:', useMaxGroups, 'maxGroups:', maxGroups);
+            console.log('  useMaxPeople:', useMaxPeople, 'maxPeople:', maxPeople);
+            console.log('  useMaxPerGroup:', useMaxPerGroup, 'maxPerGroup:', maxPerGroup);
+            console.log('  maxPeople field value:', document.getElementById('editMaxPeople').value);
+            
+            // 元のルールを削除（引数から受け取った元の時間情報を使用）
             rules = rules.filter(r => !(r.date === originalDate && r.startTime === originalStartTime && r.endTime === originalEndTime));
             
             // 新しいルールを追加
@@ -2441,14 +3704,23 @@
             });
             
             // LocalStorageに保存
-            // @レビュー: getCapacityRulesKey()を通して店舗固有のキーを使用
-            localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(rules));
+            localStorage.setItem(capacityRulesKey, JSON.stringify(rules));
+            
+            // サーバーにも保存
+            saveCapacityRulesToServer(originalDate, rules);
             
             // モーダルを閉じる
             document.getElementById('capacityEditModal').remove();
             
-            // カレンダーを更新
-            displayCapacityControls();
+            // カレンダーを更新（DBから最新データを再読み込み）
+            window.calendarReady.then(async () => {
+                await loadCapacityRulesFromDB();
+                displayCapacityControls();
+                // カレンダーを強制的に再レンダリング
+                if (window.calendar) {
+                    window.calendar.render();
+                }
+            });
             
             const message = dateMode === 'single' ? '予約制限を更新しました' :
                           dateMode === 'range' ? `${newRules.length}日分の予約制限を更新しました` :
@@ -2462,14 +3734,15 @@
         }
         
         // 予約制限ルールを削除
-        function deleteCapacityRule(date, startTime, endTime) {
+        window.deleteCapacityRule = async function(date, startTime, endTime) {
             if (!confirm('この予約制限設定を削除しますか？')) {
                 return;
             }
             
-            // 店舗ID取得（URLパラメータまたはデフォルト）
-        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
-            const rules = JSON.parse(localStorage.getItem(`capacity_control_rules_${STORE_ID}`) || '[]');
+            // 店舗IDを取得（常に***REMOVED-ROTATE-CREDENTIAL***を使用して重複を防ぐ）
+            const STORE_ID = '***REMOVED-ROTATE-CREDENTIAL***';
+            const capacityRulesKey = `capacity_control_rules_${STORE_ID}`;
+            const rules = JSON.parse(localStorage.getItem(capacityRulesKey) || '[]');
             
             // 該当するルールを削除
             const updatedRules = rules.filter(rule => {
@@ -2477,19 +3750,25 @@
             });
             
             // LocalStorageに保存
-            // @レビュー: getCapacityRulesKey()を通して店舗固有のキーを使用
-            localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(updatedRules));
+            localStorage.setItem(capacityRulesKey, JSON.stringify(updatedRules));
+            
+            // サーバーに削除を反映（該当日付のルールを更新）
+            await saveCapacityRulesToServer(date, updatedRules);
             
             // モーダルを閉じる
-            document.getElementById('capacityEditModal').remove();
+            const modal = document.getElementById('capacityEditModal');
+            if (modal) modal.remove();
+            
+            // DBから最新のルールを再読み込み
+            await loadCapacityRulesFromDB();
             
             // カレンダーを更新
-            displayCapacityControls();
+            window.calendarReady.then(() => displayCapacityControls());
             showNotification('予約制限設定を削除しました', 'success');
         }
         
-        // 通知表示（グローバルスコープに配置）
-        window.showNotification = function(message, type = 'info') {
+        // 通知表示
+        function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
             notification.style.cssText = `
                 position: fixed;
@@ -2554,37 +3833,135 @@
             return new Date(y, m - 1, d, H, Min, 0, 0); // ローカル確定
         }
         
-        // 予約制限設定を表示（batchRenderingで一括反映）
-        function displayCapacityControls() {
-            if (!calendar) {
-                console.warn('Calendar not initialized yet');
+        // 直接calendar objectを使用する版
+        async function displayCapacityControlsDirect(cal) {
+            console.log('🔄 displayCapacityControlsDirect function called with calendar:', !!cal);
+            if (!cal) {
+                console.log('❌ Calendar not provided, returning');
                 return;
             }
-            
-            // 店舗ID取得（URLパラメータまたはデフォルト）
-        const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || '***REMOVED-ROTATE-CREDENTIAL***';
-            const raw = localStorage.getItem(`capacity_control_rules_${STORE_ID}`);
-            const controls = JSON.parse(raw || '[]');
-            console.log('displayCapacityControls called with controls:', controls);
+            return await displayCapacityControlsCore(cal);
+        }
+
+        // 予約制限設定を表示（batchRenderingで一括反映）
+        async function displayCapacityControls(opts = {}) {
+            console.log('🔄 displayCapacityControls function called with opts:', opts);
+            try {
+                // ★ 初期化完了を待つ（これで「not initialized」は出なくなる）
+                const cal = await window.calendarReady;
+                console.log('📅 Calendar ready:', !!cal);
+                if (!cal) {
+                    console.log('❌ Calendar not available, returning');
+                    return;
+                }
+                return await displayCapacityControlsCore(cal);
+            } catch (e) {
+                console.error('❌ [capacity:init] Error:', e);
+                const el = document.getElementById('capacity-controls');
+                if (el) {
+                    el.innerHTML = `<div class="error">容量制御の初期化に失敗: ${e.message}</div>`;
+                }
+            }
+        }
+
+        // 共通の実行ロジック
+        async function displayCapacityControlsCore(cal) {
+            console.log('🔧 displayCapacityControlsCore starting with calendar:', !!cal);
+                
+                // capacity-control-enhanced.htmlから保存されたルールを読み込み
+                const STORE_ID = 'store-a';  // 統一されたstore_id
+                const capacityRulesKey = `capacity_control_rules_${STORE_ID}`;
+                
+                let controls = [];
+                
+                // DBから読み込んだルールを優先的に使用
+                if (dbCapacityRules && dbCapacityRules.length > 0) {
+                    controls = dbCapacityRules;
+                    console.log('Using rules from DB:', controls);
+                } else {
+                    // ローカルストレージから直接読み込み
+                    let raw = localStorage.getItem(capacityRulesKey);
+                    console.log('Reading from localStorage key:', capacityRulesKey);
+                    console.log('Raw data from localStorage:', raw);
+                    
+                    if (!raw) {
+                        // 旧形式からの移行チェック
+                        const legacyKey = `capacity_control_rules:${STORE_ID}`;
+                        raw = localStorage.getItem(legacyKey);
+                        console.log('Checking legacy key:', legacyKey, 'value:', raw);
+                        if (raw) {
+                            try { localStorage.setItem(capacityRulesKey, raw); } catch(_) {}
+                        }
+                    }
+                    
+                    if (raw) {
+                        try {
+                            controls = JSON.parse(raw);
+                            console.log('Parsed controls from localStorage:', controls);
+                            console.log('Controls array length:', controls.length);
+                            if (controls.length > 0) {
+                                console.log('First control example:', controls[0]);
+                            }
+                        } catch (error) {
+                            console.error('Error parsing controls from localStorage:', error);
+                            controls = [];
+                        }
+                    } else {
+                        console.log('No data found in localStorage');
+                    }
+                }
+                
+                // APIからも取得を試みる（フォールバック）
+                if (controls.length === 0) {
+                    try {
+                        console.log('Trying to fetch from API...');
+                        const response = await fetch(`/api/admin?action=capacity&store_id=${STORE_ID}`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log('API response:', data);
+                            if (data.settings && data.settings.rules) {
+                                controls = data.settings.rules;
+                                localStorage.setItem(capacityRulesKey, JSON.stringify(controls));
+                                console.log('Updated controls from API:', controls);
+                            }
+                        }
+                    } catch (error) {
+                        console.log('APIからの取得エラー:', error);
+                    }
+                }
+                
+                console.log('Final controls to process:', controls);
             
             if (controls.length === 0) {
                 console.log('No capacity control rules found');
                 return;
             }
             
+            console.log('Processing', controls.length, 'capacity control rules...');
+            
             // batchRenderingで1回のレイアウトにまとめる
-            calendar.batchRendering(() => {
-                removeCapacityControlBgEvents(calendar);
+            cal.batchRendering(() => {
+                console.log('Starting batchRendering...');
+                removeCapacityControlBgEvents(cal);
+                console.log('Removed existing capacity control events');
                 
                 const toEvents = (rule) => {
-                    if (!rule?.date) return [];
+                    console.log('Processing rule:', rule);
+                    if (!rule?.date) {
+                        console.log('Rule has no date, skipping');
+                        return [];
+                    }
                     const st = (rule.startTime || '00:00').padStart(5, '0');
                     const et = (rule.endTime || '23:59').padStart(5, '0');
+                    console.log('Time range:', st, '-', et);
                     
                     const start = makeLocalDate(rule.date, st);
                     const end = makeLocalDate(rule.date, et);
+                    console.log('Date range:', start, '-', end);
                     
-                    const bgColor = getControlColor(rule);
+                    // capacity-control-enhanced.htmlのルール形式に対応
+                    const bgColor = getCapacityRuleColor(rule);
+                    console.log('Background color:', bgColor);
                     const mk = (id, s, e) => ({
                         id,
                         start: s,
@@ -2592,13 +3969,16 @@
                         display: 'background',
                         allDay: false,
                         backgroundColor: bgColor,
-                        color: bgColor,  // FullCalendarの互換性のため
+                        color: bgColor,
                         classNames: ['capacity-control'],
                         extendedProps: { 
                             __capacityControl: true, 
                             rule, 
                             timeRange: `${st}-${et}`,
-                            cssVars: { '--fc-bg-event-color': bgColor }
+                            cssVars: { '--fc-bg-event-color': bgColor },
+                            maxGroups: rule.maxGroups,
+                            maxPeople: rule.maxPeople,
+                            maxPerGroup: rule.maxPerGroup
                         }
                     });
                     
@@ -2627,29 +4007,24 @@
                 // まとめて追加（配列もOK）
                 const events = controls.flatMap(toEvents);
                 console.log('Events to add:', events.length);
+                console.log('Generated events:', events);
                 
                 if (events.length > 0) {
                     // イベントを1つずつ追加してログ出力
                     events.forEach(event => {
-                        // null/undefinedチェック
-                        if (!event || !event.start || !event.end) {
-                            console.warn('Invalid background event:', event);
-                            return;
-                        }
-                        
                         console.log('Adding background event:', {
                             id: event.id,
-                            start: event.start instanceof Date ? event.start.toISOString() : event.start,
-                            end: event.end instanceof Date ? event.end.toISOString() : event.end,
+                            start: event.start.toISOString(),
+                            end: event.end.toISOString(),
                             color: event.backgroundColor,
                             display: event.display
                         });
-                        calendar.addEvent(event);
+                        cal.addEvent(event);
                     });
                     
                     // 追加後の確認
                     setTimeout(() => {
-                        const bgEvents = calendar.getEvents().filter(e => 
+                        const bgEvents = cal.getEvents().filter(e => 
                             e.display === 'background' || 
                             (e.extendedProps && e.extendedProps.__capacityControl)
                         );
@@ -2661,10 +4036,10 @@
                         })));
                     }, 100);
                 }
+                console.log('✅ displayCapacityControlsCore completed successfully');
             });
         }
         
-        // 制限設定に応じた色を取得（より濃い色に変更）
         function getControlColor(rule) {
             // 制限が厳しいほど濃い色にする
             const g = rule?.maxGroups ?? Infinity;
@@ -2717,48 +4092,13 @@
             } 
             // 通常の予約の場合
             else {
-                // 再発防止：イベントIDの確実な取得
-                const eventId = event.id || event.extendedProps?.originalData?.id || event.extendedProps?.id;
-                
-                if (!eventId) {
-                    console.error('Failed to get event ID from:', event);
-                    showNotification('予約IDが取得できません', 'error');
-                    return;
-                }
-                
-                // イベントから予約データを構築
-                const reservation = {
-                    id: eventId,  // 確実に取得したIDを使用
-                    customerName: event.title ? event.title.split(' ')[0] : '',
-                    date: event.start ? event.start.toISOString().split('T')[0] : '',
-                    time: event.start ? event.start.toTimeString().substring(0, 5) : '',
-                    numberOfPeople: event.extendedProps?.people || event.extendedProps?.originalData?.people || 1,
-                    phoneNumber: event.extendedProps?.originalData?.phone || event.extendedProps?.phone || '',
-                    status: event.extendedProps?.status || event.extendedProps?.originalData?.status || 'confirmed',
-                    ...event.extendedProps?.originalData  // 元のデータを展開
-                };
-                
-                console.log('Opening detail modal for reservation:', {
-                    id: reservation.id,
-                    eventId: event.id,
-                    extendedPropsId: event.extendedProps?.id,
-                    originalDataId: event.extendedProps?.originalData?.id
-                });
-                
-                openDetailModal(reservation);
+                const props = event.extendedProps;
+                openDetailModal(props);
             }
         }
         
         // 詳細・編集モーダル
         function openDetailModal(reservation) {
-            // IDが無い場合は警告
-            if (!reservation.id) {
-                console.error('Reservation ID is missing:', reservation);
-                showNotification('予約IDが取得できません', 'error');
-                return;
-            }
-            
-            console.log('Opening detail modal with reservation ID:', reservation.id);
             const modal = document.createElement('div');
             modal.className = 'modal active';
             modal.innerHTML = `
@@ -2803,8 +4143,8 @@
                     </div>
                     <div class="form-actions">
                         <button class="action-btn secondary" onclick="this.closest('.modal').remove()">閉じる</button>
-                        <button class="action-btn" style="background: #fdcb6e; border-color: #fdcb6e;" onclick="editReservation('${reservation.id || ''}')">編集</button>
-                        <button class="action-btn" style="background: #e74c3c; border-color: #e74c3c;" onclick="deleteReservation('${reservation.id || ''}')">削除</button>
+                        <button class="action-btn" style="background: #fdcb6e; border-color: #fdcb6e;" onclick="editReservation('${reservation.id}')">編集</button>
+                        <button class="action-btn" style="background: #e74c3c; border-color: #e74c3c;" onclick="deleteReservation('${reservation.id}')">削除</button>
                     </div>
                 </div>
             `;
@@ -2858,18 +4198,15 @@
             }
         }
         
-        // 予約編集（グローバルスコープに配置）
-        window.editReservation = function(id) {
-            console.log('Editing reservation:', id);
-            
-            // 既存のモーダルを閉じる
-            const existingModal = document.querySelector('.modal');
-            if (existingModal) existingModal.remove();
+        // 予約編集
+        function editReservation(id) {
+            // 既存のモーダルを閉じる（addModalは残す）
+            const modals = Array.from(document.querySelectorAll('.modal'));
+            modals.forEach(m => { if (m.id !== 'addModal') try { m.remove(); } catch(_) {} });
             
             // 予約データを取得
-            const event = calendar ? calendar.getEventById(id) : null;
+            const event = calendar.getEventById(id);
             if (!event) {
-                console.error('Reservation not found in calendar:', id);
                 showNotification('予約が見つかりません', 'error');
                 return;
             }
@@ -2902,7 +4239,18 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">👥 人数</label>
-                            <input type="number" class="form-input" id="editNumberOfPeople" value="${reservation.numberOfPeople}" min="1" required>
+                            <select class="form-input" id="editNumberOfPeople" required>
+                                <option value="1" ${reservation.numberOfPeople == 1 ? 'selected' : ''}>1名</option>
+                                <option value="2" ${reservation.numberOfPeople == 2 ? 'selected' : ''}>2名</option>
+                                <option value="3" ${reservation.numberOfPeople == 3 ? 'selected' : ''}>3名</option>
+                                <option value="4" ${reservation.numberOfPeople == 4 ? 'selected' : ''}>4名</option>
+                                <option value="5" ${reservation.numberOfPeople == 5 ? 'selected' : ''}>5名</option>
+                                <option value="6" ${reservation.numberOfPeople == 6 ? 'selected' : ''}>6名</option>
+                                <option value="7" ${reservation.numberOfPeople == 7 ? 'selected' : ''}>7名</option>
+                                <option value="8" ${reservation.numberOfPeople == 8 ? 'selected' : ''}>8名</option>
+                                <option value="9" ${reservation.numberOfPeople == 9 ? 'selected' : ''}>9名</option>
+                                <option value="10" ${reservation.numberOfPeople == 10 ? 'selected' : ''}>10名</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label class="form-label">📱 電話番号</label>
@@ -2965,9 +4313,9 @@
             };
             
             try {
-                // APIへの更新リクエスト（実装されている場合）
+                // APIへの更新リクエスト（POSTメソッドを使用）
                 const response = await fetch(`/api/admin?action=update&id=${id}`, {
-                    method: 'PUT',
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
@@ -3015,55 +4363,69 @@
             }
         }
         
-        // 予約削除（グローバルスコープに配置）
-        window.deleteReservation = async function(id) {
-            // 再発防止：IDの存在と型チェック
-            if (!id || id === 'undefined' || id === 'null' || id === '') {
-                console.error('Invalid reservation ID for deletion:', id);
-                showNotification('削除エラー: 予約IDが無効です', 'error');
-                return;
-            }
-            
+        // 予約削除（両対応：/admin?action=delete と /admin/delete/:id）
+        async function deleteReservation(id) {
             if (!confirm('この予約を削除してもよろしいですか？')) return;
             
-            console.log('Deleting reservation:', id, 'Type:', typeof id);
-            
             try {
-                const response = await fetch(`/api/admin?action=delete&id=${id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
+                const base = (window.STORE_CONFIG?.apiBase || '/api');
+                // 実データのstore_idで削除する（fallback取得でwindow.STORE_IDと異なる場合がある）
+                const evForSid = window.calendar?.getEventById?.(id);
+                const sid = (evForSid && evForSid.extendedProps && evForSid.extendedProps.store_id) || window.STORE_ID;
                 
-                console.log('Delete response status:', response.status);
-                const data = await response.json();
-                console.log('Delete response data:', data);
+                // 1) クエリ版を試す
+                let data;
+                try {
+                    const url1 = `${base}/admin?action=delete&id=${encodeURIComponent(id)}&store_id=${encodeURIComponent(sid)}`;
+                    data = await apiFetch(url1, { method: 'DELETE' });
+                    if (!isOk(data)) throw new Error('Not OK');
+                } catch(e) {
+                    // 2) REST版を試す
+                    const url2 = `${base}/admin/delete/${encodeURIComponent(id)}?store_id=${encodeURIComponent(sid)}`;
+                    data = await apiFetch(url2, { method: 'DELETE' });
+                }
                 
-                if (data.success || response.ok) {
-                    // モーダルが存在する場合は削除
-                    const modal = document.querySelector('.modal');
-                    if (modal) modal.remove();
-                    
-                    // カレンダーから予約を削除
-                    if (calendar) {
-                        const event = calendar.getEventById(id);
-                        if (event) event.remove();
+                if (isOk(data)) {
+                    // モーダルを閉じる（addModalは閉じるだけでDOMからは削除しない）
+                    const addModal = document.getElementById('addModal');
+                    if (addModal && addModal.classList.contains('active')) {
+                        try { closeModal(); } catch(_) {}
+                    } else {
+                        // 詳細表示など他のモーダルのみ削除
+                        document.querySelectorAll('.modal').forEach(m => { if (m.id !== 'addModal') try { m.remove(); } catch(_) {} });
                     }
                     
-                    // 予約一覧を再読み込み
-                    await loadReservations();
+                    // カレンダーから該当イベントのみ削除（全削除を防ぐ）
+                    if (window.calendar) {
+                        const event = window.calendar.getEventById(id);
+                        if (event) {
+                            event.remove();
+                            console.log(`✅ イベント ${id} を削除しました`);
+                        }
+                    }
                     
-                    // 成功通知
+                    // 一定時間後に予約データを再取得（全データが消えるのを防ぐ）
+                    setTimeout(async () => {
+                        console.log('📅 削除後のデータ再取得');
+                        await loadReservations();
+                        if (window.calendar) {
+                            window.calendar.refetchEvents();
+                        }
+                    }, 500);
+                    
                     showNotification('予約を削除しました', 'success');
                 } else {
-                    showNotification(`削除に失敗しました: ${data.error || 'エラー'}`, 'error');
+                    showNotification('削除に失敗しました', 'error');
                 }
             } catch (error) {
                 console.error('削除エラー:', error);
-                showNotification('削除に失敗しました: ネットワークエラー', 'error');
+                showNotification('削除に失敗しました', 'error');
             }
         }
+        
+        
+        // 初回呼び出しは準備完了後に
+        window.calendarReady.then(() => displayCapacityControls());
     </script>
 </body>
 </html>

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>統一サイドバー実装</title>
+    
+    <!-- ==========================================
+         統一サイドバーCSS（競合回避版）
+         ========================================== -->
+    <style>
+        /* リセット＆基本スタイル */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        
+        /* ==========================================
+           統一サイドバー (.c-* 名前空間)
+           ========================================== -->
+        
+        /* サイドバー本体 */
+        .c-sidebar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 300px !important;
+            height: 100vh !important;
+            background: #ffffff !important;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15) !important;
+            transform: translateX(-100%);
+            transition: transform 0.25s ease;
+            z-index: 4000 !important;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        .c-sidebar.is-open {
+            transform: translateX(0) !important;
+        }
+        
+        /* オーバーレイ */
+        .c-overlay {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            background: rgba(0, 0, 0, 0.4) !important;
+            z-index: 3990 !important;
+            transition: opacity 0.25s ease;
+            cursor: pointer;
+        }
+        
+        .c-overlay[hidden] {
+            display: none !important;
+        }
+        
+        /* ハンバーガーボタン */
+        .js-hamburger {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            width: 48px;
+            height: 48px;
+            background: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 3980;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #333;
+            transition: all 0.2s ease;
+        }
+        
+        .js-hamburger:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .js-hamburger:active {
+            transform: scale(0.98);
+        }
+        
+        /* サイドバー内部構造 */
+        .c-sidebar__header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .c-sidebar__title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin: 0;
+        }
+        
+        .c-sidebar__close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 8px;
+            color: #666;
+            transition: color 0.2s;
+        }
+        
+        .c-sidebar__close:hover {
+            color: #333;
+        }
+        
+        .c-sidebar__content {
+            padding: 20px;
+        }
+        
+        .c-sidebar__menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .c-sidebar__menu-item {
+            margin-bottom: 4px;
+        }
+        
+        .c-sidebar__menu-link {
+            display: block;
+            padding: 12px 16px;
+            color: #333;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        
+        .c-sidebar__menu-link:hover {
+            background: #f0f0f0;
+        }
+        
+        .c-sidebar__menu-link--active {
+            background: #667eea;
+            color: white;
+        }
+        
+        /* ボディのスクロールロック */
+        body.is-sidebar-open {
+            overflow: hidden;
+        }
+        
+        /* デバッグ用（本番では削除） */
+        .debug-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 5000;
+            display: none; /* 本番では非表示 */
+        }
+    </style>
+</head>
+<body>
+    <!-- ==========================================
+         固定設置HTML（body直下）
+         ========================================== -->
+    
+    <!-- ハンバーガーボタン -->
+    <button class="js-hamburger" aria-controls="sidebar" aria-expanded="false" aria-label="メニューを開く">
+        <span>☰</span>
+    </button>
+    
+    <!-- サイドバー本体 -->
+    <aside id="sidebar" class="c-sidebar" aria-hidden="true" role="navigation">
+        <div class="c-sidebar__header">
+            <h2 class="c-sidebar__title">メニュー</h2>
+            <button class="c-sidebar__close" aria-label="メニューを閉じる">×</button>
+        </div>
+        <div class="c-sidebar__content">
+            <nav>
+                <ul class="c-sidebar__menu">
+                    <li class="c-sidebar__menu-item">
+                        <a href="#calendar" class="c-sidebar__menu-link c-sidebar__menu-link--active" data-action="calendar">
+                            📅 カレンダー
+                        </a>
+                    </li>
+                    <li class="c-sidebar__menu-item">
+                        <a href="#reservations" class="c-sidebar__menu-link" data-action="reservation-list">
+                            📋 予約リスト
+                        </a>
+                    </li>
+                    <li class="c-sidebar__menu-item">
+                        <a href="#capacity" class="c-sidebar__menu-link" data-action="capacity-controls">
+                            ⚙️ 予約制限設定
+                        </a>
+                    </li>
+                    <li class="c-sidebar__menu-item">
+                        <a href="#statistics" class="c-sidebar__menu-link" data-action="statistics">
+                            📊 統計
+                        </a>
+                    </li>
+                    <li class="c-sidebar__menu-item">
+                        <a href="#settings" class="c-sidebar__menu-link" data-action="settings">
+                            ⚙️ 設定
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </aside>
+    
+    <!-- オーバーレイ -->
+    <div id="pageOverlay" class="c-overlay" hidden aria-hidden="true"></div>
+    
+    <!-- メインコンテンツ（例） -->
+    <main style="padding: 80px 20px 20px;">
+        <h1>メインコンテンツエリア</h1>
+        <p>ここにカレンダーや予約リストなどのコンテンツが表示されます。</p>
+    </main>
+    
+    <!-- ==========================================
+         統一サイドバーJS（冪等・競合回避版）
+         ========================================== -->
+    <script>
+    (function() {
+        'use strict';
+        
+        // 二重初期化防止
+        if (window.__SIDEBAR_INITED__) {
+            console.log('[Sidebar] Already initialized, skipping...');
+            return;
+        }
+        window.__SIDEBAR_INITED__ = true;
+        
+        console.log('[Sidebar] Initializing unified sidebar...');
+        
+        // DOM要素取得
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('pageOverlay');
+        const buttons = Array.from(document.querySelectorAll('.js-hamburger'));
+        const closeBtn = document.querySelector('.c-sidebar__close');
+        
+        // 必須要素チェック
+        if (!sidebar || !overlay) {
+            console.error('[Sidebar] Required elements not found:', { sidebar, overlay });
+            return;
+        }
+        
+        if (buttons.length === 0) {
+            console.warn('[Sidebar] No hamburger buttons found');
+        }
+        
+        // 状態管理
+        let isOpen = false;
+        
+        // 状態適用関数
+        const applyState = () => {
+            // サイドバーの開閉
+            sidebar.classList.toggle('is-open', isOpen);
+            
+            // オーバーレイの表示/非表示
+            overlay.hidden = !isOpen;
+            
+            // ボディのスクロールロック
+            document.body.classList.toggle('is-sidebar-open', isOpen);
+            
+            // ARIA属性更新
+            buttons.forEach(btn => {
+                btn.setAttribute('aria-expanded', String(isOpen));
+            });
+            sidebar.setAttribute('aria-hidden', String(!isOpen));
+            overlay.setAttribute('aria-hidden', String(!isOpen));
+            
+            // デバッグログ（開発時のみ）
+            if (window.DEBUG_MODE) {
+                console.log('[Sidebar] State applied:', { isOpen });
+            }
+        };
+        
+        // トグル関数
+        const toggle = (event) => {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            isOpen = !isOpen;
+            applyState();
+        };
+        
+        // 閉じる関数
+        const close = () => {
+            if (isOpen) {
+                isOpen = false;
+                applyState();
+            }
+        };
+        
+        // イベントリスナー設定
+        
+        // ハンバーガーボタン
+        buttons.forEach(btn => {
+            btn.addEventListener('click', toggle, { passive: false });
+        });
+        
+        // 閉じるボタン
+        if (closeBtn) {
+            closeBtn.addEventListener('click', close, { passive: true });
+        }
+        
+        // オーバーレイクリック
+        overlay.addEventListener('click', close, { passive: true });
+        
+        // ESCキー
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isOpen) {
+                close();
+            }
+        });
+        
+        // メニュー項目クリック
+        const menuLinks = sidebar.querySelectorAll('.c-sidebar__menu-link');
+        menuLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                // アクティブ状態更新
+                menuLinks.forEach(l => l.classList.remove('c-sidebar__menu-link--active'));
+                link.classList.add('c-sidebar__menu-link--active');
+                
+                // アクション実行（カスタムイベント発火）
+                const action = link.dataset.action;
+                if (action) {
+                    window.dispatchEvent(new CustomEvent('sidebar-action', { 
+                        detail: { action } 
+                    }));
+                }
+                
+                // サイドバーを閉じる（モバイル対応）
+                if (window.innerWidth < 768) {
+                    close();
+                }
+            });
+        });
+        
+        // 初期状態適用
+        applyState();
+        
+        // グローバル関数公開（互換性のため）
+        window.sidebarControl = {
+            open: () => { isOpen = true; applyState(); },
+            close: () => { isOpen = false; applyState(); },
+            toggle: toggle,
+            isOpen: () => isOpen
+        };
+        
+        console.log('[Sidebar] Initialization complete');
+    })();
+    </script>
+    
+    <!-- デバッグ情報（開発時のみ） -->
+    <div class="debug-info" id="debugInfo">
+        <div>Sidebar: <span id="sidebarStatus">closed</span></div>
+        <div>Buttons: <span id="buttonCount">0</span></div>
+    </div>
+    
+    <script>
+    // デバッグ用（本番では削除）
+    if (window.location.search.includes('debug=1')) {
+        const debugInfo = document.getElementById('debugInfo');
+        if (debugInfo) {
+            debugInfo.style.display = 'block';
+            setInterval(() => {
+                const status = document.getElementById('sidebarStatus');
+                const count = document.getElementById('buttonCount');
+                if (status) status.textContent = window.sidebarControl?.isOpen() ? 'open' : 'closed';
+                if (count) count.textContent = document.querySelectorAll('.js-hamburger').length;
+            }, 1000);
+        }
+    }
+    </script>
+</body>
+</html>

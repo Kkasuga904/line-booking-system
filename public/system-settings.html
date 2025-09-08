@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="ja-JP">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>システム設定 | 予約管理システム</title>
+    <script src="/js/common-header.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        /* メインコンテナ */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        @media (min-width: 1025px) {
+            .container {
+                margin-left: 280px;
+                max-width: calc(100% - 300px);
+            }
+        }
+
+        /* ヘッダー */
+        .page-header {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .page-header-content {
+            flex: 1;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .header-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s;
+        }
+        
+        .header-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .page-subtitle {
+            color: #666;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        /* 設定セクション */
+        .settings-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* フォーム要素 */
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .form-input:focus, .form-select:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .time-input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .time-separator {
+            color: #666;
+            font-weight: 500;
+        }
+
+        /* チェックボックス */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-label {
+            font-size: 14px;
+            color: #555;
+            cursor: pointer;
+        }
+
+        /* 曜日選択 */
+        .weekday-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .weekday-btn {
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .weekday-btn:hover {
+            border-color: #667eea;
+            background: #f7f9ff;
+        }
+
+        .weekday-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .weekday-btn.sunday {
+            color: #e74c3c;
+            border-color: #ffebee;
+        }
+
+        .weekday-btn.sunday.active {
+            background: #e74c3c;
+            border-color: #e74c3c;
+            color: white;
+        }
+
+        .weekday-btn.saturday {
+            color: #3498db;
+            border-color: #e3f2fd;
+        }
+
+        .weekday-btn.saturday.active {
+            background: #3498db;
+            border-color: #3498db;
+            color: white;
+        }
+
+        /* 保存ボタン */
+        .save-button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 14px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .save-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .cancel-button {
+            background: #f0f0f0;
+            color: #666;
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .cancel-button:hover {
+            background: #e0e0e0;
+        }
+
+        /* 通知 */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .notification.success {
+            background: #48bb78;
+        }
+
+        .notification.error {
+            background: #f56565;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            .container {
+                margin-left: 0;
+                max-width: 100%;
+                padding: 15px;
+            }
+
+            .settings-section {
+                padding: 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .weekday-selector {
+                justify-content: space-between;
+            }
+
+            .weekday-btn {
+                flex: 1;
+                min-width: 40px;
+                padding: 8px 4px;
+                font-size: 12px;
+            }
+        }
+
+        /* 特別営業時間 */
+        .special-hours-container {
+            margin-top: 20px;
+        }
+
+        .special-hours-item {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .add-special-btn {
+            background: #f0f0f0;
+            color: #666;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .add-special-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .remove-btn {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .remove-btn:hover {
+            background: #ff5252;
+        }
+
+        /* トグルスイッチ */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ページヘッダー -->
+        <div class="page-header">
+            <div class="page-header-content">
+                <h1 class="page-title">
+                    ⚙️ システム設定
+                </h1>
+                <p class="page-subtitle">営業時間、定休日、予約受付設定などを管理します</p>
+            </div>
+            <div class="header-actions">
+                <a href="/admin-full-featured.html" class="header-btn">
+                    📅 管理画面へ戻る
+                </a>
+                <button class="header-btn" onclick="saveSettings()">
+                    💾 設定を保存
+                </button>
+            </div>
+        </div>
+
+        <!-- 基本営業時間設定 -->
+        <div class="settings-section">
+            <h2 class="section-title">
+                🕐 基本営業時間
+            </h2>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">開始時間</label>
+                    <input type="time" id="openTime" class="form-input" value="09:00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">終了時間</label>
+                    <input type="time" id="closeTime" class="form-input" value="21:00">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">定休日</label>
+                <div class="weekday-selector">
+                    <button class="weekday-btn sunday" data-day="0" onclick="toggleWeekday(this)">日</button>
+                    <button class="weekday-btn" data-day="1" onclick="toggleWeekday(this)">月</button>
+                    <button class="weekday-btn" data-day="2" onclick="toggleWeekday(this)">火</button>
+                    <button class="weekday-btn" data-day="3" onclick="toggleWeekday(this)">水</button>
+                    <button class="weekday-btn" data-day="4" onclick="toggleWeekday(this)">木</button>
+                    <button class="weekday-btn" data-day="5" onclick="toggleWeekday(this)">金</button>
+                    <button class="weekday-btn saturday" data-day="6" onclick="toggleWeekday(this)">土</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 予約受付設定 -->
+        <div class="settings-section">
+            <h2 class="section-title">
+                📅 予約受付設定
+            </h2>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">予約受付開始（何日前から）</label>
+                    <select id="bookingStartDays" class="form-select">
+                        <option value="0">当日から</option>
+                        <option value="1">1日前から</option>
+                        <option value="3">3日前から</option>
+                        <option value="7" selected>1週間前から</option>
+                        <option value="14">2週間前から</option>
+                        <option value="30">1ヶ月前から</option>
+                        <option value="60">2ヶ月前から</option>
+                        <option value="90">3ヶ月前から</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">予約締切（何時間前まで）</label>
+                    <select id="bookingDeadlineHours" class="form-select">
+                        <option value="0">締切なし</option>
+                        <option value="1">1時間前まで</option>
+                        <option value="2" selected>2時間前まで</option>
+                        <option value="3">3時間前まで</option>
+                        <option value="6">6時間前まで</option>
+                        <option value="12">12時間前まで</option>
+                        <option value="24">24時間前まで</option>
+                        <option value="48">48時間前まで</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">予約時間単位</label>
+                    <select id="timeSlotDuration" class="form-select">
+                        <option value="15">15分</option>
+                        <option value="30" selected>30分</option>
+                        <option value="60">1時間</option>
+                        <option value="90">1時間30分</option>
+                        <option value="120">2時間</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">最大予約人数（1組あたり）</label>
+                    <select id="maxGroupSize" class="form-select">
+                        <option value="1">1人</option>
+                        <option value="2">2人</option>
+                        <option value="3">3人</option>
+                        <option value="4">4人</option>
+                        <option value="5">5人</option>
+                        <option value="6" selected>6人</option>
+                        <option value="7">7人</option>
+                        <option value="8">8人</option>
+                        <option value="9">9人</option>
+                        <option value="10">10人</option>
+                        <option value="12">12人</option>
+                        <option value="15">15人</option>
+                        <option value="20">20人</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 通知設定 -->
+        <div class="settings-section">
+            <h2 class="section-title">
+                🔔 通知設定
+            </h2>
+            
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enableLineNotification" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <label class="checkbox-label" for="enableLineNotification">
+                        LINE通知を有効にする
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enableEmailNotification">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <label class="checkbox-label" for="enableEmailNotification">
+                        メール通知を有効にする
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="sendConfirmation" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <label class="checkbox-label" for="sendConfirmation">
+                        予約確認メッセージを自動送信
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="sendReminder" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <label class="checkbox-label" for="sendReminder">
+                        予約リマインダーを送信（前日）
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 店舗情報 -->
+        <div class="settings-section">
+            <h2 class="section-title">
+                🏪 店舗情報
+            </h2>
+            
+            <div class="form-group">
+                <label class="form-label">店舗名</label>
+                <input type="text" id="storeName" class="form-input" placeholder="店舗名を入力">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">電話番号</label>
+                <input type="tel" id="storePhone" class="form-input" placeholder="03-1234-5678">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">住所</label>
+                <input type="text" id="storeAddress" class="form-input" placeholder="東京都渋谷区...">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">予約受付メッセージ</label>
+                <textarea id="bookingMessage" class="form-input" rows="3" 
+                    placeholder="ご予約ありがとうございます。確認後、詳細をご連絡いたします。"></textarea>
+            </div>
+        </div>
+
+        <!-- 保存ボタン -->
+        <div class="button-container">
+            <button class="cancel-button" onclick="resetSettings()">リセット</button>
+            <button class="save-button" onclick="saveSettings()">
+                💾 設定を保存
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 設定データの保存キー
+        const SETTINGS_KEY = 'system_settings';
+        
+        // 初期設定
+        let settings = {
+            businessHours: {
+                openTime: '09:00',
+                closeTime: '21:00',
+                closedDays: []
+            },
+            booking: {
+                startDays: 7,
+                deadlineHours: 2,
+                timeSlotDuration: 30,
+                maxGroupSize: 6
+            },
+            notifications: {
+                lineEnabled: true,
+                emailEnabled: false,
+                sendConfirmation: true,
+                sendReminder: true
+            },
+            store: {
+                name: '',
+                phone: '',
+                address: '',
+                bookingMessage: 'ご予約ありがとうございます。確認後、詳細をご連絡いたします。'
+            }
+        };
+
+        // ページ読み込み時の処理
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+        });
+
+        // 設定を読み込む
+        async function loadSettings() {
+            // まずサーバーから読み込みを試みる
+            const serverSettings = await loadSettingsFromServer();
+            if (serverSettings) {
+                settings = serverSettings;
+                // ローカルストレージにも保存
+                localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+                applySettingsToForm();
+                return;
+            }
+            
+            // サーバーから取得できない場合はローカルストレージから
+            const saved = localStorage.getItem(SETTINGS_KEY);
+            if (saved) {
+                try {
+                    settings = JSON.parse(saved);
+                    applySettingsToForm();
+                } catch (e) {
+                    console.error('設定の読み込みに失敗しました:', e);
+                }
+            }
+        }
+
+        // 設定をフォームに反映
+        function applySettingsToForm() {
+            // 営業時間
+            document.getElementById('openTime').value = settings.businessHours.openTime;
+            document.getElementById('closeTime').value = settings.businessHours.closeTime;
+            
+            // 定休日
+            settings.businessHours.closedDays.forEach(day => {
+                const btn = document.querySelector(`.weekday-btn[data-day="${day}"]`);
+                if (btn) btn.classList.add('active');
+            });
+            
+            // 予約設定
+            document.getElementById('bookingStartDays').value = settings.booking.startDays;
+            document.getElementById('bookingDeadlineHours').value = settings.booking.deadlineHours;
+            document.getElementById('timeSlotDuration').value = settings.booking.timeSlotDuration;
+            document.getElementById('maxGroupSize').value = settings.booking.maxGroupSize;
+            
+            // 通知設定
+            document.getElementById('enableLineNotification').checked = settings.notifications.lineEnabled;
+            document.getElementById('enableEmailNotification').checked = settings.notifications.emailEnabled;
+            document.getElementById('sendConfirmation').checked = settings.notifications.sendConfirmation;
+            document.getElementById('sendReminder').checked = settings.notifications.sendReminder;
+            
+            // 店舗情報
+            document.getElementById('storeName').value = settings.store.name || '';
+            document.getElementById('storePhone').value = settings.store.phone || '';
+            document.getElementById('storeAddress').value = settings.store.address || '';
+            document.getElementById('bookingMessage').value = settings.store.bookingMessage || '';
+        }
+
+        // 曜日の選択を切り替える
+        function toggleWeekday(btn) {
+            btn.classList.toggle('active');
+        }
+
+        // 設定を保存
+        async function saveSettings() {
+            // フォームから値を取得
+            settings.businessHours.openTime = document.getElementById('openTime').value;
+            settings.businessHours.closeTime = document.getElementById('closeTime').value;
+            
+            // 定休日を取得
+            settings.businessHours.closedDays = [];
+            document.querySelectorAll('.weekday-btn.active').forEach(btn => {
+                settings.businessHours.closedDays.push(parseInt(btn.dataset.day));
+            });
+            
+            // 予約設定
+            settings.booking.startDays = parseInt(document.getElementById('bookingStartDays').value);
+            settings.booking.deadlineHours = parseInt(document.getElementById('bookingDeadlineHours').value);
+            settings.booking.timeSlotDuration = parseInt(document.getElementById('timeSlotDuration').value);
+            settings.booking.maxGroupSize = parseInt(document.getElementById('maxGroupSize').value);
+            
+            // 通知設定
+            settings.notifications.lineEnabled = document.getElementById('enableLineNotification').checked;
+            settings.notifications.emailEnabled = document.getElementById('enableEmailNotification').checked;
+            settings.notifications.sendConfirmation = document.getElementById('sendConfirmation').checked;
+            settings.notifications.sendReminder = document.getElementById('sendReminder').checked;
+            
+            // 店舗情報
+            settings.store.name = document.getElementById('storeName').value;
+            settings.store.phone = document.getElementById('storePhone').value;
+            settings.store.address = document.getElementById('storeAddress').value;
+            settings.store.bookingMessage = document.getElementById('bookingMessage').value;
+            
+            // ローカルストレージに保存
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+            
+            // サーバーにも保存
+            try {
+                await saveSettingsToServer(settings);
+                showNotification('設定を保存しました', 'success');
+            } catch (error) {
+                console.error('設定の保存に失敗しました:', error);
+                showNotification('設定の保存に失敗しました', 'error');
+            }
+        }
+
+        // 設定をリセット
+        function resetSettings() {
+            if (confirm('設定を初期値に戻しますか？')) {
+                localStorage.removeItem(SETTINGS_KEY);
+                location.reload();
+            }
+        }
+
+        // 通知を表示
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // サーバーに設定を保存
+        async function saveSettingsToServer(settings) {
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        store_id: '***REMOVED-ROTATE-CREDENTIAL***',
+                        settings: settings
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to save settings');
+                }
+                
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to save settings');
+                }
+                
+                return result;
+            } catch (error) {
+                console.error('Save to server error:', error);
+                throw error;
+            }
+        }
+        
+        // サーバーから設定を取得
+        async function loadSettingsFromServer() {
+            try {
+                const response = await fetch('/api/settings?store_id=***REMOVED-ROTATE-CREDENTIAL***');
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load settings');
+                }
+                
+                const result = await response.json();
+                if (result.success && result.settings) {
+                    return result.settings;
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Load from server error:', error);
+                return null;
+            }
+        }
+    </script>
+</body>
+</html>

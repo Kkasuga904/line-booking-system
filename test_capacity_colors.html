@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>容量制限色表示テスト</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f7;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin: 5px;
+            font-weight: bold;
+        }
+        .success { background: #4caf50; color: white; }
+        .warning { background: #ff9800; color: white; }
+        .error { background: #f44336; color: white; }
+        .info { background: #2196f3; color: white; }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        iframe {
+            width: 100%;
+            height: 700px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 LINE予約システム - 容量制限色表示テスト</h1>
+    
+    <div class="test-section">
+        <h2>📋 テスト手順</h2>
+        <ol>
+            <li>下のLIFFページで日付を選択</li>
+            <li>18:00-21:00の時間帯が<span class="status-badge warning">オレンジ色「残り1組」</span>で表示されることを確認</li>
+            <li>その他の時間帯が<span class="status-badge success">緑色「空席あり」</span>で表示されることを確認</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 デバッグコンソール</h2>
+        <button onclick="checkAPI()">APIレスポンス確認</button>
+        <button onclick="checkDOM()">DOM要素確認</button>
+        <button onclick="manualApply()">手動で色適用</button>
+        <button onclick="checkClasses()">クラス確認</button>
+        <div id="console-output" style="margin-top: 10px;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📱 LIFFページ</h2>
+        <iframe id="liff-frame" src="https://line-booking-api-116429620992.asia-northeast1.run.app/liff-booking-enhanced.html"></iframe>
+    </div>
+
+    <script>
+        const output = document.getElementById('console-output');
+        
+        function log(message, type = 'info') {
+            const badge = {
+                'success': '✅',
+                'warning': '⚠️',
+                'error': '❌',
+                'info': 'ℹ️'
+            }[type] || 'ℹ️';
+            
+            output.innerHTML += `
+                <div style="margin: 5px 0;">
+                    <span class="status-badge ${type}">${badge}</span>
+                    ${message}
+                </div>
+            `;
+        }
+
+        async function checkAPI() {
+            output.innerHTML = '';
+            log('APIレスポンスを確認中...', 'info');
+            
+            try {
+                const date = new Date().toISOString().slice(0, 10);
+                const response = await fetch(`https://line-booking-api-116429620992.asia-northeast1.run.app/api/capacity-availability?store_id=***REMOVED-ROTATE-CREDENTIAL***&date=${date}`);
+                const data = await response.json();
+                
+                log('APIレスポンス取得成功', 'success');
+                
+                // 18:00-21:00の制限を確認
+                const restrictedTimes = ['18:00', '18:30', '19:00', '19:30', '20:00', '20:30'];
+                let hasRestrictions = false;
+                
+                for (const time of restrictedTimes) {
+                    if (data.slots && data.slots[time]) {
+                        const slot = data.slots[time];
+                        if (slot.limit === 1) {
+                            log(`${time}: limit=${slot.limit}, status=${slot.status}`, 'success');
+                            hasRestrictions = true;
+                        }
+                    }
+                }
+                
+                if (!hasRestrictions) {
+                    log('18:00-21:00に制限が設定されていません！', 'error');
+                }
+                
+                log(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'info');
+            } catch (error) {
+                log(`エラー: ${error.message}`, 'error');
+            }
+        }
+
+        function checkDOM() {
+            output.innerHTML = '';
+            const iframe = document.getElementById('liff-frame');
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            
+            const timeSlots = iframeDoc.querySelectorAll('.time-slot');
+            log(`時間枠要素: ${timeSlots.length}個`, timeSlots.length > 0 ? 'success' : 'error');
+            
+            // 18:00の要素を確認
+            const slot18 = iframeDoc.querySelector('[data-time="18:00"]');
+            if (slot18) {
+                log('18:00要素発見', 'success');
+                log(`クラス: ${slot18.className}`, 'info');
+                log(`スタイル: ${slot18.getAttribute('style')}`, 'info');
+                log(`内容: ${slot18.innerHTML}`, 'info');
+            } else {
+                log('18:00要素が見つかりません', 'error');
+            }
+        }
+
+        async function manualApply() {
+            output.innerHTML = '';
+            const iframe = document.getElementById('liff-frame');
+            const iframeWin = iframe.contentWindow;
+            
+            if (iframeWin.applyCapacityColors) {
+                log('applyCapacityColors関数を実行中...', 'info');
+                await iframeWin.applyCapacityColors();
+                log('完了！', 'success');
+                
+                // 結果確認
+                setTimeout(() => {
+                    checkClasses();
+                }, 500);
+            } else {
+                log('applyCapacityColors関数が見つかりません', 'error');
+            }
+        }
+
+        function checkClasses() {
+            output.innerHTML = '';
+            const iframe = document.getElementById('liff-frame');
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            
+            const limitedSlots = iframeDoc.querySelectorAll('.is-limited, .capacity-limited');
+            const fullSlots = iframeDoc.querySelectorAll('.is-full, .capacity-full');
+            const availableSlots = iframeDoc.querySelectorAll('.is-available, .capacity-available');
+            
+            log(`制限あり(オレンジ): ${limitedSlots.length}個`, limitedSlots.length > 0 ? 'warning' : 'info');
+            log(`満席(赤): ${fullSlots.length}個`, 'info');
+            log(`空席あり(緑): ${availableSlots.length}個`, availableSlots.length > 0 ? 'success' : 'info');
+            
+            // 詳細表示
+            limitedSlots.forEach(slot => {
+                const time = slot.getAttribute('data-time') || slot.textContent.match(/\d{1,2}:\d{2}/)?.[0];
+                log(`制限時間: ${time}`, 'warning');
+            });
+        }
+
+        // ページ読み込み後に自動チェック
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('ページ読み込み完了', 'success');
+                checkAPI();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

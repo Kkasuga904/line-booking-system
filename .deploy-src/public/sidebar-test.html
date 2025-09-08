@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>サイドバーテスト検証</title>
+</head>
+<body>
+<h1>サイドバー ホワイトリスト方式 検証</h1>
+
+<h2>テストコード</h2>
+<p>以下のコードをコンソールで実行して結果を確認してください：</p>
+
+<pre><code>
+// ========== テスト1: 基本構造確認 ==========
+console.table({
+  sidebarExists: !!document.querySelector('#sidebar.c-sidebar'),
+  itemsInSidebar: document.querySelectorAll('#sidebar .c-sidebar__menu > li').length,
+  menuLinks: document.querySelectorAll('#sidebar .c-sidebar__menu-link').length
+});
+
+// ========== テスト2: 許可メニューの存在確認 ==========
+const ALLOWED_MENU = window.ALLOWED_MENU || [
+    { text: 'カレンダー表示' },
+    { text: '予約一覧' },
+    { text: '予約枠管理' },
+    { text: '通知センター' }
+];
+
+const allowedTexts = ALLOWED_MENU.map(item => item.text);
+const actualLinks = [...document.querySelectorAll('#sidebar .c-sidebar__menu-link')];
+const actualTexts = actualLinks.map(a => a.textContent.replace(/[^\u3000-\u9FFF\uFF00-\uFFEFa-zA-Z]/g, '').trim());
+
+console.log('期待されるメニュー:', allowedTexts);
+console.log('実際のメニュー:', actualTexts);
+
+// ========== テスト3: レガシーメニューの検出 ==========
+const LEGACY_KEYWORDS = [
+    '統計ダッシュボード', '売上分析', '稼働率レポート',
+    '顧客データベース', 'メール配信', 'ポイント・クーポン',
+    'リマインダー設定', 'スタッフ管理', 'シフト管理',
+    '権限設定', '店舗情報', '営業時間', '座席レイアウト'
+];
+
+const strayLinks = [...document.querySelectorAll('#sidebar a')]
+    .filter(a => {
+        const text = a.textContent || '';
+        return LEGACY_KEYWORDS.some(keyword => text.includes(keyword));
+    });
+
+console.log('検出されたレガシーメニュー数:', strayLinks.length);
+if (strayLinks.length > 0) {
+    console.warn('レガシーメニューが検出されました:', strayLinks.map(a => a.textContent));
+}
+
+// ========== テスト4: 最終検証 ==========
+const testResult = {
+    '✅ サイドバー存在': !!document.querySelector('#sidebar.c-sidebar'),
+    '✅ ホワイトリストメニュー数': document.querySelectorAll('#sidebar .c-sidebar__menu-link').length,
+    '✅ レガシーメニュー数': strayLinks.length,
+    '✅ テスト結果': strayLinks.length === 0 ? 'PASS ✅' : 'FAIL ❌'
+};
+
+console.table(testResult);
+
+// ========== テスト5: 動的再構築テスト ==========
+console.log('\n===== 動的再構築テスト =====');
+if (window.rebuildSidebar) {
+    console.log('rebuildSidebar() を実行します...');
+    window.rebuildSidebar();
+    
+    setTimeout(() => {
+        const afterRebuild = {
+            'メニュー数': document.querySelectorAll('#sidebar .c-sidebar__menu-link').length,
+            'レガシー数': [...document.querySelectorAll('#sidebar a')].filter(a => 
+                LEGACY_KEYWORDS.some(k => a.textContent.includes(k))
+            ).length
+        };
+        console.table(afterRebuild);
+    }, 100);
+} else {
+    console.warn('rebuildSidebar 関数が見つかりません');
+}
+</code></pre>
+
+<h2>期待される結果</h2>
+<ul>
+    <li>sidebarExists: true</li>
+    <li>itemsInSidebar: 4 (または設定したALLOWED_MENUの数)</li>
+    <li>strayLinksInSidebar: 0</li>
+    <li>レガシーメニュー数: 0</li>
+    <li>テスト結果: PASS ✅</li>
+</ul>
+
+<h2>手動確認項目</h2>
+<ol>
+    <li>ハンバーガーボタンをクリックしてサイドバーを開く</li>
+    <li>表示されるメニューが以下の4つのみであることを確認：
+        <ul>
+            <li>📅 カレンダー表示</li>
+            <li>📋 予約一覧</li>
+            <li>⚙️ 予約枠管理</li>
+            <li>🔔 通知センター</li>
+        </ul>
+    </li>
+    <li>旧メニュー項目（統計ダッシュボード、売上分析など）が表示されていないことを確認</li>
+    <li>メニュー項目をクリックして正しく動作することを確認</li>
+    <li>サイドバーの開閉アニメーションが正常に動作することを確認</li>
+</ol>
+
+<h2>トラブルシューティング</h2>
+<p>もしレガシーメニューが残っている場合：</p>
+<pre><code>
+// 強制的にレガシーメニューを削除
+window.purgeLegacyInsideSidebar();
+
+// その後、ホワイトリストで再構築
+window.rebuildSidebar();
+
+// 確認
+console.log('レガシーメニュー削除後:', 
+    document.querySelectorAll('#sidebar a').length, 
+    'items'
+);
+</code></pre>
+
+</body>
+</html>

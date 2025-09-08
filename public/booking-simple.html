@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンプル予約フォーム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .list-button {
+            background: #6c757d;
+            margin-top: 20px;
+        }
+        
+        .list-button:hover {
+            box-shadow: 0 5px 20px rgba(108, 117, 125, 0.4);
+        }
+        
+        @media (max-width: 480px) {
+            .card {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🗓️ 予約フォーム</h1>
+            
+            <div id="message" class="message"></div>
+            
+            <form id="bookingForm">
+                <div class="form-group">
+                    <label for="date">日付 *</label>
+                    <input type="date" id="date" name="date" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="time">時間 *</label>
+                    <select id="time" name="time" required>
+                        <option value="">選択してください</option>
+                        <option value="09:00">09:00</option>
+                        <option value="09:30">09:30</option>
+                        <option value="10:00">10:00</option>
+                        <option value="10:30">10:30</option>
+                        <option value="11:00">11:00</option>
+                        <option value="11:30">11:30</option>
+                        <option value="12:00">12:00</option>
+                        <option value="12:30">12:30</option>
+                        <option value="13:00">13:00</option>
+                        <option value="13:30">13:30</option>
+                        <option value="14:00">14:00</option>
+                        <option value="14:30">14:30</option>
+                        <option value="15:00">15:00</option>
+                        <option value="15:30">15:30</option>
+                        <option value="16:00">16:00</option>
+                        <option value="16:30">16:30</option>
+                        <option value="17:00">17:00</option>
+                        <option value="17:30">17:30</option>
+                        <option value="18:00">18:00</option>
+                        <option value="18:30">18:30</option>
+                        <option value="19:00">19:00</option>
+                        <option value="19:30">19:30</option>
+                        <option value="20:00">20:00</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="customerName">お名前 *</label>
+                    <input type="text" id="customerName" name="customerName" required placeholder="山田 太郎">
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone">電話番号 *</label>
+                    <input type="tel" id="phone" name="phone" required placeholder="080-1234-5678">
+                </div>
+                
+                <div class="form-group">
+                    <label for="numberOfPeople">人数 *</label>
+                    <input type="number" id="numberOfPeople" name="numberOfPeople" min="1" max="10" value="1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes">備考</label>
+                    <input type="text" id="notes" name="notes" placeholder="アレルギー、ご要望など">
+                </div>
+                
+                <button type="submit">予約する</button>
+            </form>
+            
+            <button class="list-button" onclick="window.location.href='/admin.html'">
+                予約一覧を見る
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        // メッセージ表示
+        function showMessage(text, isSuccess = true) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${isSuccess ? 'success' : 'error'}`;
+            messageEl.style.display = 'block';
+            
+            if (isSuccess) {
+                setTimeout(() => {
+                    messageEl.style.display = 'none';
+                    document.getElementById('bookingForm').reset();
+                    setDefaultDate();
+                }, 3000);
+            } else {
+                setTimeout(() => {
+                    messageEl.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
+        // デフォルト日付設定
+        function setDefaultDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            document.getElementById('date').value = `${year}-${month}-${day}`;
+        }
+        
+        // フォーム送信処理
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                date: document.getElementById('date').value,
+                time: document.getElementById('time').value,
+                customerName: document.getElementById('customerName').value,
+                phone: document.getElementById('phone').value,
+                numberOfPeople: parseInt(document.getElementById('numberOfPeople').value),
+                notes: document.getElementById('notes').value,
+                status: 'confirmed'
+            };
+            
+            try {
+                // 認証なしAPIを使用
+                const response = await fetch('/api/admin-noauth?action=create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage('✅ 予約が完了しました！');
+                } else {
+                    throw new Error(result.error || '予約に失敗しました');
+                }
+            } catch (error) {
+                console.error('Booking error:', error);
+                showMessage('❌ ' + error.message, false);
+            }
+        });
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            setDefaultDate();
+        });
+    </script>
+</body>
+</html>

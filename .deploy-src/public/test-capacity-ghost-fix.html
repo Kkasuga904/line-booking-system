@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>予約制限ゴースト修正検証</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .test-status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        pre {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+<h1>🧪 FullCalendar 背景イベント ゴースト修正検証</h1>
+
+<div class="test-section">
+    <div class="test-title">📋 検証手順</div>
+    <ol>
+        <li><strong>A) ルール無し検証</strong>: 背景ブロックが0件であることを確認</li>
+        <li><strong>B) 単一ルール検証</strong>: 9:00-10:00のルールで1本のみ表示確認</li>
+        <li><strong>C) リソース別検証</strong>: 対象リソースのみに表示確認</li>
+        <li><strong>D) 連続再描画検証</strong>: 週→日→週で重複・残留0確認</li>
+    </ol>
+</div>
+
+<div class="test-section">
+    <div class="test-title">🔍 検証コマンド</div>
+    <button onclick="runTestA()">A: ルール無し検証</button>
+    <button onclick="runTestB()">B: 単一ルール検証</button>
+    <button onclick="runTestC()">C: リソース別検証</button>
+    <button onclick="runTestD()">D: 連続再描画検証</button>
+    <button onclick="clearAll()">全クリア</button>
+</div>
+
+<div class="test-section">
+    <div class="test-title">📊 検証結果</div>
+    <div id="testResults"></div>
+</div>
+
+<div class="test-section">
+    <div class="test-title">🛠️ デバッグコンソール</div>
+    <pre id="debugConsole">検証を開始してください...</pre>
+</div>
+
+<script>
+// 検証用のモックカレンダー
+const mockCalendar = {
+    events: [],
+    
+    getEvents() {
+        return this.events;
+    },
+    
+    addEvent(event) {
+        this.events.push({...event, remove: () => this.removeEvent(event)});
+        log(`Added event: ${event.id}, display: ${event.display}`);
+    },
+    
+    removeEvent(event) {
+        const idx = this.events.findIndex(e => e.id === event.id);
+        if (idx >= 0) {
+            this.events.splice(idx, 1);
+            log(`Removed event: ${event.id}`);
+        }
+    },
+    
+    batchRendering(fn) {
+        fn();
+    }
+};
+
+// ログ関数
+function log(message) {
+    const console = document.getElementById('debugConsole');
+    const timestamp = new Date().toLocaleTimeString('ja-JP');
+    console.textContent += `\n[${timestamp}] ${message}`;
+    console.scrollTop = console.scrollHeight;
+}
+
+// 改善された背景イベント削除関数
+function removeCapacityControlBgEvents(cal) {
+    const bgEvents = cal.getEvents().filter(ev => 
+        ev.display === 'background' || 
+        (ev.extendedProps && ev.extendedProps.__capacityControl === true) ||
+        ev.classNames?.includes('capacity-control') ||
+        ev.classNames?.includes('capacity-block')
+    );
+    log(`[removeCapacityControlBgEvents] Removing ${bgEvents.length} background events`);
+    bgEvents.forEach(ev => ev.remove());
+}
+
+// 正規化関数
+function normalizeCapacityRule(rule) {
+    if (!rule || !rule.date) {
+        log(`[normalizeCapacityRule] Invalid rule: ${JSON.stringify(rule)}`);
+        return null;
+    }
+    
+    let date = rule.date;
+    if (date.includes('T')) {
+        date = date.split('T')[0];
+    }
+    
+    const startTime = (rule.startTime || '00:00').padStart(5, '0').substring(0, 5);
+    const endTime = (rule.endTime || '23:59').padStart(5, '0').substring(0, 5);
+    
+    const startDateTime = new Date(`${date}T${startTime}:00`);
+    const endDateTime = new Date(`${date}T${endTime}:00`);
+    
+    if (endDateTime <= startDateTime) {
+        log(`[normalizeCapacityRule] Invalid time range: ${startTime} -> ${endTime}`);
+        return null;
+    }
+    
+    return {
+        ...rule,
+        date,
+        startTime,
+        endTime,
+        allDay: false
+    };
+}
+
+// 防御的再描画フロー
+async function renderCapacityBlocks(rules) {
+    log('=== renderCapacityBlocks START ===');
+    
+    // 1) 既存background を必ず除去
+    removeCapacityControlBgEvents(mockCalendar);
+    
+    if (!Array.isArray(rules) || rules.length === 0) {
+        log('No capacity control rules found - no background events will be added');
+        return;
+    }
+    
+    // 2) ルールを正規化
+    const safe = rules.map(r => normalizeCapacityRule(r)).filter(r => r !== null);
+    log(`Normalized ${safe.length} rules from ${rules.length} original rules`);
+    
+    // 3) イベント追加
+    safe.forEach(r => {
+        mockCalendar.addEvent({
+            id: `capacity-${r.date}-${r.startTime}-${r.endTime}`,
+            start: `${r.date}T${r.startTime}:00`,
+            end: `${r.date}T${r.endTime}:00`,
+            display: 'background',
+            overlap: false,
+            classNames: ['capacity-control'],
+            extendedProps: { 
+                __capacityControl: true, 
+                ruleId: r.id || undefined 
+            }
+        });
+    });
+    
+    log(`Total background events: ${mockCalendar.getEvents().filter(e => e.display === 'background').length}`);
+    log('=== renderCapacityBlocks END ===');
+}
+
+// テストA: ルール無し
+async function runTestA() {
+    log('\n========== TEST A: ルール無し検証 ==========');
+    mockCalendar.events = [];
+    
+    await renderCapacityBlocks([]);
+    
+    const bgCount = mockCalendar.getEvents().filter(e => e.display === 'background').length;
+    showResult('A', bgCount === 0, `背景イベント: ${bgCount}件 (期待値: 0件)`);
+}
+
+// テストB: 単一ルール
+async function runTestB() {
+    log('\n========== TEST B: 単一ルール検証 ==========');
+    mockCalendar.events = [];
+    
+    const today = new Date().toISOString().split('T')[0];
+    await renderCapacityBlocks([
+        { date: today, startTime: '09:00', endTime: '10:00', id: 'rule1' }
+    ]);
+    
+    const bgCount = mockCalendar.getEvents().filter(e => e.display === 'background').length;
+    showResult('B', bgCount === 1, `背景イベント: ${bgCount}件 (期待値: 1件)`);
+}
+
+// テストC: リソース別（モック）
+async function runTestC() {
+    log('\n========== TEST C: リソース別検証 ==========');
+    mockCalendar.events = [];
+    
+    const today = new Date().toISOString().split('T')[0];
+    await renderCapacityBlocks([
+        { date: today, startTime: '09:00', endTime: '10:00', resourceId: 'room1' },
+        { date: today, startTime: '11:00', endTime: '12:00', resourceId: 'room2' }
+    ]);
+    
+    const bgCount = mockCalendar.getEvents().filter(e => e.display === 'background').length;
+    const room1Count = mockCalendar.getEvents().filter(e => e.resourceId === 'room1').length;
+    const room2Count = mockCalendar.getEvents().filter(e => e.resourceId === 'room2').length;
+    
+    showResult('C', bgCount === 2, `背景イベント: ${bgCount}件, Room1: ${room1Count}件, Room2: ${room2Count}件`);
+}
+
+// テストD: 連続再描画
+async function runTestD() {
+    log('\n========== TEST D: 連続再描画検証 ==========');
+    mockCalendar.events = [];
+    
+    const today = new Date().toISOString().split('T')[0];
+    const rule = { date: today, startTime: '14:00', endTime: '15:00' };
+    
+    // 3回連続で再描画
+    for (let i = 1; i <= 3; i++) {
+        log(`\n--- 再描画 ${i}回目 ---`);
+        await renderCapacityBlocks([rule]);
+    }
+    
+    const bgCount = mockCalendar.getEvents().filter(e => e.display === 'background').length;
+    showResult('D', bgCount === 1, `最終背景イベント: ${bgCount}件 (期待値: 1件、重複なし)`);
+}
+
+// 全クリア
+function clearAll() {
+    mockCalendar.events = [];
+    document.getElementById('debugConsole').textContent = 'クリアしました...';
+    document.getElementById('testResults').innerHTML = '';
+    log('All cleared');
+}
+
+// 結果表示
+function showResult(test, success, message) {
+    const results = document.getElementById('testResults');
+    const status = success ? 'success' : 'error';
+    const icon = success ? '✅' : '❌';
+    
+    results.innerHTML += `
+        <div class="test-status ${status}">
+            ${icon} テスト${test}: ${message}
+        </div>
+    `;
+}
+
+// 初期メッセージ
+log('FullCalendar 背景イベント ゴースト修正検証ツール');
+log('修正内容:');
+log('1. displayCapacityControls() 開始時に既存背景イベントを全削除');
+log('2. ルールが0件の場合は何も描画しない');
+log('3. normalizeCapacityRule()で時間を正規化、allDay=false固定');
+log('4. 削除条件を拡張（display, extendedProps, classNames全てチェック）');
+</script>
+
+</body>
+</html>

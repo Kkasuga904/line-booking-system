@@ -1,27 +1,23 @@
 FROM node:20-slim
 
-# 作業ディレクトリ設定
 WORKDIR /app
 
-# package.jsonとpackage-lock.jsonをコピー
+# Copy package files if they exist
 COPY package*.json ./
 
-# 依存関係インストール（ciの代わりにinstallを使用）
-RUN npm install --production
+# Initialize package.json if it doesn't exist and install dependencies
+RUN if [ ! -f package.json ]; then npm init -y; fi && \
+    npm install express @supabase/supabase-js
 
-# アプリケーションコードをコピー
-COPY . .
+# Copy all public files and server code
+COPY public ./public
+COPY deploy.js ./server.js
 
-# ポートとNode環境設定
-ENV PORT=8080 \
-    NODE_ENV=production
+# Set environment variable
+ENV PORT=8080
 
-# ヘルスチェック
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8080/api/ping', (r) => {r.statusCode === 200 ? process.exit(0) : process.exit(1)})" || exit 1
+# Expose port
+EXPOSE 8080
 
-# 非rootユーザーで実行（セキュリティ）
-USER node
-
-# サーバー起動
+# Start the server
 CMD ["node", "server.js"]

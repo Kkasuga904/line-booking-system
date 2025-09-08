@@ -1,0 +1,120 @@
+/* --- HAMBURGER LEFT POSITION FIX --- */
+#hamburgerMenu,
+.hamburger-menu {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+
+  position: fixed !important;
+  top: 20px !important;
+  left: 20px !important;  /* 右から左に変更 */
+  right: auto !important;
+  z-index: 9999 !important;
+
+  pointer-events: auto !important;
+}
+
+#hamburgerMenu .hamburger-icon,
+.hamburger-menu .hamburger-icon {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  width: 28px !important;
+  height: 22px !important;
+  cursor: pointer !important;
+}
+
+#hamburgerMenu .hamburger-icon span,
+.hamburger-menu .hamburger-icon span {
+  display: block !important;
+  height: 3px !important;
+  width: 100% !important;
+  background: #333 !important;
+  border-radius: 2px !important;
+  transition: all 0.3s ease !important;
+}
+
+/* アニメーション（×にならないように無効化） */
+.hamburger-icon.active span:nth-child(1) {
+  transform: none !important;
+}
+
+.hamburger-icon.active span:nth-child(2) {
+  opacity: 1 !important;
+}
+
+.hamburger-icon.active span:nth-child(3) {
+  transform: none !important;
+}
+
+/* サイドメニューも左側から出るように */
+#sideMenu,
+.side-menu {
+  position: fixed !important;
+  top: 0 !important;
+  left: -320px !important;
+  right: auto !important;
+  width: 320px !important;
+  height: 100vh !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; /* 紫グラデーション */
+  box-shadow: 2px 0 24px rgba(0,0,0,.25) !important;
+  transition: left .3s ease !important;
+  z-index: 9998 !important;
+  overflow-y: auto !important;
+  padding-top: 60px !important; /* ハンバーガーメニューの下から開始 */
+}
+
+#sideMenu.active,
+.side-menu.active {
+  left: 0 !important;
+}
+
+/* ヘッダーのレイアウト調整 */
+.header {
+  padding-left: 60px !important; /* ハンバーガーメニュー分のスペース確保 */
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+  #hamburgerMenu,
+  .hamburger-menu {
+    top: 15px !important;
+    left: 15px !important;
+  }
+  
+  .header {
+    padding-left: 55px !important;
+  }
+  
+  .page-title {
+    font-size: 16px !important;
+    text-align: center !important;
+  }
+}
+
+/* オーバーレイ */
+#overlay,
+.overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: rgba(0,0,0,0.5) !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: all 0.3s ease !important;
+  z-index: 9997 !important;
+  pointer-events: none !important;
+}
+
+#overlay.active,
+.overlay.active {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+body.menu-open {
+  overflow: hidden !important;
+}

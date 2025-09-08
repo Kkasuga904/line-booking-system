@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンプル予約管理</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .list {
+            margin-top: 30px;
+        }
+        .reservation {
+            background: #f8f9fa;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border-left: 3px solid #4CAF50;
+        }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .delete-btn:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>シンプル予約管理システム</h1>
+        
+        <div id="message" class="message"></div>
+        
+        <form id="bookingForm">
+            <div class="form-group">
+                <label for="date">日付</label>
+                <input type="date" id="date" name="date" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="time">時間</label>
+                <select id="time" name="time" required>
+                    <option value="">選択してください</option>
+                    <option value="09:00">09:00</option>
+                    <option value="10:00">10:00</option>
+                    <option value="11:00">11:00</option>
+                    <option value="12:00">12:00</option>
+                    <option value="13:00">13:00</option>
+                    <option value="14:00">14:00</option>
+                    <option value="15:00">15:00</option>
+                    <option value="16:00">16:00</option>
+                    <option value="17:00">17:00</option>
+                    <option value="18:00">18:00</option>
+                    <option value="19:00">19:00</option>
+                    <option value="20:00">20:00</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="customerName">お客様名</label>
+                <input type="text" id="customerName" name="customerName" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="phone">電話番号</label>
+                <input type="tel" id="phone" name="phone" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="numberOfPeople">人数</label>
+                <input type="number" id="numberOfPeople" name="numberOfPeople" min="1" max="10" value="1" required>
+            </div>
+            
+            <button type="submit">予約を作成</button>
+        </form>
+        
+        <div class="list">
+            <h2>予約一覧</h2>
+            <div id="reservationList"></div>
+        </div>
+    </div>
+    
+    <script>
+        function showMessage(text, isSuccess = true) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${isSuccess ? 'success' : 'error'}`;
+            messageEl.style.display = 'block';
+            
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 5000);
+        }
+        
+        async function loadReservations() {
+            try {
+                const response = await fetch('/api/admin?action=supabase');
+                const result = await response.json();
+                
+                const listEl = document.getElementById('reservationList');
+                
+                if (!result.data || result.data.length === 0) {
+                    listEl.innerHTML = '<p>予約がありません</p>';
+                    return;
+                }
+                
+                listEl.innerHTML = result.data.map(r => `
+                    <div class="reservation">
+                        <strong>${r.date} ${r.time}</strong><br>
+                        ${r.customerName || 'お客様'} - ${r.people || r.numberOfPeople || 1}名<br>
+                        ${r.phone || ''}<br>
+                        <button class="delete-btn" onclick="deleteReservation('${r.id}')">削除</button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load reservations:', error);
+                showMessage('予約の取得に失敗しました', false);
+            }
+        }
+        
+        async function deleteReservation(id) {
+            if (!confirm('この予約を削除しますか？')) return;
+            
+            try {
+                const response = await fetch(`/api/admin?action=delete&id=${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showMessage('予約を削除しました');
+                    loadReservations();
+                } else {
+                    throw new Error('削除に失敗しました');
+                }
+            } catch (error) {
+                showMessage('削除に失敗しました', false);
+            }
+        }
+        
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                date: document.getElementById('date').value,
+                time: document.getElementById('time').value,
+                customerName: document.getElementById('customerName').value,
+                phone: document.getElementById('phone').value,
+                numberOfPeople: parseInt(document.getElementById('numberOfPeople').value),
+                status: 'confirmed'
+            };
+            
+            try {
+                const response = await fetch('/api/admin?action=create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    showMessage('予約を作成しました');
+                    document.getElementById('bookingForm').reset();
+                    loadReservations();
+                    
+                    // 今日の日付をセット
+                    const today = new Date();
+                    document.getElementById('date').value = today.toISOString().split('T')[0];
+                } else {
+                    const error = await response.text();
+                    throw new Error(error);
+                }
+            } catch (error) {
+                showMessage('予約の作成に失敗しました: ' + error.message, false);
+            }
+        });
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 今日の日付をセット
+            const today = new Date();
+            document.getElementById('date').value = today.toISOString().split('T')[0];
+            
+            // 予約一覧をロード
+            loadReservations();
+        });
+    </script>
+</body>
+</html>

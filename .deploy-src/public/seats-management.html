@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>席管理 | LINE予約システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+        }
+        
+        .header {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 15px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav-btn {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        
+        .actions {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .btn-add {
+            padding: 10px 20px;
+            background: #06c755;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .seats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .seat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            position: relative;
+            transition: transform 0.2s;
+        }
+        
+        .seat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .seat-type {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px 8px;
+            background: #667eea;
+            color: white;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        
+        .seat-type.table { background: #667eea; }
+        .seat-type.chair { background: #06c755; }
+        .seat-type.room { background: #ff9500; }
+        .seat-type.counter { background: #af52de; }
+        
+        .seat-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .seat-capacity {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .seat-description {
+            color: #999;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+        
+        .seat-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #f0f0f0;
+        }
+        
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .status-badge.available {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-badge.occupied {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-badge.locked {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .seat-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-edit, .btn-delete, .btn-lock {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .btn-edit {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-lock {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .btn-lock.locked {
+            background: #28a745;
+            color: white;
+        }
+        
+        /* モーダル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .modal-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .btn-save, .btn-cancel {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-save {
+            background: #06c755;
+            color: white;
+        }
+        
+        .btn-cancel {
+            background: #e0e0e0;
+            color: #666;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+    </style>
+    <!-- Sidebar Menu CSS -->
+    <link rel="stylesheet" href="/css/sidebar-menu.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1 class="title">🪑 席管理</h1>
+            <div class="nav-buttons">
+                <a href="/admin" class="nav-btn">📋 リスト表示</a>
+                <a href="/admin-calendar" class="nav-btn">📅 カレンダー</a>
+                <a href="/time-restrictions.html" class="nav-btn" style="background: #ff6b35;">🕐 時間制限</a>
+            </div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="actions">
+            <button class="btn-add" onclick="showAddSeatModal()">➕ 新しい席を追加</button>
+        </div>
+        
+        <div id="seatsContainer" class="seats-grid">
+            <div class="loading">読み込み中...</div>
+        </div>
+    </div>
+    
+    <!-- 席追加/編集モーダル -->
+    <div id="seatModal" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-title" id="modalTitle">席を追加</h2>
+            <form id="seatForm" onsubmit="saveSeat(event)">
+                <input type="hidden" name="id" id="seatId">
+                
+                <div class="form-group">
+                    <label class="form-label">席名 *</label>
+                    <input type="text" class="form-input" name="name" required 
+                           placeholder="例: テーブルA、カット席1">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">タイプ</label>
+                        <select class="form-select" name="seat_type">
+                            <option value="table">テーブル</option>
+                            <option value="chair">椅子</option>
+                            <option value="room">個室</option>
+                            <option value="counter">カウンター</option>
+                            <option value="staff">スタッフ</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">収容人数</label>
+                        <input type="number" class="form-input" name="capacity" 
+                               min="1" max="50" value="2">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">説明</label>
+                    <textarea class="form-input" name="description" rows="3" 
+                              placeholder="例: 窓際の席、1階奥"></textarea>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeSeatModal()">キャンセル</button>
+                    <button type="submit" class="btn-save">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let allSeats = [];
+        let editingSeatId = null;
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSeats();
+        });
+        
+        // 席データ読み込み
+        async function loadSeats() {
+            try {
+                const response = await fetch('/api/seats-manage');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allSeats = data.seats || [];
+                    displaySeats();
+                }
+            } catch (error) {
+                console.error('Error loading seats:', error);
+                document.getElementById('seatsContainer').innerHTML = 
+                    '<div class="empty">席データの読み込みに失敗しました</div>';
+            }
+        }
+        
+        // 席表示
+        function displaySeats() {
+            const container = document.getElementById('seatsContainer');
+            
+            if (allSeats.length === 0) {
+                container.innerHTML = `
+                    <div class="empty">
+                        <p>席がまだ登録されていません</p>
+                        <p style="margin-top: 10px;">「新しい席を追加」から始めましょう</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = allSeats.map(seat => {
+                const isLocked = seat.is_locked || false;
+                const statusClass = isLocked ? 'locked' : 'available';
+                const statusText = isLocked ? '予約停止中' : '利用可能';
+                const lockButtonText = isLocked ? '解除' : 'ロック';
+                const lockButtonClass = isLocked ? 'locked' : '';
+                
+                // ロックボタンを表示
+                const lockButtonHtml = `
+                    <button class="btn-lock ${lockButtonClass}" onclick="toggleLock('${seat.id}', ${isLocked})">${lockButtonText}</button>
+                `;
+                
+                return `
+                <div class="seat-card">
+                    <span class="seat-type ${seat.seat_type}">${getSeatTypeName(seat.seat_type)}</span>
+                    <div class="seat-name">${seat.name}</div>
+                    <div class="seat-capacity">👥 ${seat.capacity}名</div>
+                    <div class="seat-description">${seat.description || '説明なし'}</div>
+                    <div class="seat-status">
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                        <div class="seat-actions">
+                            ${lockButtonHtml}
+                            <button class="btn-edit" onclick="editSeat('${seat.id}')">編集</button>
+                            <button class="btn-delete" onclick="deleteSeat('${seat.id}')">削除</button>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+        
+        // 席タイプ名取得
+        function getSeatTypeName(type) {
+            const types = {
+                'table': 'テーブル',
+                'chair': '椅子',
+                'room': '個室',
+                'counter': 'カウンター',
+                'staff': 'スタッフ'
+            };
+            return types[type] || type;
+        }
+        
+        // 席追加モーダル表示
+        function showAddSeatModal() {
+            editingSeatId = null;
+            document.getElementById('modalTitle').textContent = '席を追加';
+            document.getElementById('seatForm').reset();
+            document.getElementById('seatId').value = '';
+            document.getElementById('seatModal').classList.add('show');
+        }
+        
+        // 席編集
+        function editSeat(id) {
+            const seat = allSeats.find(s => s.id === id);
+            if (!seat) return;
+            
+            editingSeatId = id;
+            document.getElementById('modalTitle').textContent = '席を編集';
+            document.getElementById('seatId').value = id;
+            
+            const form = document.getElementById('seatForm');
+            form.name.value = seat.name;
+            form.seat_type.value = seat.seat_type;
+            form.capacity.value = seat.capacity;
+            form.description.value = seat.description || '';
+            
+            document.getElementById('seatModal').classList.add('show');
+        }
+        
+        // モーダルを閉じる
+        function closeSeatModal() {
+            document.getElementById('seatModal').classList.remove('show');
+            editingSeatId = null;
+        }
+        
+        // 席保存
+        async function saveSeat(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const method = editingSeatId ? 'PUT' : 'POST';
+                const response = await fetch('/api/seats-manage', {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(editingSeatId ? '席を更新しました' : '席を追加しました');
+                    closeSeatModal();
+                    loadSeats();
+                } else {
+                    alert('保存に失敗しました: ' + (result.error || '不明なエラー'));
+                }
+            } catch (error) {
+                console.error('Save error:', error);
+                alert('保存中にエラーが発生しました');
+            }
+        }
+        
+        // 席削除
+        async function deleteSeat(id) {
+            if (!confirm('この席を削除しますか？')) return;
+            
+            try {
+                const response = await fetch(`/api/seats-manage?id=${id}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('席を削除しました');
+                    loadSeats();
+                } else {
+                    alert('削除に失敗しました: ' + (result.error || '不明なエラー'));
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                alert('削除中にエラーが発生しました');
+            }
+        }
+        
+        // 席のロック/解除トグル
+        async function toggleLock(id, currentLockStatus) {
+            const newLockStatus = !currentLockStatus;
+            const message = newLockStatus 
+                ? 'この席を予約停止にしますか？\n予約カレンダーから選択できなくなります。'
+                : 'この席の予約停止を解除しますか？\n予約カレンダーで選択可能になります。';
+            
+            if (!confirm(message)) return;
+            
+            try {
+                const response = await fetch('/api/seats-manage', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: id,
+                        is_locked: newLockStatus
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(newLockStatus ? '席を予約停止にしました' : '予約停止を解除しました');
+                    loadSeats();
+                } else {
+                    alert('更新に失敗しました: ' + (result.error || '不明なエラー'));
+                }
+            } catch (error) {
+                console.error('Lock toggle error:', error);
+                alert('更新中にエラーが発生しました');
+            }
+        }
+        
+        // モーダル外クリックで閉じる
+        window.onclick = function(event) {
+            if (event.target === document.getElementById('seatModal')) {
+                closeSeatModal();
+            }
+        }
+    </script>
+    <!-- Sidebar Menu JS -->
+    <script src='/js/sidebar-menu.js' defer></script>
+</body>
+</html>

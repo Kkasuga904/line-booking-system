@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約管理カレンダー | LINE予約システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            line-height: 1.5;
+        }
+        
+        /* ヘッダー */
+        .header {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        /* カレンダーコンテナ */
+        .calendar-container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        
+        /* 予約追加モーダル */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .modal-overlay.show {
+            display: block;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            margin: 30px auto;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+        
+        .modal-close:hover {
+            background: #f0f0f0;
+        }
+        
+        .modal-body {
+            padding: 20px;
+            max-height: calc(90vh - 100px);
+            overflow-y: auto;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .form-label .required {
+            color: #e74c3c;
+            margin-left: 2px;
+        }
+        
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .date-time-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .seats-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .form-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #06c755;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #05a548;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        /* 追加ボタン */
+        .add-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #06c755;
+            color: white;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3);
+            transition: all 0.3s;
+            z-index: 100;
+        }
+        
+        .add-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(6, 199, 85, 0.4);
+        }
+        
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            .date-time-group,
+            .seats-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                width: 95%;
+                max-height: 95vh;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+    <script>
+      // 認証ヘッダー自動付与
+      (function(){
+        const orig = window.fetch;
+        const getKey = () => (window.STORE_CONFIG && window.STORE_CONFIG.adminToken) || localStorage.getItem('ADMIN_API_KEY') || '';
+        window.fetch = function(input, init){
+          try{
+            const url = (typeof input === 'string') ? input : (input && input.url) || '';
+            if (url.startsWith('/api/')){
+              const key = getKey();
+              if (key){
+                const h = new Headers((init && init.headers) || (typeof input !== 'string' ? input.headers : undefined) || {});
+                h.set('x-api-key', key);
+                h.set('Authorization', `Bearer ${key}`);
+                init = Object.assign({}, init, { headers: h });
+              }
+            }
+          } catch(e){}
+          return orig.call(this, input, init);
+        };
+      })();
+    </script>
+</head>
+<body>
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="header-content">
+            <div>
+                <h1 style="font-size: 18px; font-weight: 600;">📅 予約管理カレンダー</h1>
+            </div>
+            <div>
+                <button onclick="window.location.href='/admin'" style="padding: 8px 16px; background: white; border: 1px solid #ddd; border-radius: 8px; cursor: pointer;">
+                    リスト表示
+                </button>
+            </div>
+        </div>
+    </header>
+    
+    <!-- カレンダーコンテナ -->
+    <div class="calendar-container">
+        <!-- カレンダー本体をここに表示 -->
+        <div id="calendar" style="background: white; padding: 20px; border-radius: 12px; min-height: 500px;">
+            カレンダー読み込み中...
+        </div>
+    </div>
+    
+    <!-- 予約追加ボタン -->
+    <button class="add-btn" onclick="openAddModal()">+</button>
+    
+    <!-- 予約追加モーダル -->
+    <div class="modal-overlay" id="addModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">新規予約追加</h2>
+                <button class="modal-close" onclick="closeAddModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="reservationForm" onsubmit="handleSubmit(event)">
+                    <!-- お名前 -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            お名前 <span class="required">*</span>
+                        </label>
+                        <input type="text" class="form-input" name="customer_name" required placeholder="山田太郎">
+                    </div>
+                    
+                    <!-- 日付と時間 -->
+                    <div class="date-time-group">
+                        <div class="form-group">
+                            <label class="form-label">
+                                日付 <span class="required">*</span>
+                            </label>
+                            <input type="date" class="form-input" name="date" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">
+                                時間 <span class="required">*</span>
+                            </label>
+                            <select class="form-select" name="time" required>
+                                <option value="">選択してください</option>
+                                <option value="11:00">11:00</option>
+                                <option value="11:30">11:30</option>
+                                <option value="12:00">12:00</option>
+                                <option value="12:30">12:30</option>
+                                <option value="13:00">13:00</option>
+                                <option value="13:30">13:30</option>
+                                <option value="14:00">14:00</option>
+                                <option value="14:30">14:30</option>
+                                <option value="15:00">15:00</option>
+                                <option value="15:30">15:30</option>
+                                <option value="16:00">16:00</option>
+                                <option value="16:30">16:30</option>
+                                <option value="17:00">17:00</option>
+                                <option value="17:30">17:30</option>
+                                <option value="18:00">18:00</option>
+                                <option value="18:30">18:30</option>
+                                <option value="19:00">19:00</option>
+                                <option value="19:30">19:30</option>
+                                <option value="20:00">20:00</option>
+                                <option value="20:30">20:30</option>
+                                <option value="21:00">21:00</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 人数と席 -->
+                    <div class="seats-group">
+                        <div class="form-group">
+                            <label class="form-label">
+                                人数 <span class="required">*</span>
+                            </label>
+                            <select class="form-select" name="people" required>
+                                <option value="1">1名</option>
+                                <option value="2">2名</option>
+                                <option value="3">3名</option>
+                                <option value="4">4名</option>
+                                <option value="5">5名</option>
+                                <option value="6">6名</option>
+                                <option value="7">7名</option>
+                                <option value="8">8名</option>
+                                <option value="9">9名</option>
+                                <option value="10">10名以上</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">席を割り当て</label>
+                            <select class="form-select" name="seat_id">
+                                <option value="">自動割り当て</option>
+                                <option value="1">テーブル1</option>
+                                <option value="2">テーブル2</option>
+                                <option value="3">個室A</option>
+                                <option value="4">個室B</option>
+                                <option value="5">カウンター</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 連絡先 -->
+                    <div class="form-group">
+                        <label class="form-label">電話番号</label>
+                        <input type="tel" class="form-input" name="phone" placeholder="090-1234-5678">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">メールアドレス</label>
+                        <input type="email" class="form-input" name="email" placeholder="example@example.com">
+                    </div>
+                    
+                    <!-- メッセージ -->
+                    <div class="form-group">
+                        <label class="form-label">メッセージ・要望</label>
+                        <textarea class="form-textarea" name="message" placeholder="アレルギー情報や特別な要望など"></textarea>
+                    </div>
+                    
+                    <!-- ボタン -->
+                    <div class="form-buttons">
+                        <button type="submit" class="btn btn-primary">
+                            ✓ 予約を追加
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="closeAddModal()">
+                            キャンセル
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // モーダルの開閉
+        function openAddModal() {
+            document.getElementById('addModal').classList.add('show');
+            // 今日の日付をデフォルト値として設定
+            const today = new Date().toISOString().split('T')[0];
+            document.querySelector('input[name="date"]').value = today;
+        }
+        
+        function closeAddModal() {
+            document.getElementById('addModal').classList.remove('show');
+            document.getElementById('reservationForm').reset();
+        }
+        
+        // フォーム送信処理
+        async function handleSubmit(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch('/api/admin?action=create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('予約を追加しました');
+                    closeAddModal();
+                    // カレンダーをリロード
+                    location.reload();
+                } else {
+                    alert('エラー: ' + (result.error || '予約の追加に失敗しました'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('予約の追加中にエラーが発生しました');
+            }
+        }
+        
+        // モーダル外クリックで閉じる
+        document.getElementById('addModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeAddModal();
+            }
+        });
+        
+        // ESCキーで閉じる
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeAddModal();
+            }
+        });
+    </script>
+</body>
+</html>

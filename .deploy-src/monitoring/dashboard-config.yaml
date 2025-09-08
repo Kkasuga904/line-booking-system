@@ -1,0 +1,311 @@
+# Cloud Run 監視ダッシュボード設定
+# このファイルをCloud Monitoringにインポートして使用
+
+displayName: "LINE予約システム - マルチテナント監視"
+mosaicLayout:
+  columns: 12
+  tiles:
+    # エラー率（店舗別）
+    - width: 6
+      height: 4
+      widget:
+        title: "5xx エラー率（店舗別）"
+        xyChart:
+          dataSets:
+            - timeSeriesQuery:
+                timeSeriesFilter:
+                  filter: |
+                    metric.type="run.googleapis.com/request_count"
+                    AND resource.type="cloud_run_revision"
+                    AND metric.labels.response_code_class="5xx"
+                  aggregation:
+                    groupByFields:
+                      - "resource.labels.service_name"
+                      - "metadata.user_labels.store_id"
+                    perSeriesAligner: ALIGN_RATE
+                    crossSeriesReducer: REDUCE_SUM
+              plotType: LINE
+          timeshiftDuration: 0s
+          yAxis:
+            label: "Errors/sec"
+            scale: LINEAR
+          thresholds:
+            - value: 0.001
+              label: "Alert Threshold"
+              direction: ABOVE
+
+    # レスポンスタイム P95（店舗別）
+    - xPos: 6
+      width: 6
+      height: 4
+      widget:
+        title: "レスポンスタイム P95（店舗別）"
+        xyChart:
+          dataSets:
+            - timeSeriesQuery:
+                timeSeriesFilter:
+                  filter: |
+                    metric.type="run.googleapis.com/request_latencies"
+                    AND resource.type="cloud_run_revision"
+                  aggregation:
+                    groupByFields:
+                      - "resource.labels.service_name"
+                      - "metadata.user_labels.store_id"
+                    perSeriesAligner: ALIGN_PERCENTILE_95
+                    crossSeriesReducer: REDUCE_MEAN
+              plotType: LINE
+          timeshiftDuration: 0s
+          yAxis:
+            label: "Latency (ms)"
+            scale: LINEAR
+          thresholds:
+            - value: 1000
+              label: "1 second"
+              direction: ABOVE
+
+    # リクエスト数（店舗別）
+    - yPos: 4
+      width: 6
+      height: 4
+      widget:
+        title: "リクエスト数（店舗別）"
+        xyChart:
+          dataSets:
+            - timeSeriesQuery:
+                timeSeriesFilter:
+                  filter: |
+                    metric.type="run.googleapis.com/request_count"
+                    AND resource.type="cloud_run_revision"
+                  aggregation:
+                    groupByFields:
+                      - "metadata.user_labels.store_id"
+                    perSeriesAligner: ALIGN_RATE
+                    crossSeriesReducer: REDUCE_SUM
+              plotType: STACKED_AREA
+          timeshiftDuration: 0s
+          yAxis:
+            label: "Requests/sec"
+            scale: LINEAR
+
+    # CPU使用率
+    - xPos: 6
+      yPos: 4
+      width: 6
+      height: 4
+      widget:
+        title: "CPU使用率"
+        xyChart:
+          dataSets:
+            - timeSeriesQuery:
+                timeSeriesFilter:
+                  filter: |
+                    metric.type="run.googleapis.com/container/cpu/utilizations"
+                    AND resource.type="cloud_run_revision"
+                  aggregation:
+                    perSeriesAligner: ALIGN_PERCENTILE_95
+                    crossSeriesReducer: REDUCE_MAX
+              plotType: LINE
+          timeshiftDuration: 0s
+          yAxis:
+            label: "CPU Utilization"
+            scale: LINEAR
+          thresholds:
+            - value: 0.8
+              label: "80%"
+              direction: ABOVE
+
+    # メモリ使用量
+    - yPos: 8
+      width: 6
+      height: 4
+      widget:
+        title: "メモリ使用量"
+        xyChart:
+          dataSets:
+            - timeSeriesQuery:
+                timeSeriesFilter:
+                  filter: |
+                    metric.type="run.googleapis.com/container/memory/utilizations"
+                    AND resource.type="cloud_run_revision"
+                  aggregation:
+                    perSeriesAligner: ALIGN_PERCENTILE_95
+                    crossSeriesReducer: REDUCE_MAX
+              plotType: LINE
+          timeshiftDuration: 0s
+          yAxis:
+            label: "Memory Utilization"
+            scale: LINEAR
+          thresholds:
+            - value: 0.8
+              label: "80%"
+              direction: ABOVE
+
+    # コールドスタート頻度
+    - xPos: 6
+      yPos: 8
+      width: 6
+      height: 4
+      widget:
+        title: "コールドスタート頻度"
+        xyChart:
+          dataSets:
+            - timeSeriesQuery:
+                timeSeriesFilter:
+                  filter: |
+                    metric.type="run.googleapis.com/container/startup_latencies"
+                    AND resource.type="cloud_run_revision"
+                  aggregation:
+                    perSeriesAligner: ALIGN_COUNT_TRUE
+                    crossSeriesReducer: REDUCE_SUM
+              plotType: LINE
+          timeshiftDuration: 0s
+          yAxis:
+            label: "Cold Starts"
+            scale: LINEAR
+
+    # 予約成功率（カスタムメトリクス）
+    - yPos: 12
+      width: 12
+      height: 4
+      widget:
+        title: "予約成功率（店舗別）"
+        scorecard:
+          timeSeriesQuery:
+            timeSeriesFilter:
+              filter: |
+                metric.type="custom.googleapis.com/reservation/success_rate"
+                AND resource.type="global"
+              aggregation:
+                groupByFields:
+                  - "metric.labels.store_id"
+                perSeriesAligner: ALIGN_MEAN
+                crossSeriesReducer: REDUCE_MEAN
+          gaugeView:
+            lowerBound: 0
+            upperBound: 100
+          thresholds:
+            - value: 95
+              label: "Target"
+              direction: BELOW
+
+---
+# アラートポリシー設定
+alertPolicies:
+  # 5xxエラー率アラート
+  - displayName: "高エラー率アラート（店舗別）"
+    conditions:
+      - displayName: "5xx error rate > 1%"
+        conditionThreshold:
+          filter: |
+            metric.type="run.googleapis.com/request_count"
+            AND resource.type="cloud_run_revision"
+            AND metric.labels.response_code_class="5xx"
+          aggregations:
+            - groupByFields:
+                - "resource.labels.service_name"
+                - "metadata.user_labels.store_id"
+              perSeriesAligner: ALIGN_RATE
+              crossSeriesReducer: REDUCE_SUM
+          comparison: COMPARISON_GT
+          thresholdValue: 0.01
+          duration: 60s
+    notificationChannels:
+      - "projects/[PROJECT_ID]/notificationChannels/[CHANNEL_ID]"
+    alertStrategy:
+      autoClose: 1800s
+
+  # P95レイテンシアラート
+  - displayName: "高レイテンシアラート"
+    conditions:
+      - displayName: "P95 latency > 2 seconds"
+        conditionThreshold:
+          filter: |
+            metric.type="run.googleapis.com/request_latencies"
+            AND resource.type="cloud_run_revision"
+          aggregations:
+            - groupByFields:
+                - "resource.labels.service_name"
+              perSeriesAligner: ALIGN_PERCENTILE_95
+              crossSeriesReducer: REDUCE_MEAN
+          comparison: COMPARISON_GT
+          thresholdValue: 2000
+          duration: 300s
+    notificationChannels:
+      - "projects/[PROJECT_ID]/notificationChannels/[CHANNEL_ID]"
+
+  # メモリ使用率アラート
+  - displayName: "高メモリ使用率アラート"
+    conditions:
+      - displayName: "Memory utilization > 90%"
+        conditionThreshold:
+          filter: |
+            metric.type="run.googleapis.com/container/memory/utilizations"
+            AND resource.type="cloud_run_revision"
+          aggregations:
+            - perSeriesAligner: ALIGN_PERCENTILE_95
+              crossSeriesReducer: REDUCE_MAX
+          comparison: COMPARISON_GT
+          thresholdValue: 0.9
+          duration: 300s
+    notificationChannels:
+      - "projects/[PROJECT_ID]/notificationChannels/[CHANNEL_ID]"
+
+---
+# ログベースメトリクス設定
+logMetrics:
+  # store_id別のリクエスト数
+  - name: "requests_by_store"
+    description: "リクエスト数（店舗別）"
+    filter: |
+      resource.type="cloud_run_revision"
+      jsonPayload.store_id!=""
+    labelExtractors:
+      store_id: "EXTRACT(jsonPayload.store_id)"
+      method: "EXTRACT(jsonPayload.method)"
+      path: "EXTRACT(jsonPayload.path)"
+    metricDescriptor:
+      metricKind: DELTA
+      valueType: INT64
+
+  # エラーログカウント
+  - name: "error_logs_by_store"
+    description: "エラーログ数（店舗別）"
+    filter: |
+      resource.type="cloud_run_revision"
+      severity>=ERROR
+      jsonPayload.store_id!=""
+    labelExtractors:
+      store_id: "EXTRACT(jsonPayload.store_id)"
+      error_type: "EXTRACT(jsonPayload.error.name)"
+    metricDescriptor:
+      metricKind: DELTA
+      valueType: INT64
+
+  # 予約成功/失敗
+  - name: "reservation_outcomes"
+    description: "予約成功/失敗数"
+    filter: |
+      resource.type="cloud_run_revision"
+      jsonPayload.msg=~"Reservation.*"
+      jsonPayload.action=~"created|failed"
+    labelExtractors:
+      store_id: "EXTRACT(jsonPayload.store_id)"
+      action: "EXTRACT(jsonPayload.action)"
+    metricDescriptor:
+      metricKind: DELTA
+      valueType: INT64
+
+  # パフォーマンスメトリクス
+  - name: "api_performance"
+    description: "APIパフォーマンス"
+    filter: |
+      resource.type="cloud_run_revision"
+      jsonPayload.ms!=""
+    labelExtractors:
+      store_id: "EXTRACT(jsonPayload.store_id)"
+      path: "EXTRACT(jsonPayload.path)"
+    valueExtractor: "EXTRACT(jsonPayload.ms)"
+    metricDescriptor:
+      metricKind: GAUGE
+      valueType: INT64
+      unit: "ms"

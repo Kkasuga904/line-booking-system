@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>サイドバー最終収束パッチ - 完全版</title>
+</head>
+<body>
+<h1>サイドバー最終収束パッチ - 旧メニュー完全排除版</h1>
+<p>以下のコードブロックを順番に admin-full-featured.html に適用してください。</p>
+
+<hr>
+
+<!-- ==================== BLOCK A: Stray Menu 即座無効化 ==================== -->
+<h2>A. Stray Menu即座無効化スクリプト（ページ最上部、&lt;head&gt;直後に配置）</h2>
+<pre><code>&lt;script id="stray-menu-guard-early"&gt;
+// 旧メニューシステムの即座無効化（最速実行）
+(function() {
+    'use strict';
+    
+    // 旧メニュー関数を即座に無効化
+    window.renderSidebarMenu = function() { 
+        console.warn('[StrayGuard] renderSidebarMenu blocked'); 
+        return null; 
+    };
+    window.createMenuElement = function() { 
+        console.warn('[StrayGuard] createMenuElement blocked'); 
+        return null; 
+    };
+    window.initializeSidebar = function() { 
+        console.warn('[StrayGuard] initializeSidebar blocked'); 
+        return null; 
+    };
+    
+    // DOMContentLoadedより前に実行される監視
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) { // Element node
+                    // 旧メニュー要素を即座に削除
+                    if (node.classList && (
+                        node.classList.contains('old-sidebar') ||
+                        node.classList.contains('sidebar-menu') ||
+                        node.classList.contains('menu-renderer')
+                    )) {
+                        console.warn('[StrayGuard] Removing stray menu element:', node.className);
+                        node.remove();
+                        return;
+                    }
+                    
+                    // #sidebar以外の場所にあるメニュー風要素を非表示
+                    if (node.id === 'sidebar' && !node.classList.contains('c-sidebar')) {
+                        console.warn('[StrayGuard] Non-compliant sidebar detected, hiding');
+                        node.style.display = 'none !important';
+                        node.style.visibility = 'hidden !important';
+                    }
+                }
+            });
+        });
+    });
+    
+    // body要素が利用可能になったら監視開始
+    if (document.body) {
+        observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+        document.addEventListener('DOMContentLoaded', function() {
+            observer.observe(document.body, { childList: true, subtree: true });
+        });
+    }
+})();
+&lt;/script&gt;</code></pre>
+
+<hr>
+
+<!-- ==================== BLOCK B: 冪等初期化 + 再試行 + 監視 ==================== -->
+<h2>B. 冪等初期化 + 再試行 + 監視コード（&lt;/body&gt;タグの直前）</h2>
+<pre><code>&lt;script id="sidebar-final-convergence"&gt;
+(function() {
+    'use strict';
+    
+    const DEBUG = true; // 本番では false に
+    const log = DEBUG ? console.log.bind(console) : () => {};
+    const warn = DEBUG ? console.warn.bind(console) : () => {};
+    
+    // 初期化済みフラグ
+    if (window.__sidebarFinalConverged) {
+        log('[Convergence] Already initialized');
+        return;
+    }
+    window.__sidebarFinalConverged = true;
+    
+    // ==================== Stray Menu後処理 ====================
+    function eliminateStrayMenus() {
+        // 旧メニュー要素を完全削除
+        const straySelectors = [
+            '.sidebar:not(.c-sidebar)',
+            '.sidebar-menu:not(.c-sidebar__menu)',
+            '.menu-renderer',
+            '.old-sidebar',
+            '#sidebar:not(.c-sidebar)',
+            '[data-menu-renderer]',
+            '[data-sidebar-old]'
+        ];
+        
+        straySelectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => {
+                warn('[Convergence] Eliminating stray menu:', el);
+                el.remove();
+            });
+        });
+        
+        // 旧メニュー関数の最終無効化
+        const blockedFunctions = [
+            'renderSidebarMenu',
+            'createMenuElement',
+            'initializeSidebar',
+            'toggleOldSidebar',
+            'showMenu',
+            'hideMenu'
+        ];
+        
+        blockedFunctions.forEach(fn => {
+            if (window[fn] && typeof window[fn] === 'function') {
+                window[fn] = function() {
+                    warn(`[Convergence] Blocked call to ${fn}`);
+                    return null;
+                };
+            }
+        });
+    }
+    
+    // ==================== DOM構造の確実な固定化 ====================
+    function ensureProperStructure(retryCount = 0) {
+        const MAX_RETRIES = 5;
+        
+        log(`[Convergence] Ensuring structure (attempt ${retryCount + 1})`);
+        
+        // Stray menuの削除
+        eliminateStrayMenus();
+        
+        // 正しいサイドバーの確保
+        let sidebar = document.getElementById('sidebar');
+        let needsCreation = false;
+        
+        if (!sidebar) {
+            needsCreation = true;
+        } else if (!sidebar.classList.contains('c-sidebar')) {
+            warn('[Convergence] Sidebar exists but missing c-sidebar class');
+            sidebar.remove();
+            needsCreation = true;
+        } else if (sidebar.parentElement !== document.body) {
+            warn('[Convergence] Sidebar not in body, moving');
+            document.body.appendChild(sidebar);
+        }
+        
+        if (needsCreation) {
+            log('[Convergence] Creating new sidebar');
+            sidebar = document.createElement('aside');
+            sidebar.id = 'sidebar';
+            sidebar.className = 'c-sidebar';
+            sidebar.setAttribute('aria-hidden', 'true');
+            sidebar.setAttribute('role', 'navigation');
+            sidebar.innerHTML = `
+                &lt;div class="c-sidebar__header"&gt;
+                    &lt;h2 class="c-sidebar__title"&gt;メニュー&lt;/h2&gt;
+                    &lt;button class="c-sidebar__close" aria-label="閉じる"&gt;×&lt;/button&gt;
+                &lt;/div&gt;
+                &lt;div class="c-sidebar__content"&gt;
+                    &lt;nav class="c-sidebar__nav"&gt;
+                        &lt;div class="menu-section"&gt;
+                            &lt;div class="menu-section-title"&gt;分析・レポート&lt;/div&gt;
+                            &lt;ul class="c-sidebar__menu"&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="dashboard"&gt;📊 統計ダッシュボード&lt;/a&gt;&lt;/li&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="reports"&gt;📈 売上分析&lt;/a&gt;&lt;/li&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="trends"&gt;📉 稼働率レポート&lt;/a&gt;&lt;/li&gt;
+                            &lt;/ul&gt;
+                        &lt;/div&gt;
+                        &lt;div class="menu-section"&gt;
+                            &lt;div class="menu-section-title"&gt;顧客管理&lt;/div&gt;
+                            &lt;ul class="c-sidebar__menu"&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="customers"&gt;👥 顧客データベース&lt;/a&gt;&lt;/li&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="email"&gt;📧 メール配信&lt;/a&gt;&lt;/li&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="points"&gt;🎁 ポイント・クーポン&lt;/a&gt;&lt;/li&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="reminders"&gt;🔔 リマインダー設定&lt;/a&gt;&lt;/li&gt;
+                            &lt;/ul&gt;
+                        &lt;/div&gt;
+                        &lt;div class="menu-section"&gt;
+                            &lt;div class="menu-section-title"&gt;スタッフ管理&lt;/div&gt;
+                            &lt;ul class="c-sidebar__menu"&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="staff"&gt;👤 スタッフ管理&lt;/a&gt;&lt;/li&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="shifts"&gt;📅 シフト管理&lt;/a&gt;&lt;/li&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="permissions"&gt;🔐 権限設定&lt;/a&gt;&lt;/li&gt;
+                            &lt;/ul&gt;
+                        &lt;/div&gt;
+                        &lt;div class="menu-section"&gt;
+                            &lt;div class="menu-section-title"&gt;店舗設定&lt;/div&gt;
+                            &lt;ul class="c-sidebar__menu"&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="store"&gt;🏪 店舗情報&lt;/a&gt;&lt;/li&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="hours"&gt;🕐 営業時間&lt;/a&gt;&lt;/li&gt;
+                                &lt;li&gt;&lt;a href="#" data-action="seats"&gt;💺 座席レイアウト&lt;/a&gt;&lt;/li&gt;
+                            &lt;/ul&gt;
+                        &lt;/div&gt;
+                    &lt;/nav&gt;
+                &lt;/div&gt;
+            `;
+            document.body.appendChild(sidebar);
+        }
+        
+        // オーバーレイの確保
+        let overlay = document.getElementById('pageOverlay');
+        if (!overlay || !overlay.classList.contains('c-overlay')) {
+            if (overlay) overlay.remove();
+            overlay = document.createElement('div');
+            overlay.id = 'pageOverlay';
+            overlay.className = 'c-overlay';
+            overlay.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(overlay);
+        }
+        
+        // ハンバーガーボタンの確保
+        let hamburger = document.querySelector('.c-hamburger');
+        if (!hamburger) {
+            hamburger = document.createElement('button');
+            hamburger.className = 'c-hamburger';
+            hamburger.setAttribute('aria-label', 'メニュー');
+            hamburger.setAttribute('aria-expanded', 'false');
+            hamburger.innerHTML = `
+                &lt;svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"&gt;
+                    &lt;path d="M3 12h18M3 6h18M3 18h18"/&gt;
+                &lt;/svg&gt;
+            `;
+            document.body.appendChild(hamburger);
+        }
+        
+        // 初期状態の強制設定
+        sidebar.classList.remove('is-open');
+        overlay.classList.remove('is-visible');
+        sidebar.setAttribute('aria-hidden', 'true');
+        
+        // 検証
+        const validation = {
+            sidebarExists: !!document.getElementById('sidebar'),
+            sidebarInBody: sidebar.parentElement === document.body,
+            sidebarHasClass: sidebar.classList.contains('c-sidebar'),
+            overlayExists: !!document.getElementById('pageOverlay'),
+            hamburgerExists: !!document.querySelector('.c-hamburger')
+        };
+        
+        const allValid = Object.values(validation).every(v => v);
+        
+        if (!allValid && retryCount < MAX_RETRIES) {
+            warn('[Convergence] Validation failed, retrying...', validation);
+            setTimeout(() => ensureProperStructure(retryCount + 1), 500);
+            return null;
+        } else if (!allValid) {
+            console.error('[Convergence] Failed to ensure structure after max retries', validation);
+            return null;
+        }
+        
+        log('[Convergence] Structure validated successfully', validation);
+        return { sidebar, overlay, hamburger };
+    }
+    
+    // ==================== コントローラー ====================
+    class FinalSidebarController {
+        constructor(elements) {
+            if (!elements) return;
+            
+            this.sidebar = elements.sidebar;
+            this.overlay = elements.overlay;
+            this.hamburger = elements.hamburger;
+            this.closeButton = this.sidebar.querySelector('.c-sidebar__close');
+            this.isOpen = false;
+            
+            this.init();
+        }
+        
+        init() {
+            // イベントリスナー設定
+            this.hamburger.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggle();
+            });
+            
+            if (this.closeButton) {
+                this.closeButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.close();
+                });
+            }
+            
+            this.overlay.addEventListener('click', () => this.close());
+            
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && this.isOpen) this.close();
+            });
+            
+            // メニューリンク
+            this.sidebar.querySelectorAll('[data-action]').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const action = link.dataset.action;
+                    log('[Controller] Action:', action);
+                    this.close();
+                    // ここでアクション実行
+                    this.executeAction(action);
+                });
+            });
+            
+            log('[Controller] Initialized');
+        }
+        
+        toggle() {
+            if (this.isOpen) {
+                this.close();
+            } else {
+                this.open();
+            }
+        }
+        
+        open() {
+            if (this.isOpen) return;
+            
+            this.sidebar.classList.add('is-open');
+            this.overlay.classList.add('is-visible');
+            this.sidebar.setAttribute('aria-hidden', 'false');
+            this.hamburger.setAttribute('aria-expanded', 'true');
+            document.body.style.overflow = 'hidden';
+            this.isOpen = true;
+            
+            log('[Controller] Opened');
+        }
+        
+        close() {
+            if (!this.isOpen) return;
+            
+            this.sidebar.classList.remove('is-open');
+            this.overlay.classList.remove('is-visible');
+            this.sidebar.setAttribute('aria-hidden', 'true');
+            this.hamburger.setAttribute('aria-expanded', 'false');
+            document.body.style.overflow = '';
+            this.isOpen = false;
+            
+            log('[Controller] Closed');
+        }
+        
+        executeAction(action) {
+            // 既存の関数を呼び出し
+            const actionMap = {
+                'calendar': 'showCalendarView',
+                'reservation-list': 'showReservationListView',
+                'capacity-controls': 'showCapacityControlsView',
+                'dashboard': 'showDashboard',
+                'customers': 'showCustomers',
+                'staff': 'showStaff',
+                'store': 'showStoreSettings'
+            };
+            
+            const fn = actionMap[action];
+            if (fn && window[fn]) {
+                window[fn]();
+            }
+        }
+    }
+    
+    // ==================== 初期化実行 ====================
+    function initialize() {
+        log('[Convergence] Starting initialization');
+        
+        // Stray menuの削除
+        eliminateStrayMenus();
+        
+        // DOM構造の確保（再試行付き）
+        const elements = ensureProperStructure();
+        
+        if (elements) {
+            // コントローラー初期化
+            const controller = new FinalSidebarController(elements);
+            
+            // グローバル公開
+            window.finalSidebarController = controller;
+            window.toggleSidebar = () => controller.toggle();
+            
+            log('[Convergence] Initialization complete');
+        }
+    }
+    
+    // DOMContentLoadedまたは即座に実行
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialize);
+    } else {
+        initialize();
+    }
+    
+    // ==================== 継続的な監視 ====================
+    const bodyObserver = new MutationObserver((mutations) => {
+        mutations.forEach(mutation => {
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) {
+                        // Stray menuの即座削除
+                        if (node.classList && (
+                            node.classList.contains('old-sidebar') ||
+                            node.classList.contains('sidebar-menu') ||
+                            (node.id === 'sidebar' && !node.classList.contains('c-sidebar'))
+                        )) {
+                            warn('[Observer] Removing stray menu:', node);
+                            node.remove();
+                        }
+                    }
+                });
+                
+                // サイドバーが削除された場合は再初期化
+                mutation.removedNodes.forEach(node => {
+                    if (node.id === 'sidebar' || node.id === 'pageOverlay') {
+                        warn('[Observer] Critical element removed, reinitializing');
+                        setTimeout(initialize, 100);
+                    }
+                });
+            }
+        });
+    });
+    
+    bodyObserver.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+})();
+&lt;/script&gt;</code></pre>
+
+<hr>
+
+<!-- ==================== BLOCK C: 最終オーバーライドCSS ==================== -->
+<h2>C. 最終オーバーライドCSS（&lt;/body&gt;タグの直前、全スクリプトの後）</h2>
+<pre><code>&lt;style id="final-override-css"&gt;
+/* 最終オーバーライド - 全CSSの後に適用 */
+@layer final-override {
+    /* Stray menuの完全非表示 */
+    .old-sidebar,
+    .sidebar-menu:not(.c-sidebar__menu),
+    .menu-renderer,
+    #sidebar:not(.c-sidebar),
+    [data-menu-renderer],
+    [data-sidebar-old] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        position: absolute !important;
+        left: -9999px !important;
+        top: -9999px !important;
+    }
+    
+    /* 正しいサイドバーの最終スタイル */
+    #sidebar.c-sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 300px !important;
+        height: 100vh !important;
+        background: #ffffff !important;
+        box-shadow: 2px 0 12px rgba(0,0,0,0.15) !important;
+        z-index: 999999 !important;
+        
+        /* 常にblock表示 */
+        display: block !important;
+        
+        /* デフォルト：非表示（transformで制御） */
+        transform: translateX(-100%) !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        
+        /* アニメーション */
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                    opacity 0.3s ease,
+                    visibility 0.3s ease !important;
+        
+        /* スクロール */
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        scrollbar-width: thin;
+        scrollbar-color: #d0d0d0 transparent;
+    }
+    
+    /* 開いた状態 */
+    #sidebar.c-sidebar.is-open {
+        transform: translateX(0) !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+    }
+    
+    /* サイドバー内部スタイル */
+    #sidebar.c-sidebar .c-sidebar__header {
+        padding: 20px !important;
+        border-bottom: 1px solid #e0e0e0 !important;
+        background: #f8f9fa !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+    }
+    
+    #sidebar.c-sidebar .c-sidebar__title {
+        font-size: 18px !important;
+        font-weight: 600 !important;
+        margin: 0 !important;
+    }
+    
+    #sidebar.c-sidebar .c-sidebar__close {
+        background: none !important;
+        border: none !important;
+        font-size: 24px !important;
+        cursor: pointer !important;
+        padding: 4px 8px !important;
+        color: #666 !important;
+    }
+    
+    #sidebar.c-sidebar .c-sidebar__content {
+        padding: 20px !important;
+    }
+    
+    #sidebar.c-sidebar .menu-section {
+        margin-bottom: 24px !important;
+    }
+    
+    #sidebar.c-sidebar .menu-section-title {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #6c757d !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        margin-bottom: 8px !important;
+        padding: 0 12px !important;
+    }
+    
+    #sidebar.c-sidebar .c-sidebar__menu {
+        list-style: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    #sidebar.c-sidebar .c-sidebar__menu li {
+        margin-bottom: 4px !important;
+    }
+    
+    #sidebar.c-sidebar .c-sidebar__menu a {
+        display: block !important;
+        padding: 10px 12px !important;
+        color: #333 !important;
+        text-decoration: none !important;
+        border-radius: 6px !important;
+        transition: background 0.2s !important;
+        font-size: 14px !important;
+    }
+    
+    #sidebar.c-sidebar .c-sidebar__menu a:hover {
+        background: #f0f0f0 !important;
+    }
+    
+    /* オーバーレイ */
+    #pageOverlay.c-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        z-index: 999998 !important;
+        display: block !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        transition: opacity 0.3s ease,
+                    visibility 0.3s ease !important;
+    }
+    
+    #pageOverlay.c-overlay.is-visible {
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+    }
+    
+    /* ハンバーガーボタン */
+    .c-hamburger {
+        position: fixed !important;
+        top: 15px !important;
+        left: 15px !important;
+        width: 48px !important;
+        height: 48px !important;
+        background: #ffffff !important;
+        border: none !important;
+        border-radius: 8px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+        cursor: pointer !important;
+        z-index: 10001 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .c-hamburger:hover {
+        background: #f5f5f5 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+        transform: scale(1.05) !important;
+    }
+    
+    /* Webkit scrollbar */
+    #sidebar.c-sidebar::-webkit-scrollbar {
+        width: 6px !important;
+    }
+    
+    #sidebar.c-sidebar::-webkit-scrollbar-track {
+        background: transparent !important;
+    }
+    
+    #sidebar.c-sidebar::-webkit-scrollbar-thumb {
+        background: #d0d0d0 !important;
+        border-radius: 3px !important;
+    }
+    
+    /* モバイル対応 */
+    @media (max-width: 768px) {
+        #sidebar.c-sidebar {
+            width: 85% !important;
+            max-width: 300px !important;
+        }
+        
+        .c-hamburger {
+            top: 10px !important;
+            left: 10px !important;
+            width: 44px !important;
+            height: 44px !important;
+        }
+    }
+}
+
+/* @layer未対応ブラウザ用 */
+#sidebar.c-sidebar {
+    display: block !important;
+    left: 0 !important;
+}
+
+/* Stray menu強制非表示（フォールバック） */
+.old-sidebar,
+.sidebar-menu:not(.c-sidebar__menu),
+#sidebar:not(.c-sidebar) {
+    display: none !important;
+}
+&lt;/style&gt;</code></pre>
+
+<hr>
+
+<!-- ==================== 確認手順 ==================== -->
+<h2>確認手順</h2>
+
+<h3>1. コンソールでの確認コマンド（3つ）</h3>
+<pre><code>// 1. DOM構造の確認
+console.log({
+    sidebar: document.getElementById('sidebar'),
+    inBody: document.getElementById('sidebar')?.parentElement === document.body,
+    hasClass: document.getElementById('sidebar')?.classList.contains('c-sidebar'),
+    strayMenus: document.querySelectorAll('.sidebar:not(.c-sidebar), .old-sidebar, .menu-renderer').length
+});
+
+// 2. 状態の確認
+console.log({
+    isOpen: document.getElementById('sidebar')?.classList.contains('is-open'),
+    computed: {
+        display: getComputedStyle(document.getElementById('sidebar')).display,
+        transform: getComputedStyle(document.getElementById('sidebar')).transform,
+        opacity: getComputedStyle(document.getElementById('sidebar')).opacity,
+        visibility: getComputedStyle(document.getElementById('sidebar')).visibility
+    }
+});
+
+// 3. 動作テスト
+window.finalSidebarController?.toggle();
+setTimeout(() => window.finalSidebarController?.toggle(), 1000);</code></pre>
+
+<h3>2. DevToolsでの確認</h3>
+<ol>
+    <li><strong>Elements</strong>タブ:
+        <ul>
+            <li>#sidebar が &lt;body&gt; の直接の子要素</li>
+            <li>class に "c-sidebar" が含まれる</li>
+            <li>他に .sidebar や .old-sidebar が存在しない</li>
+        </ul>
+    </li>
+    <li><strong>Network</strong>タブ:
+        <ul>
+            <li>/api/sidebar-menu へのリクエストが 410 Gone を返す</li>
+            <li>/js/sidebar-menu.js へのリクエストが 410 Gone を返す</li>
+        </ul>
+    </li>
+    <li><strong>Console</strong>タブ:
+        <ul>
+            <li>[StrayGuard] のログが出力される</li>
+            <li>[Convergence] のログが出力される</li>
+            <li>エラーが発生していない</li>
+        </ul>
+    </li>
+</ol>
+
+<h3>3. 動作確認</h3>
+<ul>
+    <li>ハンバーガーボタンクリック → サイドバーが開く</li>
+    <li>×ボタンクリック → サイドバーが閉じる</li>
+    <li>オーバーレイクリック → サイドバーが閉じる</li>
+    <li>ESCキー → サイドバーが閉じる</li>
+    <li>10回連打 → 状態が崩れない</li>
+    <li>ページリロード → 初期状態で非表示</li>
+</ul>
+
+</body>
+</html>
