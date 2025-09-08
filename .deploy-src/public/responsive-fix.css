@@ -1,0 +1,217 @@
+/* レスポンシブデザイン修正CSS */
+
+/* デフォルト状態でサイドメニューを非表示 */
+.side-menu {
+    transform: translateX(-100%) !important;
+    z-index: 2000 !important;
+}
+
+.side-menu.active {
+    transform: translateX(0) !important;
+}
+
+/* メインコンテナのマージン調整 */
+.main-container {
+    margin-left: 0 !important;
+    transition: margin-left 0.3s ease;
+}
+
+/* ハンバーガーメニューを常に表示 */
+.hamburger-menu {
+    display: block !important;
+}
+
+/* オーバーレイの調整 */
+.overlay {
+    z-index: 1999 !important;
+}
+
+.overlay.active {
+    display: block !important;
+}
+
+/* タブレットサイズ (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .modal-content {
+        width: 90% !important;
+        max-width: 600px !important;
+    }
+}
+
+/* デスクトップサイズ (1025px以上) */
+@media (min-width: 1025px) {
+    .side-menu {
+        transform: translateX(0) !important;
+    }
+    
+    .main-container {
+        margin-left: 240px !important;
+    }
+    
+    .hamburger-menu {
+        display: none !important;
+    }
+}
+
+/* スマホサイズ (767px以下) */
+@media (max-width: 767px) {
+    .main-container {
+        padding: 10px !important;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    
+    .stat-card {
+        padding: 15px !important;
+    }
+    
+    /* カレンダーツールバーの調整 */
+    .fc-toolbar {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    
+    .fc-toolbar-chunk {
+        display: flex !important;
+        justify-content: center !important;
+        flex-wrap: wrap !important;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.2em !important;
+        margin: 10px 0 !important;
+    }
+    
+    .fc-button-group {
+        margin: 5px !important;
+    }
+    
+    .fc-button {
+        padding: 0.3em 0.6em !important;
+        font-size: 0.85em !important;
+    }
+    
+    /* 予約制限追加ボタンの調整 */
+    button[onclick="openCapacityCreateModal()"] {
+        width: 100% !important;
+        margin-bottom: 15px !important;
+        font-size: 14px !important;
+        padding: 10px !important;
+    }
+    
+    /* モーダルの調整 */
+    .modal-content {
+        width: 95% !important;
+        max-width: none !important;
+        margin: 10px !important;
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+    }
+    
+    /* フォーム要素の調整 */
+    .form-group {
+        margin-bottom: 15px !important;
+    }
+    
+    .form-input {
+        font-size: 16px !important; /* iOSのズーム防止 */
+        padding: 10px !important;
+    }
+    
+    .form-label {
+        font-size: 14px !important;
+    }
+    
+    /* ボタンの調整 */
+    .action-btn {
+        padding: 10px 15px !important;
+        font-size: 14px !important;
+    }
+    
+    .form-actions {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    
+    .form-actions button {
+        width: 100% !important;
+    }
+}
+
+/* 非常に小さい画面 (480px以下) */
+@media (max-width: 480px) {
+    .header {
+        padding: 0 10px !important;
+    }
+    
+    .page-title {
+        font-size: 16px !important;
+    }
+    
+    /* タブの調整 */
+    .view-tabs {
+        flex-wrap: wrap !important;
+        gap: 5px !important;
+    }
+    
+    .tab {
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+        flex: 1 1 45% !important;
+    }
+    
+    /* カレンダーの日付表示を簡略化 */
+    .fc-col-header-cell {
+        padding: 5px !important;
+    }
+    
+    .fc-daygrid-day-number {
+        font-size: 12px !important;
+    }
+    
+    .fc-event {
+        font-size: 11px !important;
+    }
+}
+
+/* 画面分割時の対応 (幅が狭い場合) */
+@media (max-width: 600px) {
+    /* サイドメニューが開いている時のメインコンテナ */
+    .side-menu.active ~ .main-container {
+        display: none;
+    }
+    
+    /* サイドメニューの幅調整 */
+    .side-menu {
+        width: 80% !important;
+        max-width: 300px !important;
+    }
+}
+
+/* 横向きモバイル対応 */
+@media (max-height: 500px) and (orientation: landscape) {
+    .header {
+        height: 50px !important;
+    }
+    
+    .side-menu {
+        top: 50px !important;
+        height: calc(100vh - 50px) !important;
+    }
+    
+    .main-container {
+        margin-top: 50px !important;
+    }
+    
+    .modal-content {
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+    }
+}

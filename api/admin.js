@@ -9,18 +9,33 @@
 import { createClient } from '@supabase/supabase-js';
 import { getEnv } from '../utils/env-helper.js';
 import { getStoreId } from '../utils/store-config.js';
+import { authenticateMultiple } from '../middleware/jwt-auth.js';
+import crypto from 'crypto';
 
-// Supabase初期化
-const SUPABASE_URL = 'https://faenvzzeguvlconvrqgp.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZW52enplZ3V2bGNvbnZycWdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxNzQyOTgsImV4cCI6MjA3MTc1MDI5OH0.U_v82IYSDM3waCFfFr4e7MpbTQmZFRPCNaA-2u5R3d8';
+// Supabase初期化 - 環境変数から取得
+const SUPABASE_URL = getEnv('SUPABASE_URL', 'https://faenvzzeguvlconvrqgp.supabase.co');
+const SUPABASE_ANON_KEY = getEnv('SUPABASE_ANON_KEY');
+const SUPABASE_SERVICE_ROLE_KEY = getEnv('SUPABASE_SERVICE_ROLE_KEY');
+
+if (!SUPABASE_ANON_KEY) {
+  console.error('ERROR: SUPABASE_ANON_KEY is not set in environment variables');
+  throw new Error('SUPABASE_ANON_KEY is required');
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// サービスロールクライアント（RLSバイパス用）- 専門家推奨
+const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY 
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { 
+      auth: { persistSession: false } 
+    })
+  : supabase; // フォールバック
 
 export default async function handler(req, res) {
   // CORS設定
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Idempotency-Key');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -47,13 +62,19 @@ export default async function handler(req, res) {
     // 文字列に変換し、小文字化
     action = String(rawAction).toLowerCase().trim();
     
+    // コロンが含まれる場合は最初の部分だけ取る（例: "create:1" -> "create"）
+    if (action.includes(':')) {
+      console.log('Action contains colon, extracting first part:', action);
+      action = action.split(':')[0];
+    }
+    
     // 不正な文字を除去（英数字とハイフンのみ許可）
     action = action.replace(/[^a-z0-9-]/g, '');
     
-    // 特定のパターンを検出して修正
-    if (action.includes(':')) {
-      console.log('Action contains colon, cleaning:', action);
-      action = action.split(':')[0];
+    // 末尾の数字を除去（例: "create1" -> "create"）
+    if (/^(create|update|delete|list|auth|supabase)\d+$/.test(action)) {
+      console.log('Action has trailing numbers, removing:', action);
+      action = action.replace(/\d+$/, '');
     }
     
     // 空文字になった場合はnullに
@@ -69,10 +90,12 @@ export default async function handler(req, res) {
   
   // GETリクエストでactionがない場合はヘルスチェック
   if (!action && req.method === 'GET') {
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     return res.status(200).json({ 
       status: 'healthy',
       endpoint: 'admin',
-      timestamp: new Date().toISOString()
+      timestamp: timestamp
     });
   }
   
@@ -96,7 +119,82 @@ export default async function handler(req, res) {
     });
   }
   
+  // JWT認証チェック（authアクション以外は認証必須）
+  // ADMIN_AUTH_MODE=offまたはADMIN_BYPASS_AUTH=trueの場合は認証処理全体をスキップ
+  const mode = process.env.ADMIN_AUTH_MODE || 'on';
+  const bypassAuth = process.env.ADMIN_BYPASS_AUTH === 'true';
+  
+  if (action !== 'auth' && mode !== 'off' && !bypassAuth) {
+    // 認証ミドルウェアを適用
+    const authMiddleware = authenticateMultiple();
+    
+    // ミドルウェアを実行し、認証エラーがあれば処理を中断
+    await new Promise((resolve, reject) => {
+      authMiddleware(req, res, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    }).catch((authError) => {
+      console.error('Authentication failed:', authError);
+      // レスポンスが送信されていない場合のみエラーレスポンスを送信
+      if (!res.headersSent) {
+        return res.status(401).json({ 
+          error: 'Authentication required'
+        });
+      }
+      return;
+    });
+    
+    // 認証が成功した場合、req.userが設定されている
+    if (!req.user && action !== 'auth') {
+      console.log('Authentication failed - no req.user set');
+      return res.status(401).json({ 
+        error: 'Authentication required'
+      });
+    }
+    
+    console.log('Authentication successful:', {
+      userEmail: req.user?.email,
+      authType: req.user ? 'JWT' : 'API key'
+    });
+  }
+  
   try {
+    // createアクションの事前処理
+    if (action === 'create') {
+      const b = req.body || {};
+      
+      // ============================================================
+      // 【重要】時間フォーマットはserver.jsのミドルウェアで正規化済み
+      // ここでは絶対に:00を追加しない（二重付与防止）
+      // 参照: /docs/KNOWLEDGE_TIME_FORMAT_FIX.md
+      // ============================================================
+      
+      // seat_idがUUID形式でない場合はnullに矯正
+      if (b.seat_id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(b.seat_id)) {
+        console.log('Invalid seat_id detected, setting to null:', b.seat_id);
+        b.seat_id = null;
+      }
+      
+      // 明らかにおかしいuser_idを無効化（"T2"のような座席コード混入）
+      if (typeof b.user_id === 'string' && (/^[A-Z]\d+$/i.test(b.user_id) || b.user_id.length < 10)) {
+        console.log('Invalid user_id detected, removing:', b.user_id);
+        delete b.user_id; // 削除してサーバー側で設定させる
+      }
+      
+      // ============================================================
+      // 【アーキテクチャ変更】2025-09-02
+      // global.__create_guard を完全廃止
+      // データベースレベルのUNIQUE制約で重複検出を実装
+      // 参照: /migrations/001_add_unique_constraint.sql
+      // ============================================================
+      // 以前のメモリベースの重複検出は削除されました
+      // 新しい実装はhandleCreate関数内でDB制約により処理されます
+    }
+    
     switch (action) {
       case 'auth':
         return await handleAuth(req, res);
@@ -105,7 +203,7 @@ export default async function handler(req, res) {
       case 'create':
         return await handleCreate(req, res);
       case 'update':
-        return await handleUpdate(req, res);
+        return await handleUpdate(req, res, url);
       case 'delete':
         return await handleDelete(req, res, url);
       case 'supabase':
@@ -183,21 +281,29 @@ async function handleList(req, res) {
   }
   
   try {
-    // URLからstore_idを取得
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const storeId = getStoreId(url.searchParams.get('store_id'));
+    // サーバー側で強制決定されたstore_idを使用
+    const store_id = req.store_id;
     
-    if (!storeId) {
-      return res.status(400).json({ error: 'store_id required' });
+    console.log('Fetching reservations for store:', store_id);
+    
+    // FullCalendarから来る期間パラメータ
+    const { start, end } = req.query;
+    
+    // supabaseAdminを使用（RLSバイパス）- 専門家推奨
+    let query = supabaseAdmin
+      .from('reservations')
+      .select('id, store_id, store_name, user_id, customer_name, date, time, people, message, phone, email, seat_id, seat_code, status, created_at, updated_at, source')
+      .eq('store_id', store_id);
+    
+    // date が 'YYYY-MM-DD' で保存されている前提
+    if (start && end) {
+      const s = start.slice(0, 10);
+      const e = end.slice(0, 10);
+      query = query.gte('date', s).lte('date', e);
+      console.log(`Date range filter: ${s} to ${e}`);
     }
     
-    console.log('Fetching reservations for store:', storeId);
-    
-    // Supabaseから予約データを取得
-    const { data, error } = await supabase
-      .from('reservations')
-      .select('*')
-      .eq('store_id', storeId)
+    const { data, error } = await query
       .order('date', { ascending: true })
       .order('time', { ascending: true })
       .limit(200);
@@ -211,21 +317,75 @@ async function handleList(req, res) {
       });
     }
     
+    // デバッグ：取得したデータの最初の1件を確認
+    if (data && data.length > 0) {
+      console.log('Sample reservation from DB:', {
+        id: data[0].id,
+        customer_name: data[0].customer_name,
+        seat_id: data[0].seat_id,
+        seat_code: data[0].seat_code,
+        has_seat_code: 'seat_code' in data[0]
+      });
+    }
+    
     // データを整形（admin-full-featured.htmlが期待する形式に変換）
-    // 日付と時間を確実に文字列として返す
+    // 日付と時間を確実に文字列として返す（Dateオブジェクトを経由しない）
     const rows = (data || []).map(r => {
-      // 日付の文字列化
-      const dateStr = (typeof r.date === 'string')
-        ? r.date
-        : r.date instanceof Date
-          ? r.date.toISOString().slice(0,10)
-          : String(r.date ?? '');
+      // 日付の文字列化（toISOStringを使わない、Dateオブジェクトも使わない）
+      let dateStr = '';
       
-      // 時間の文字列化とフォーマット調整
+      // デバッグ：元データの確認
+      console.log(`[DEBUG] Processing date for ID ${r.id}:`, {
+        date_raw: r.date,
+        date_type: typeof r.date,
+        date_instanceof_date: r.date instanceof Date
+      });
+      
+      if (typeof r.date === 'string') {
+        // 文字列の場合、T区切りがあれば日付部分のみ取得、なければそのまま使用
+        if (r.date.includes('T')) {
+          dateStr = r.date.split('T')[0];
+        } else if (r.date.includes(' ')) {
+          // スペース区切りの場合も日付部分のみ
+          dateStr = r.date.split(' ')[0];
+        } else {
+          // すでにYYYY-MM-DD形式の場合はそのまま
+          dateStr = r.date;
+        }
+        
+        // 日付形式の検証（YYYY-MM-DD形式であることを確認）
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          console.warn(`[DEBUG] Invalid date format for ID ${r.id}: ${dateStr}`);
+        }
+        
+        console.log(`[DEBUG] String date processed: ${r.date} → ${dateStr}`);
+      } else if (r.date instanceof Date) {
+        // Dateオブジェクトの場合は避けるべきだが、念のため処理
+        // UTCを使わず、ローカル時間として処理
+        const y = r.date.getFullYear();
+        const m = String(r.date.getMonth() + 1).padStart(2, '0');
+        const d = String(r.date.getDate()).padStart(2, '0');
+        dateStr = `${y}-${m}-${d}`;
+        console.warn(`[DEBUG] Date object found (should be avoided):`, {
+          original: r.date,
+          result: dateStr
+        });
+      } else {
+        dateStr = String(r.date ?? '');
+        console.log(`[DEBUG] Other type processed: ${r.date} → ${dateStr}`);
+      }
+      
+      // 時間の文字列化とフォーマット調整（秒を補完）
       let timeStr = r.time ?? '';
       if (typeof timeStr !== 'string') timeStr = String(timeStr ?? '');
-      if (timeStr.length === 5) timeStr += ':00';
-      else if (timeStr.length > 8) timeStr = timeStr.slice(0,8);
+      
+      // HH:MM形式の場合は:00を追加、それ以外はそのまま
+      if (/^\d{2}:\d{2}$/.test(timeStr)) {
+        timeStr += ':00';
+      } else if (timeStr.length > 8) {
+        // HH:MM:SS.xxx などの場合は秒まで切り取る
+        timeStr = timeStr.slice(0, 8);
+      }
       
       return {
         id: r.id,
@@ -241,18 +401,21 @@ async function handleList(req, res) {
         email: r.email,
         seatId: r.seat_id,
         seat_id: r.seat_id,
+        seat_code: r.seat_code,  // 席コードを追加
         createdAt: r.created_at,
         updatedAt: r.updated_at
       };
     });
     
-    console.log(`Found ${rows.length} reservations for store ${storeId}`);
+    console.log(`Found ${rows.length} reservations for store ${store_id}`);
     
+    // 専門家推奨: ok:true と items を返す
     return res.status(200).json({
       ok: true,
       success: true, // 互換性のため両方を含める
-      data: rows,
-      rows: rows,  // 互換性のため両方を含める
+      items: rows,  // 専門家推奨形式
+      data: rows,   // 互換性
+      rows: rows,   // 互換性
       count: rows.length
     });
   } catch (e) {
@@ -273,6 +436,9 @@ async function handleCreate(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
   
+  // Idempotency-Keyヘッダーを取得
+  const idempotencyKey = req.headers['idempotency-key'] || req.headers['Idempotency-Key'];
+  
   // アクションタイプで分岐
   const { action: subAction } = req.body;
   
@@ -282,115 +448,273 @@ async function handleCreate(req, res) {
   
   const {
     customer_name,
+    customerName,  // フロントからの両方のキーに対応
     date,
     time,
     people,
+    numberOfPeople,  // フロントからの別キー
     message,
+    notes,  // フロントからの別キー
     phone,
+    phoneNumber,  // フロントからの別キー
     email,
-    seat_id
+    seat_id,
+    seat_code
   } = req.body;
   
-  // 必須項目チェック
-  if (!customer_name || !date || !time || !people) {
+  // キー名の統一
+  const name = customer_name || customerName || '予約';
+  const peopleCount = Number(people || numberOfPeople || 1);
+  const phoneNum = phone || phoneNumber || null;
+  const messageText = message || notes || null;
+  
+  // サーバー側で強制決定されたstore_idを使用
+  const store_id = req.store_id;
+  
+  // 最低限のバリデーション
+  if (!date || !time) {
     return res.status(400).json({ 
-      error: '必須項目が不足しています',
-      required: ['customer_name', 'date', 'time', 'people']
+      ok: false, 
+      error: 'date/time is required' 
     });
   }
   
-  // 人数チェック（1-20名）
-  const peopleNum = parseInt(people);
+  // データ作成前の詳細ログ（専門家推奨）
+  console.log('Creating reservation - input validation:', {
+    customer_name: name,
+    date: date,
+    time: time,
+    people: peopleCount,
+    seat_id: seat_id,
+    seat_code: seat_code,
+    store_id: store_id,
+    phone: phoneNum,
+    email: email,
+    message: messageText
+  });
+  
+  // 詳細なバリデーション（専門家推奨）
+  const problems = [];
+  
+  if (!name) problems.push('customer_name is required');
+  if (!date) problems.push('date is required');
+  if (!time) problems.push('time is required');
+  
+  // 時間の正規化
+  let timeStr = time;
+  if (timeStr && timeStr.length > 8) {
+    timeStr = timeStr.slice(0, 8); // "09:30:00.000Z" → "09:30:00"
+  }
+  if (timeStr && !/^\d{2}:\d{2}(:\d{2})?$/.test(timeStr)) {
+    problems.push(`time format invalid: ${timeStr} (expected HH:MM or HH:MM:SS)`);
+  }
+  
+  // 人数のバリデーション（文字列やnullに対応）
+  const peopleNum = parseInt(peopleCount) || 0;
   if (peopleNum < 1 || peopleNum > 20) {
+    problems.push(`people must be 1-20: ${peopleCount} (type: ${typeof peopleCount})`);
+  }
+  
+  if (problems.length > 0) {
+    console.log('Validation failed:', {
+      problems,
+      body: req.body,
+      bodyType: typeof req.body,
+      peopleType: typeof peopleCount
+    });
     return res.status(400).json({ 
-      error: '人数は1〜20名の範囲で指定してください' 
+      error: 'Validation failed',
+      problems: problems,
+      received: {
+        customer_name: name,
+        date,
+        time: timeStr,
+        people: peopleCount,
+        peopleType: typeof peopleCount
+      }
     });
   }
   
   // 日付チェック（過去日付は不可）
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   if (date < today) {
     return res.status(400).json({ 
       error: '過去の日付は指定できません' 
     });
   }
   
-  // @レビュー: getStoreId()を通して店舗IDを取得
-  const storeId = getStoreId(req.body.store_id || req.query.store_id);
+  // 店舗名を取得（store_idは既に上で設定済み）
   const storeName = getEnv('STORE_NAME', 'レストラン');
   
-  // 予約データ作成
-  const reservationData = {
-    store_id: storeId,
-    store_name: decodeURIComponent(storeName),
-    user_id: 'admin-manual', // 管理画面から手動追加
-    customer_name: customer_name,
-    date: date,
-    time: time + ':00', // HH:MM を HH:MM:SS形式に
-    people: peopleNum,
-    message: message || null,
-    phone: phone || null,
-    email: email || null,
-    seat_id: seat_id || null, // 席ID（オプション）
-    status: 'pending',
-    source: 'admin', // 管理画面から作成
-    created_at: new Date().toISOString()
+  // UUID形式チェック
+  const isValidUUID = (str) => {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
   };
   
-  console.log('Creating reservation:', reservationData);
+  // 予約データ作成（store_idは上で定義済み）
+  const reservationData = {
+    store_id: store_id,
+    store_name: decodeURIComponent(storeName),
+    user_id: 'admin-manual', // 管理画面から手動追加
+    customer_name: name,  // 統一した名前を使用
+    date: date,
+    time: timeStr, // 正規化済みの時間
+    people: peopleNum,
+    message: messageText || null,  // 統一したメッセージ
+    phone: phoneNum || null,  // 統一した電話番号
+    email: email || null,
+    seat_id: (seat_id && isValidUUID(seat_id)) ? seat_id : null, // UUID形式の場合のみ
+    seat_code: seat_code || seat_id || null, // 席コード（T1, T2など）
+    status: 'confirmed',
+    source: 'admin',
+    created_at: new Date()  // Supabaseが自動で処理
+  };
   
-  // Supabaseに保存
-  const { data, error } = await supabase
+  console.log('Creating reservation with seat info:', {
+    seat_id_received: seat_id,
+    seat_code_received: seat_code,
+    seat_id_saving: reservationData.seat_id,
+    seat_code_saving: reservationData.seat_code,
+    full_data: reservationData
+  });
+  
+  // Idempotency-Keyのサポート（必須フィールド）
+  if (idempotencyKey) {
+    reservationData.idempotency_key = idempotencyKey;
+    console.log('Using Idempotency-Key:', idempotencyKey);
+  } else {
+    // Idempotency-Keyがない場合は必ず自動生成
+    const fallbackKey = crypto.randomUUID();
+    reservationData.idempotency_key = fallbackKey;
+    console.log('Generated fallback Idempotency-Key:', fallbackKey);
+  }
+  
+  // ログ出力（デバッグ用）
+  console.log('[create] idempo(before):', reservationData.idempotency_key, 'path=', req.path, 'action=', req.query?.action);
+  
+  // 作成前の最終整形: NULLを送らない（専門家推奨）
+  if (!reservationData.idempotency_key) {
+    // NULLの場合はフィールド自体を削除（DBのDEFAULTが効くように）
+    delete reservationData.idempotency_key;
+    console.log('Deleting null idempotency_key to allow DB DEFAULT');
+  }
+  
+  // 通常のINSERT（UPSERTはインデックス名が必要なため一旦通常のINSERTに戻す）
+  const { data, error } = await supabaseAdmin
     .from('reservations')
     .insert([reservationData])
-    .select();
+    .select('*')
+    .single();
+  
+  // ログ出力（デバッグ用）
+  console.log('[create] idempo(after):', data?.idempotency_key);
   
   if (error) {
-    console.error('Insert error:', error);
+    console.error('Upsert error:', error);
+    
+    // PostgreSQLのユニーク制約違反エラーを検出
+    // error.code: '23505' = unique_violation
+    // error.details に制約名が含まれる
+    if (error.code === '23505') {
+      // 制約名で判定
+      if (error.message?.includes('idempotency_key') || 
+          error.details?.includes('idempotency_key')) {
+        // Idempotency-Keyの重複（同じリクエストが既に処理済み）
+        console.log('Idempotency key collision detected, fetching existing reservation');
+        
+        // 既存の予約を取得して返す
+        const { data: existingData, error: fetchError } = await supabase
+          .from('reservations')
+          .select('*')
+          .eq('idempotency_key', reservationData.idempotency_key)
+          .single();
+        
+        if (!fetchError && existingData) {
+          return res.status(200).json({
+            success: true,
+            message: '予約が既に作成されています（重複リクエスト）',
+            reservation: existingData,
+            data: existingData,
+            idempotent: true
+          });
+        }
+      }
+      
+      if (error.message?.includes('unique_reservation_slot') || 
+          error.details?.includes('unique_reservation_slot')) {
+        // 時間枠の重複（同じ席が既に予約されている）
+        return res.status(409).json({ 
+          error: 'slot_taken',
+          message: 'この時間帯の席は既に予約されています',
+          details: {
+            date: date,
+            time: time,
+            seat: seat_code || seat_id || '指定席'
+          }
+        });
+      }
+      
+      // その他のユニーク制約違反
+      return res.status(409).json({ 
+        error: 'constraint_violation',
+        message: '予約の作成に失敗しました（重複）',
+        details: error.message
+      });
+    }
+    
+    // その他のエラー
     return res.status(500).json({ 
       error: '予約の作成に失敗しました',
       details: error.message 
     });
   }
   
-  console.log('Successfully created reservation:', data[0]);
+  console.log('Successfully created reservation:', data);
   
   // 席名を取得（席IDが設定されている場合）
-  if (data[0].seat_id) {
-    const { data: seat } = await supabase
+  if (data && data.seat_id) {
+    const { data: seat } = await supabaseAdmin
       .from('seats')
       .select('name')
-      .eq('id', data[0].seat_id)
+      .eq('id', data.seat_id)
       .single();
     
     if (seat) {
-      data[0].seat_name = seat.name;
+      data.seat_name = seat.name;
     }
   }
   
   // 確認メッセージ送信フラグが設定されていて、user_idがある場合
   const { sendConfirmation, userId } = req.body;
   if (sendConfirmation && userId && userId !== 'admin-manual') {
-    const message = createConfirmationMessage(data[0]);
+    const message = createConfirmationMessage(data);
     const result = await sendLineMessage(userId, message);
     console.log('Confirmation message sent:', result);
   }
   
+  // 専門家推奨: ok:true と item を返す
   return res.status(200).json({
+    ok: true,
     success: true,
     message: '予約を作成しました',
-    reservation: data[0]
+    item: data,  // 専門家推奨形式
+    reservation: data,
+    data: data  // クライアント側の互換性のため全形式を返す
   });
 }
 
 // 予約更新処理
-async function handleUpdate(req, res) {
-  if (req.method !== 'POST') {
+async function handleUpdate(req, res, url) {
+  if (req.method !== 'PUT' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
   
+  // URLパラメータからIDを取得（優先）、なければbodyから
+  const urlId = url ? url.searchParams.get('id') : null;
+  
   const {
-    id,
+    id: bodyId,
     customer_name,
     date,
     time,
@@ -399,8 +723,12 @@ async function handleUpdate(req, res) {
     phone,
     email,
     seat_id,
+    seat_code,
     status
   } = req.body;
+  
+  // IDを決定（URLパラメータ優先）
+  const id = urlId || bodyId;
   
   // 必須項目チェック
   if (!id) {
@@ -417,34 +745,41 @@ async function handleUpdate(req, res) {
   }
   
   // 人数チェック（1-20名）
-  const peopleNum = parseInt(people);
+  const peopleNum = Number(people);
   if (peopleNum < 1 || peopleNum > 20) {
     return res.status(400).json({ 
       error: '人数は1〜20名の範囲で指定してください' 
     });
   }
   
+  // UUID形式チェック
+  const isValidUUID = (str) => {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+  };
+  
   // 更新データ作成
   const updateData = {
     customer_name: customer_name,
     date: date,
-    time: time.includes(':') ? time : time + ':00', // HH:MM を HH:MM:SS形式に
+    time: time, // すでにミドルウェアで正規化済み
     people: peopleNum,
     message: message || null,
     phone: phone || null,
     email: email || null,
-    seat_id: seat_id || null,
+    seat_id: (seat_id && isValidUUID(seat_id)) ? seat_id : null,  // UUID形式の場合のみ
+    seat_code: seat_code || seat_id || null,  // 席コード（T1, T2など）
     status: status || 'confirmed',
-    updated_at: new Date().toISOString()
+    updated_at: new Date()  // Supabaseが自動で処理
   };
   
-  console.log('Updating reservation:', id, updateData);
+  console.log('Updating reservation:', id, 'for store:', req.store_id, updateData);
   
-  // Supabaseで更新
+  // Supabaseで更新（自テナントのみ更新可）
   const { data, error } = await supabase
     .from('reservations')
     .update(updateData)
     .eq('id', id)
+    .eq('store_id', req.store_id)  // 自テナントのみ更新可
     .select();
   
   if (error) {
@@ -485,13 +820,14 @@ async function handleDelete(req, res, url) {
     });
   }
   
-  console.log('Deleting reservation:', reservationId);
+  console.log('Deleting reservation:', reservationId, 'for store:', req.store_id);
   
-  // 予約を削除（物理削除）
+  // 予約を削除（自テナントのみ削除可）
   const { data, error } = await supabase
     .from('reservations')
     .delete()
     .eq('id', reservationId)
+    .eq('store_id', req.store_id)  // 自テナントのみ削除可
     .select();
   
   if (error) {
@@ -659,9 +995,12 @@ async function sendLineMessage(userId, message) {
 // 予約確認メッセージを作成
 function createConfirmationMessage(reservation) {
   const days = ['日', '月', '火', '水', '木', '金', '土'];
-  const date = new Date(reservation.date);
-  const dayOfWeek = days[date.getDay()];
-  const formattedDate = `${date.getMonth() + 1}月${date.getDate()}日(${dayOfWeek})`;
+  // Dateオブジェクトを作らずに文字列処理
+  const [year, month, day] = reservation.date.split('-').map(Number);
+  // 曜日を取得するためにのみDateを使う（ローカル時間として）
+  const dateObj = new Date(year, month - 1, day);
+  const dayOfWeek = days[dateObj.getDay()];
+  const formattedDate = `${month}月${day}日(${dayOfWeek})`;
   const time = reservation.time.substring(0, 5);
   
   // Flex Messageで見やすい確認メッセージ

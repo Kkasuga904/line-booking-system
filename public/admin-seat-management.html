@@ -581,14 +581,21 @@
             
             try {
                 // 座席状況を取得
+                const ADMIN_API_KEY = (window.STORE_CONFIG && window.STORE_CONFIG.adminToken) || localStorage.getItem('ADMIN_API_KEY') || '';
+                const authHeaders = ADMIN_API_KEY ? {
+                    'x-api-key': ADMIN_API_KEY,
+                    'Authorization': `Bearer ${ADMIN_API_KEY}`
+                } : {};
                 const seatResponse = await fetch(
-                    `https://line-booking-api-116429620992.asia-northeast1.run.app/api/seat-availability?store_id=default-store&date=${currentDate}&time=${currentTime}`
+                    `https://line-booking-api-116429620992.asia-northeast1.run.app/api/seat-availability?store_id=default-store&date=${currentDate}&time=${currentTime}`,
+                    { headers: authHeaders }
                 );
                 const seatData = await seatResponse.json();
                 
                 // 予約一覧を取得
                 const reservationResponse = await fetch(
-                    `https://line-booking-api-116429620992.asia-northeast1.run.app/api/reservations?store_id=default-store&date=${currentDate}`
+                    `https://line-booking-api-116429620992.asia-northeast1.run.app/api/reservations?store_id=default-store&date=${currentDate}`,
+                    { headers: authHeaders }
                 );
                 const reservationData = await reservationResponse.json();
                 
@@ -675,7 +682,8 @@
                 const response = await fetch('https://line-booking-api-116429620992.asia-northeast1.run.app/api/assign-seat', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        ...authHeaders
                     },
                     body: JSON.stringify({
                         reservation_id: reservation.id,
@@ -709,7 +717,8 @@
                 const response = await fetch('https://line-booking-api-116429620992.asia-northeast1.run.app/api/unassign-seat', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        ...authHeaders
                     },
                     body: JSON.stringify({
                         reservation_id: reservationId

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約管理システム | ダッシュボード</title>
+    
+    <!-- Dashboard Style -->
+    <link rel="stylesheet" href="/css/dashboard-style.css">
+    <!-- Sidebar Menu CSS -->
+    <link rel="stylesheet" href="/css/sidebar-menu.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- ページヘッダー -->
+        <div class="page-header">
+            <h1 class="page-title">予約管理システム</h1>
+        </div>
+
+        <!-- 期間選択 -->
+        <div class="period-selector">
+            <span class="period-label">期間選択：</span>
+            <select class="period-select" id="periodSelect">
+                <option value="today">今日</option>
+                <option value="week" selected>今週</option>
+                <option value="month">今月</option>
+                <option value="year">今年</option>
+            </select>
+            <button class="btn-update" onclick="updateDashboard()">更新</button>
+        </div>
+
+        <!-- 統計カード -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">総予約数</div>
+                        <div class="stat-value">342</div>
+                        <div class="stat-change positive">↑ 12% 前週比</div>
+                    </div>
+                    <div class="stat-icon">📊</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">売上高</div>
+                        <div class="stat-value">¥1,248,000</div>
+                        <div class="stat-change positive">↑ 8% 前週比</div>
+                    </div>
+                    <div class="stat-icon">💰</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">平均客単価</div>
+                        <div class="stat-value">¥3,648</div>
+                        <div class="stat-change negative">↓ 3% 前週比</div>
+                    </div>
+                    <div class="stat-icon">💳</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">キャンセル率</div>
+                        <div class="stat-value">4.2%</div>
+                        <div class="stat-change positive">↑ 1.5% 改善</div>
+                    </div>
+                    <div class="stat-icon">❌</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日別予約数推移 -->
+        <div class="chart-card">
+            <h2 class="chart-header">日別予約数推移</h2>
+            <div class="chart-container">
+                <canvas id="bookingChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 時間帯別予約分布 -->
+        <div class="chart-card">
+            <h2 class="chart-header">時間帯別予約分布</h2>
+            <div class="chart-container">
+                <canvas id="timeDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Sidebar Menu JS -->
+    <script src='/js/sidebar-menu.js' defer></script>
+    
+    <script>
+        // 店舗IDを取得（URLパラメータまたはデフォルト）
+        function getStoreId() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('store_id') || 'default-store';
+        }
+
+        // ダッシュボード更新
+        async function updateDashboard() {
+            const period = document.getElementById('periodSelect').value;
+            const storeId = getStoreId();
+            
+            console.log('Updating dashboard for store:', storeId, 'period:', period);
+            
+            try {
+                // APIからデータを取得
+                const response = await fetch(`/api/dashboard-stats?store_id=${storeId}&period=${period}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 統計カードを更新
+                    updateStatCards(data.stats);
+                    // チャートを更新
+                    updateCharts(data.charts);
+                } else {
+                    console.error('Failed to fetch dashboard data:', data.error);
+                }
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+            }
+        }
+
+        // 統計カードを更新
+        function updateStatCards(stats) {
+            // 総予約数
+            const bookingCard = document.querySelector('.stat-card:nth-child(1)');
+            if (bookingCard && stats.totalBookings) {
+                bookingCard.querySelector('.stat-value').textContent = stats.totalBookings.value;
+                const changeEl = bookingCard.querySelector('.stat-change');
+                changeEl.textContent = `${stats.totalBookings.change >= 0 ? '↑' : '↓'} ${Math.abs(stats.totalBookings.change)}% 前週比`;
+                changeEl.className = `stat-change ${stats.totalBookings.changeType}`;
+            }
+
+            // 売上高
+            const revenueCard = document.querySelector('.stat-card:nth-child(2)');
+            if (revenueCard && stats.totalRevenue) {
+                revenueCard.querySelector('.stat-value').textContent = stats.totalRevenue.formatted;
+                const changeEl = revenueCard.querySelector('.stat-change');
+                changeEl.textContent = `${stats.totalRevenue.change >= 0 ? '↑' : '↓'} ${Math.abs(stats.totalRevenue.change)}% 前週比`;
+                changeEl.className = `stat-change ${stats.totalRevenue.changeType}`;
+            }
+
+            // 平均客単価
+            const avgCard = document.querySelector('.stat-card:nth-child(3)');
+            if (avgCard && stats.avgOrderValue) {
+                avgCard.querySelector('.stat-value').textContent = stats.avgOrderValue.formatted;
+                const changeEl = avgCard.querySelector('.stat-change');
+                changeEl.textContent = `${stats.avgOrderValue.change >= 0 ? '↑' : '↓'} ${Math.abs(stats.avgOrderValue.change)}% 前週比`;
+                changeEl.className = `stat-change ${stats.avgOrderValue.changeType}`;
+            }
+
+            // キャンセル率
+            const cancelCard = document.querySelector('.stat-card:nth-child(4)');
+            if (cancelCard && stats.cancelRate) {
+                cancelCard.querySelector('.stat-value').textContent = `${stats.cancelRate.value}%`;
+                const changeEl = cancelCard.querySelector('.stat-change');
+                changeEl.textContent = `${stats.cancelRate.change >= 0 ? '↑' : '↓'} ${Math.abs(stats.cancelRate.change)}% 改善`;
+                changeEl.className = `stat-change ${stats.cancelRate.changeType}`;
+            }
+        }
+
+        // チャートインスタンスを保持
+        let bookingChart = null;
+        let timeDistributionChart = null;
+
+        // チャートを更新
+        function updateCharts(chartData) {
+            if (chartData && chartData.daily) {
+                updateBookingChart(chartData.daily);
+            }
+            if (chartData && chartData.hourly) {
+                updateTimeDistributionChart(chartData.hourly);
+            }
+        }
+
+        // 日別予約数チャートを更新
+        function updateBookingChart(data) {
+            const ctx = document.getElementById('bookingChart').getContext('2d');
+            
+            if (bookingChart) {
+                // 既存のチャートを更新
+                bookingChart.data.labels = data.labels;
+                bookingChart.data.datasets[0].data = data.data;
+                bookingChart.update();
+            } else {
+                // 新しいチャートを作成
+                bookingChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: '予約数',
+                            data: data.data,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    borderDash: [2, 2]
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // 時間帯別分布チャートを更新
+        function updateTimeDistributionChart(data) {
+            const ctx = document.getElementById('timeDistributionChart').getContext('2d');
+            
+            if (timeDistributionChart) {
+                // 既存のチャートを更新
+                timeDistributionChart.data.labels = data.labels;
+                timeDistributionChart.data.datasets[0].data = data.data;
+                timeDistributionChart.update();
+            } else {
+                // 新しいチャートを作成
+                timeDistributionChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: '予約数',
+                            data: data.data,
+                            backgroundColor: '#764ba2',
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    borderDash: [2, 2]
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // チャート初期化（デフォルトデータ）
+        function loadCharts() {
+            // 日別予約数推移
+            const ctx1 = document.getElementById('bookingChart').getContext('2d');
+            new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: ['月', '火', '水', '木', '金', '土', '日'],
+                    datasets: [{
+                        label: '予約数',
+                        data: [45, 52, 48, 65, 68, 72, 58],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                borderDash: [2, 2]
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 時間帯別予約分布
+            const ctx2 = document.getElementById('timeDistributionChart').getContext('2d');
+            new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'],
+                    datasets: [{
+                        label: '予約数',
+                        data: [8, 12, 25, 18, 15, 20, 28, 35, 42, 38, 25, 15],
+                        backgroundColor: '#764ba2',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                borderDash: [2, 2]
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ページ読み込み時にダッシュボードを初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('[Dashboard] Initializing dashboard...');
+            // サイドバーメニューの初期化を確認
+            setTimeout(() => {
+                if (!document.querySelector('.sidebar-container')) {
+                    console.error('[Dashboard] Sidebar not found, reloading sidebar-menu.js');
+                    const script = document.createElement('script');
+                    script.src = '/js/sidebar-menu.js';
+                    document.body.appendChild(script);
+                }
+            }, 100);
+            // 初回データ読み込み
+            updateDashboard();
+        });
+    </script>
+</body>
+</html>

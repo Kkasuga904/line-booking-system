@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja-JP">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ページタイトル | 飲食店予約管理</title>
+    <link rel="stylesheet" href="/css/responsive-nav.css">
+    <style>
+        /* ページ固有のスタイルをここに追加 */
+    </style>
+</head>
+<body>
+    <!-- ヘッダー -->
+    <header id="appHeader">
+        <button id="hamburgerBtn" aria-controls="sideNav" aria-expanded="false" aria-label="メニュー">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <h1>📅 ページタイトル</h1>
+        <div class="header-actions">
+            <!-- ヘッダーアクション（今日ボタンなど） -->
+        </div>
+    </header>
+
+    <!-- サイドナビ -->
+    <nav id="sideNav" aria-label="サイドナビ">
+        <div class="sidenav-header">
+            <h2 class="sidenav-title">📋 管理メニュー</h2>
+            <button class="sidenav-close" aria-label="閉じる">×</button>
+        </div>
+        <ul>
+            <li><a href="/admin-full-featured.html">
+                <span class="nav-icon">📅</span>
+                <span>カレンダー</span>
+            </a></li>
+            <li><a href="/admin-dashboard.html">
+                <span class="nav-icon">📈</span>
+                <span>ダッシュボード</span>
+            </a></li>
+            <li><a href="/admin-new-reservation.html">
+                <span class="nav-icon">➕</span>
+                <span>新規予約</span>
+            </a></li>
+            <li><a href="/capacity-control-enhanced.html">
+                <span class="nav-icon">🚫</span>
+                <span>予約制限</span>
+            </a></li>
+            <li><a href="/admin-reservations.html">
+                <span class="nav-icon">📋</span>
+                <span>予約一覧</span>
+            </a></li>
+            <li><a href="/admin-settings.html">
+                <span class="nav-icon">⚙️</span>
+                <span>システム設定</span>
+            </a></li>
+            <li><a href="/admin-stores.html">
+                <span class="nav-icon">🏪</span>
+                <span>店舗管理</span>
+            </a></li>
+        </ul>
+    </nav>
+
+    <!-- オーバーレイ -->
+    <div id="pageOverlay" hidden></div>
+
+    <!-- メインコンテンツ -->
+    <main id="appMain">
+        <div class="container">
+            <!-- ページコンテンツをここに配置 -->
+        </div>
+    </main>
+
+    <!-- 共通スクリプト -->
+    <script type="module">
+        import { initNav } from '/js/nav.js';
+        initNav();
+    </script>
+    
+    <!-- ページ固有のスクリプト -->
+    <script>
+        // ページ固有のJavaScriptをここに追加
+    </script>
+</body>
+</html>

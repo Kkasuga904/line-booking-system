@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>CSP動作確認ツール</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #00ff00;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+        }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warning { color: #ffff00; }
+        button {
+            background: #333;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #00ff00;
+            color: #000;
+        }
+        pre {
+            background: #000;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+<h1>🔒 CSP (Content Security Policy) 動作確認ツール</h1>
+
+<div class="section">
+    <h2>📋 現在のCSPポリシー</h2>
+    <pre id="cspPolicy">取得中...</pre>
+</div>
+
+<div class="section">
+    <h2>🧪 テスト項目</h2>
+    <button onclick="testInlineScript()">インラインスクリプト</button>
+    <button onclick="testExternalScript()">外部スクリプト</button>
+    <button onclick="testInlineStyle()">インラインスタイル</button>
+    <button onclick="testMedia()">メディア読み込み</button>
+    <button onclick="testImage()">画像読み込み</button>
+    <button onclick="testDataURI()">Data URI</button>
+    <button onclick="testBlob()">Blob URL</button>
+</div>
+
+<div class="section">
+    <h2>📊 テスト結果</h2>
+    <div id="results"></div>
+</div>
+
+<div class="section">
+    <h2>🛠️ DevTools確認コマンド</h2>
+    <pre>
+// CSPヘッダーを確認
+fetch(location.href).then(r => {
+    console.log('CSP:', r.headers.get('Content-Security-Policy'));
+    return r.headers.get('Content-Security-Policy');
+});
+
+// CSP違反をリアルタイム監視
+document.addEventListener('securitypolicyviolation', e => {
+    console.warn('CSP違反:', {
+        directive: e.violatedDirective,
+        blocked: e.blockedURI,
+        policy: e.originalPolicy
+    });
+});
+
+// 現在のセキュリティヘッダー一覧
+fetch(location.href).then(r => {
+    ['Content-Security-Policy', 'X-Frame-Options', 'X-Content-Type-Options', 'X-XSS-Protection']
+        .forEach(h => console.log(`${h}:`, r.headers.get(h)));
+});
+    </pre>
+</div>
+
+<script>
+// CSPポリシー取得
+async function fetchCSP() {
+    try {
+        const response = await fetch(location.href);
+        const csp = response.headers.get('Content-Security-Policy');
+        document.getElementById('cspPolicy').textContent = csp || 'CSPヘッダーが設定されていません';
+        
+        if (csp) {
+            // CSPを解析して表示
+            const policies = csp.split(';').map(p => p.trim());
+            const formatted = policies.map(p => {
+                const [directive, ...values] = p.split(' ');
+                return `${directive}: ${values.join(' ')}`;
+            }).join('\n');
+            document.getElementById('cspPolicy').textContent = formatted;
+        }
+    } catch (error) {
+        document.getElementById('cspPolicy').textContent = 'エラー: ' + error.message;
+    }
+}
+
+// テスト結果を追加
+function addResult(test, success, message) {
+    const results = document.getElementById('results');
+    const div = document.createElement('div');
+    div.className = success ? 'success' : 'error';
+    div.textContent = `[${new Date().toLocaleTimeString()}] ${test}: ${success ? '✅' : '❌'} ${message}`;
+    results.appendChild(div);
+}
+
+// CSP違反イベントリスナー
+document.addEventListener('securitypolicyviolation', (e) => {
+    addResult('CSP違反検出', false, 
+        `Directive: ${e.violatedDirective}, Blocked: ${e.blockedURI}`);
+});
+
+// テスト関数
+function testInlineScript() {
+    try {
+        eval("console.log('Inline script test');");
+        addResult('インラインスクリプト', true, '実行可能（unsafe-inline有効）');
+    } catch (e) {
+        addResult('インラインスクリプト', false, 'ブロックされました');
+    }
+}
+
+function testExternalScript() {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js';
+    script.onload = () => addResult('外部スクリプト', true, 'CDN読み込み成功');
+    script.onerror = () => addResult('外部スクリプト', false, 'CDN読み込み失敗');
+    document.head.appendChild(script);
+}
+
+function testInlineStyle() {
+    const div = document.createElement('div');
+    div.style.cssText = 'color: red; font-size: 20px;';
+    div.textContent = 'スタイルテスト';
+    document.body.appendChild(div);
+    const computed = window.getComputedStyle(div);
+    if (computed.color === 'rgb(255, 0, 0)') {
+        addResult('インラインスタイル', true, '適用成功');
+    } else {
+        addResult('インラインスタイル', false, 'ブロックされました');
+    }
+    div.remove();
+}
+
+function testMedia() {
+    const audio = new Audio('data

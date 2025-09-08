@@ -46,7 +46,8 @@ scripts/
 
 # Backup
 *-backup/
-api-backup/
+# Keep api-backup in image because server.js imports modules from it
+# api-backup/
 *.backup
 *.bak
 

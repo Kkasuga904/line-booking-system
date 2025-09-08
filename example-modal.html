@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約モーダル使用例</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            padding: 40px;
+            background: #f5f5f7;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        #reservationList {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        
+        .reservation-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .reservation-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        .reservation-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .reservation-table tr:hover {
+            background: #f0f0f0;
+        }
+        
+        .status-confirmed {
+            background: #d4edda;
+            color: #155724;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        
+        .code-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+        
+        .code-section h3 {
+            margin-bottom: 15px;
+            color: #555;
+        }
+        
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .info-box {
+            background: #e8f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📅 予約管理モーダル - 使用例</h1>
+        
+        <div class="info-box">
+            <p><strong>説明：</strong> このページは既存のウェブサイトにモーダル形式で予約管理機能を追加する例です。</p>
+            <p>バックエンドAPI: https://line-booking-api-dxp5vd3wbq-an.a.run.app</p>
+        </div>
+        
+        <div>
+            <button class="btn-primary" onclick="openBookingModal()">
+                ➕ 新規予約を作成（モーダル）
+            </button>
+            
+            <button class="btn-primary" onclick="updateReservationList()">
+                🔄 予約一覧を更新
+            </button>
+        </div>
+        
+        <div id="reservationList">
+            <h2>予約一覧</h2>
+            <div id="listContainer">
+                <p>「予約一覧を更新」ボタンをクリックしてください</p>
+            </div>
+        </div>
+        
+        <div class="code-section">
+            <h3>💡 既存サイトへの組み込み方法</h3>
+            <pre>&lt;!-- 1. JavaScriptファイルを読み込む --&gt;
+&lt;script src="modal-booking.js"&gt;&lt;/script&gt;
+
+&lt;!-- 2. 予約作成ボタンを追加 --&gt;
+&lt;button onclick="openBookingModal()"&gt;
+    新規予約
+&lt;/button&gt;
+
+&lt;!-- 3. 予約一覧を表示（オプション） --&gt;
+&lt;div id="myReservations"&gt;&lt;/div&gt;
+&lt;script&gt;
+    // 予約一覧を表示
+    displayReservations('myReservations');
+&lt;/script&gt;</pre>
+        </div>
+        
+        <div class="code-section">
+            <h3>🔧 APIの使用方法</h3>
+            <pre>// 予約一覧を取得
+const reservations = await BookingAPI.loadReservations();
+
+// 予約を作成
+const result = await BookingAPI.createReservation({
+    date: '2025-01-10',
+    time: '12:00',
+    customer_name: '山田太郎',
+    phone: '090-1234-5678',
+    people: 2,
+    notes: 'アレルギー：なし',
+    status: 'confirmed'
+});
+
+// 予約を削除
+await BookingAPI.deleteReservation(reservationId);</pre>
+        </div>
+        
+        <div class="code-section">
+            <h3>📝 カスタマイズ方法</h3>
+            <pre>// APIのベースURLを変更
+BookingAPI.API_BASE = 'https://your-api-url.com';
+
+// モーダルを開いた時のコールバック
+window.openBookingModal = function() {
+    // カスタム処理
+    // ...
+    
+    // デフォルトのモーダルを開く
+    const modal = document.getElementById('bookingModal');
+    modal.style.display = 'block';
+};</pre>
+        </div>
+    </div>
+    
+    <!-- モーダル用のJavaScriptを読み込み -->
+    <script src="modal-booking.js"></script>
+    
+    <!-- このページ用の追加スクリプト -->
+    <script>
+        // 予約一覧を更新する関数
+        async function updateReservationList() {
+            await displayReservations('listContainer');
+        }
+        
+        // ページ読み込み時に予約一覧を表示
+        window.addEventListener('DOMContentLoaded', () => {
+            updateReservationList();
+        });
+        
+        // 30秒ごとに自動更新
+        setInterval(updateReservationList, 30000);
+    </script>
+</body>
+</html>

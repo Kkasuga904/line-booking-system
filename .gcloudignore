@@ -32,3 +32,10 @@ server-prod.js
 server-fix*.js
 api-old/
 .vercel/
+**/NTUSER.DAT*
+**/ntuser.dat*
+NTUSER.DAT
+ntuser.dat
+*.DAT
+*.lnk
+System Volume Information/

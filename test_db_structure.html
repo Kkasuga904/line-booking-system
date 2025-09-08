@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>DB構造テスト</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        pre { background: #f4f4f4; padding: 10px; overflow: auto; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .info { color: blue; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>Capacity Control Rules テーブル確認</h1>
+    
+    <button onclick="testAPI()">APIテスト実行</button>
+    <button onclick="testCapacityAvailability()">容量制限確認 (今日)</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        async function testAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>テスト中...</p>';
+            
+            try {
+                // 1. 管理画面APIからルール取得
+                const adminResponse = await fetch('https://line-booking-api-116429620992.asia-northeast1.run.app/api/admin?action=capacity');
+                const adminData = await adminResponse.json();
+                
+                let html = '<h2>管理画面API レスポンス</h2>';
+                html += '<pre>' + JSON.stringify(adminData, null, 2) + '</pre>';
+                
+                if (adminData.success && adminData.settings && adminData.settings.rules) {
+                    html += '<h3>取得したルール</h3>';
+                    html += '<table>';
+                    html += '<tr><th>ID</th><th>日付</th><th>開始時間</th><th>終了時間</th><th>制限</th></tr>';
+                    
+                    adminData.settings.rules.forEach(rule => {
+                        html += `<tr>
+                            <td>${rule.id}</td>
+                            <td>${rule.date}</td>
+                            <td class="info">${rule.startTime}</td>
+                            <td class="info">${rule.endTime}</td>
+                            <td class="success">${rule.maxGroups}組</td>
+                        </tr>`;
+                    });
+                    html += '</table>';
+                    
+                    // DBから正しくデータを読み取れているか確認
+                    const hasTimeData = adminData.settings.rules.some(r => r.startTime && r.endTime);
+                    if (hasTimeData) {
+                        html += '<p class="success">✅ start_time と end_time カラムからデータを正常に読み取れています</p>';
+                    } else {
+                        html += '<p class="error">❌ 時間データが読み取れていません</p>';
+                    }
+                }
+                
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="error">エラー: ${error.message}</p>`;
+            }
+        }
+        
+        async function testCapacityAvailability() {
+            const resultsDiv = document.getElementById('results');
+            const today = new Date().toISOString().slice(0, 10);
+            
+            try {
+                const response = await fetch(`https://line-booking-api-116429620992.asia-northeast1.run.app/api/capacity-availability?store_id=default-store&date=${today}`);
+                const data = await response.json();
+                
+                let html = `<h2>${today} の容量制限状況</h2>`;
+                html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                
+                if (data.slots) {
+                    // 18:00-21:00の制限を確認
+                    const restrictedTimes = ['18:00', '18:30', '19:00', '19:30', '20:00', '20:30'];
+                    html += '<h3>18:00-21:00 の制限状況</h3>';
+                    html += '<table>';
+                    html += '<tr><th>時間</th><th>制限</th><th>予約済</th><th>ステータス</th></tr>';
+                    
+                    restrictedTimes.forEach(time => {
+                        const slot = data.slots[time];
+                        if (slot) {
+                            const statusClass = slot.status === 'limited' ? 'success' : 
+                                              slot.status === 'full' ? 'error' : '';
+                            html += `<tr>
+                                <td>${time}</td>
+                                <td>${slot.limit !== null ? slot.limit + '組' : '無制限'}</td>
+                                <td>${slot.reserved}組</td>
+                                <td class="${statusClass}">${slot.status}</td>
+                            </tr>`;
+                        }
+                    });
+                    html += '</table>';
+                    
+                    // 制限が適用されているか確認
+                    const hasRestrictions = restrictedTimes.some(time => 
+                        data.slots[time] && data.slots[time].limit === 1
+                    );
+                    
+                    if (hasRestrictions) {
+                        html += '<p class="success">✅ 18:00-21:00 に制限が適用されています</p>';
+                    } else {
+                        html += '<p class="error">❌ 18:00-21:00 に制限が適用されていません</p>';
+                        html += '<p>考えられる原因:</p>';
+                        html += '<ul>';
+                        html += `<li>今日（${today}）のルールがDBに登録されていない</li>`;
+                        html += '<li>start_time/end_time カラムの値が正しくない</li>';
+                        html += '<li>SQLクエリが正しく動作していない</li>';
+                        html += '</ul>';
+                    }
+                }
+                
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="error">エラー: ${error.message}</p>`;
+            }
+        }
+        
+        // ページ読み込み時に自動実行
+        window.onload = () => {
+            testAPI();
+        };
+    </script>
+</body>
+</html>

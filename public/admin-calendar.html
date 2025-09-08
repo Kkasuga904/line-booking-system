@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>予約管理カレンダー | LINE予約システム</title>
+    <title>予約カレンダー | LINE予約システム</title>
+    
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css" rel="stylesheet">
+    
     <style>
         * {
             margin: 0;
@@ -12,291 +16,479 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Roboto, sans-serif;
-            background: #f5f5f7;
-            color: #1d1d1f;
-            line-height: 1.5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
         }
         
         /* ヘッダー */
         .header {
             background: white;
-            border-bottom: 1px solid #e0e0e0;
-            padding: 15px 20px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         }
         
         .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
         }
         
-        /* カレンダーコンテナ */
-        .calendar-container {
-            max-width: 1400px;
-            margin: 20px auto;
-            padding: 0 20px;
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         
-        /* 予約追加モーダル */
-        .modal-overlay {
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav-tab {
+            padding: 12px 24px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 12px;
+            color: #666;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .nav-tab:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+        
+        .nav-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        /* メインコンテンツ */
+        .main-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        /* カレンダー */
+        #calendar {
+            min-height: 700px;
+        }
+        
+        /* FullCalendarカスタマイズ */
+        .fc {
+            font-family: inherit;
+        }
+        
+        .fc-toolbar-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .fc-button-primary {
+            background: #667eea;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .fc-button-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+        
+        .fc-button-primary:disabled {
+            background: #ccc;
+            opacity: 0.5;
+        }
+        
+        .fc-button-primary:not(:disabled):active,
+        .fc-button-primary:not(:disabled).fc-button-active {
+            background: #5a67d8;
+        }
+        
+        .fc-day-today {
+            background: rgba(102, 126, 234, 0.1) !important;
+        }
+        
+        .fc-event {
+            border: none;
+            border-radius: 6px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .fc-event:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .fc-daygrid-event {
+            white-space: normal;
+        }
+        
+        /* モーダル */
+        .modal {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
+            background: rgba(0,0,0,0.6);
+            z-index: 9999;
             overflow-y: auto;
         }
         
-        .modal-overlay.show {
-            display: block;
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s;
         }
         
-        .modal-content {
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-dialog {
             background: white;
-            border-radius: 12px;
+            border-radius: 20px;
             width: 90%;
-            max-width: 500px;
-            margin: 30px auto;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            position: relative;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s;
+        }
+        
+        @keyframes slideUp {
+            from { 
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to { 
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
         
         .modal-header {
-            padding: 20px;
-            border-bottom: 1px solid #e0e0e0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         
         .modal-title {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 600;
         }
         
         .modal-close {
-            background: none;
+            background: rgba(255,255,255,0.2);
             border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
             font-size: 24px;
             cursor: pointer;
-            color: #999;
-            width: 30px;
-            height: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 50%;
-            transition: background 0.2s;
+            transition: all 0.3s;
         }
         
         .modal-close:hover {
-            background: #f0f0f0;
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
         }
         
         .modal-body {
-            padding: 20px;
-            max-height: calc(90vh - 100px);
+            padding: 30px;
+            max-height: calc(90vh - 200px);
             overflow-y: auto;
         }
         
+        /* フォーム */
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
         
         .form-label {
             display: block;
             margin-bottom: 8px;
-            font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
             color: #333;
-        }
-        
-        .form-label .required {
-            color: #e74c3c;
-            margin-left: 2px;
-        }
-        
-        .form-input,
-        .form-select,
-        .form-textarea {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
             font-size: 14px;
-            transition: border-color 0.2s;
         }
         
-        .form-input:focus,
-        .form-select:focus,
-        .form-textarea:focus {
+        .required {
+            color: #e74c3c;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+        
+        .form-control:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
         }
         
-        .form-textarea {
-            min-height: 80px;
+        textarea.form-control {
+            min-height: 100px;
             resize: vertical;
         }
         
-        .date-time-group {
+        .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 20px;
         }
         
-        .seats-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-        
-        .form-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #e0e0e0;
-        }
-        
+        /* ボタン */
         .btn {
-            flex: 1;
-            padding: 12px 20px;
+            padding: 12px 24px;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
+            border-radius: 10px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s;
+            font-size: 15px;
         }
         
         .btn-primary {
-            background: #06c755;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
         
         .btn-primary:hover {
-            background: #05a548;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #06c755 0%, #05a548 100%);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(6, 199, 85, 0.3);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(231, 76, 60, 0.3);
         }
         
         .btn-secondary {
             background: #f0f0f0;
-            color: #333;
+            color: #666;
         }
         
         .btn-secondary:hover {
             background: #e0e0e0;
         }
         
+        .modal-footer {
+            padding: 20px 30px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
         /* 追加ボタン */
-        .add-btn {
+        .fab {
             position: fixed;
             bottom: 30px;
             right: 30px;
             width: 60px;
             height: 60px;
             border-radius: 50%;
-            background: #06c755;
+            background: linear-gradient(135deg, #06c755 0%, #05a548 100%);
             color: white;
             border: none;
-            font-size: 28px;
+            font-size: 30px;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3);
+            box-shadow: 0 8px 25px rgba(6, 199, 85, 0.4);
             transition: all 0.3s;
-            z-index: 100;
+            z-index: 1000;
         }
         
-        .add-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 20px rgba(6, 199, 85, 0.4);
+        .fab:hover {
+            transform: scale(1.1) rotate(90deg);
+            box-shadow: 0 12px 35px rgba(6, 199, 85, 0.5);
         }
         
-        /* レスポンシブ対応 */
+        /* 予約詳細 */
+        .reservation-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #666;
+        }
+        
+        .info-value {
+            color: #333;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-confirmed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        /* レスポンシブ */
         @media (max-width: 768px) {
-            .date-time-group,
-            .seats-group {
-                grid-template-columns: 1fr;
-            }
-            
-            .modal-content {
-                width: 95%;
-                max-height: 95vh;
+            body {
+                padding: 10px;
             }
             
             .header-content {
                 flex-direction: column;
-                gap: 10px;
+                align-items: flex-start;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-dialog {
+                width: 95%;
+                margin: 10px;
+            }
+            
+            .nav-tabs {
+                width: 100%;
+                justify-content: center;
             }
         }
     </style>
 </head>
 <body>
-    <!-- ヘッダー -->
-    <header class="header">
-        <div class="header-content">
-            <div>
-                <h1 style="font-size: 18px; font-weight: 600;">📅 予約管理カレンダー</h1>
-            </div>
-            <div>
-                <button onclick="window.location.href='/admin'" style="padding: 8px 16px; background: white; border: 1px solid #ddd; border-radius: 8px; cursor: pointer;">
-                    リスト表示
-                </button>
+    <div class="container">
+        <!-- ヘッダー -->
+        <div class="header">
+            <div class="header-content">
+                <h1>📅 予約管理システム</h1>
+                <div class="nav-tabs">
+                    <a href="/admin-full-featured.html" class="nav-tab">リスト表示</a>
+                    <a href="/admin-calendar.html" class="nav-tab active">カレンダー</a>
+                </div>
             </div>
         </div>
-    </header>
-    
-    <!-- カレンダーコンテナ -->
-    <div class="calendar-container">
-        <!-- カレンダー本体をここに表示 -->
-        <div id="calendar" style="background: white; padding: 20px; border-radius: 12px; min-height: 500px;">
-            カレンダー読み込み中...
+        
+        <!-- メインコンテンツ -->
+        <div class="main-content">
+            <div id="calendar"></div>
         </div>
     </div>
     
-    <!-- 予約追加ボタン -->
-    <button class="add-btn" onclick="openAddModal()">+</button>
+    <!-- 追加ボタン -->
+    <button class="fab" onclick="openAddModal()">+</button>
     
     <!-- 予約追加モーダル -->
-    <div class="modal-overlay" id="addModal">
-        <div class="modal-content">
+    <div class="modal" id="addModal">
+        <div class="modal-dialog">
             <div class="modal-header">
-                <h2 class="modal-title">新規予約追加</h2>
-                <button class="modal-close" onclick="closeAddModal()">×</button>
+                <h3 class="modal-title">新規予約追加</h3>
+                <button class="modal-close" onclick="closeModal('addModal')">×</button>
             </div>
             <div class="modal-body">
-                <form id="reservationForm" onsubmit="handleSubmit(event)">
-                    <!-- お名前 -->
+                <form id="addForm">
                     <div class="form-group">
                         <label class="form-label">
                             お名前 <span class="required">*</span>
                         </label>
-                        <input type="text" class="form-input" name="customer_name" required placeholder="山田太郎">
+                        <input type="text" class="form-control" name="customer_name" required>
                     </div>
                     
-                    <!-- 日付と時間 -->
-                    <div class="date-time-group">
+                    <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">
                                 日付 <span class="required">*</span>
                             </label>
-                            <input type="date" class="form-input" name="date" required>
+                            <input type="date" class="form-control" name="date" id="addDate" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">
                                 時間 <span class="required">*</span>
                             </label>
-                            <select class="form-select" name="time" required>
+                            <select class="form-control" name="time" id="addTime" required>
                                 <option value="">選択してください</option>
                                 <option value="11:00">11:00</option>
                                 <option value="11:30">11:30</option>
@@ -323,95 +515,233 @@
                         </div>
                     </div>
                     
-                    <!-- 人数と席 -->
-                    <div class="seats-group">
+                    <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">
                                 人数 <span class="required">*</span>
                             </label>
-                            <select class="form-select" name="people" required>
+                            <select class="form-control" name="people" required>
                                 <option value="1">1名</option>
-                                <option value="2">2名</option>
+                                <option value="2" selected>2名</option>
                                 <option value="3">3名</option>
                                 <option value="4">4名</option>
                                 <option value="5">5名</option>
                                 <option value="6">6名</option>
                                 <option value="7">7名</option>
                                 <option value="8">8名</option>
-                                <option value="9">9名</option>
-                                <option value="10">10名以上</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">席を割り当て</label>
-                            <select class="form-select" name="seat_id">
-                                <option value="">自動割り当て</option>
-                                <option value="1">テーブル1</option>
-                                <option value="2">テーブル2</option>
-                                <option value="3">個室A</option>
-                                <option value="4">個室B</option>
-                                <option value="5">カウンター</option>
-                            </select>
+                            <label class="form-label">電話番号</label>
+                            <input type="tel" class="form-control" name="phone" placeholder="090-1234-5678">
                         </div>
                     </div>
                     
-                    <!-- 連絡先 -->
                     <div class="form-group">
-                        <label class="form-label">電話番号</label>
-                        <input type="tel" class="form-input" name="phone" placeholder="090-1234-5678">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">メールアドレス</label>
-                        <input type="email" class="form-input" name="email" placeholder="example@example.com">
-                    </div>
-                    
-                    <!-- メッセージ -->
-                    <div class="form-group">
-                        <label class="form-label">メッセージ・要望</label>
-                        <textarea class="form-textarea" name="message" placeholder="アレルギー情報や特別な要望など"></textarea>
-                    </div>
-                    
-                    <!-- ボタン -->
-                    <div class="form-buttons">
-                        <button type="submit" class="btn btn-primary">
-                            ✓ 予約を追加
-                        </button>
-                        <button type="button" class="btn btn-secondary" onclick="closeAddModal()">
-                            キャンセル
-                        </button>
+                        <label class="form-label">メッセージ</label>
+                        <textarea class="form-control" name="message" placeholder="アレルギー情報や特別な要望など"></textarea>
                     </div>
                 </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('addModal')">キャンセル</button>
+                <button class="btn btn-success" onclick="addReservation()">予約を追加</button>
             </div>
         </div>
     </div>
     
+    <!-- 予約詳細モーダル -->
+    <div class="modal" id="detailModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title">予約詳細</h3>
+                <button class="modal-close" onclick="closeModal('detailModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="detailContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" id="deleteBtn">削除</button>
+                <button class="btn btn-secondary" onclick="closeModal('detailModal')">閉じる</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    
     <script>
-        // モーダルの開閉
-        function openAddModal() {
-            document.getElementById('addModal').classList.add('show');
-            // 今日の日付をデフォルト値として設定
-            const today = new Date().toISOString().split('T')[0];
-            document.querySelector('input[name="date"]').value = today;
-        }
+        let calendar;
+        let currentEvent = null;
         
-        function closeAddModal() {
-            document.getElementById('addModal').classList.remove('show');
-            document.getElementById('reservationForm').reset();
-        }
-        
-        // フォーム送信処理
-        async function handleSubmit(event) {
-            event.preventDefault();
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
             
-            const formData = new FormData(event.target);
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ja',
+                height: 'auto',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                businessHours: {
+                    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+                    startTime: '11:00',
+                    endTime: '21:00'
+                },
+                events: fetchEvents,
+                eventClick: handleEventClick,
+                dateClick: handleDateClick,
+                eventColor: '#06c755',
+                nowIndicator: true,
+                selectable: true,
+                selectMirror: true,
+                dayMaxEvents: true,
+                eventTimeFormat: {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    meridiem: false
+                }
+            });
+            
+            calendar.render();
+        });
+        
+        // イベント取得
+        async function fetchEvents(info, successCallback, failureCallback) {
+            try {
+                const response = await fetch('/api/admin/list');
+                const data = await response.json();
+                
+                if (data.ok && data.items) {
+                    const events = data.items.map(item => ({
+                        id: item.id,
+                        title: `${item.customer_name} (${item.people}名)`,
+                        start: `${item.date}T${item.time}`,
+                        backgroundColor: getStatusColor(item.status),
+                        extendedProps: {
+                            ...item
+                        }
+                    }));
+                    successCallback(events);
+                } else {
+                    successCallback([]);
+                }
+            } catch (error) {
+                console.error('Failed to fetch events:', error);
+                failureCallback(error);
+            }
+        }
+        
+        // ステータス色
+        function getStatusColor(status) {
+            switch(status) {
+                case 'confirmed': return '#06c755';
+                case 'pending': return '#ffc107';
+                case 'cancelled': return '#dc3545';
+                default: return '#06c755';
+            }
+        }
+        
+        // 日付クリック
+        function handleDateClick(info) {
+            openAddModal(info.dateStr);
+        }
+        
+        // イベントクリック
+        function handleEventClick(info) {
+            currentEvent = info.event;
+            showDetail(info.event);
+        }
+        
+        // 詳細表示
+        function showDetail(event) {
+            const props = event.extendedProps;
+            const content = `
+                <div class="reservation-info">
+                    <div class="info-row">
+                        <span class="info-label">お名前</span>
+                        <span class="info-value">${props.customer_name}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">日時</span>
+                        <span class="info-value">${props.date} ${props.time}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">人数</span>
+                        <span class="info-value">${props.people}名</span>
+                    </div>
+                    ${props.phone || props.customer_phone ? `
+                    <div class="info-row">
+                        <span class="info-label">電話番号</span>
+                        <span class="info-value">${props.phone || props.customer_phone}</span>
+                    </div>` : ''}
+                    ${props.message ? `
+                    <div class="info-row">
+                        <span class="info-label">メッセージ</span>
+                        <span class="info-value">${props.message}</span>
+                    </div>` : ''}
+                    <div class="info-row">
+                        <span class="info-label">ステータス</span>
+                        <span class="info-value">
+                            <span class="status-badge status-${props.status || 'confirmed'}">
+                                ${getStatusText(props.status)}
+                            </span>
+                        </span>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('detailContent').innerHTML = content;
+            document.getElementById('deleteBtn').onclick = () => deleteReservation(event.id);
+            openModal('detailModal');
+        }
+        
+        function getStatusText(status) {
+            switch(status) {
+                case 'confirmed': return '確定';
+                case 'pending': return '保留';
+                case 'cancelled': return 'キャンセル';
+                default: return '確定';
+            }
+        }
+        
+        // モーダル制御
+        function openModal(id) {
+            document.getElementById(id).classList.add('show');
+        }
+        
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+        
+        function openAddModal(date) {
+            if (date) {
+                document.getElementById('addDate').value = date;
+            } else {
+                document.getElementById('addDate').value = new Date().toISOString().split('T')[0];
+            }
+            openModal('addModal');
+        }
+        
+        // 予約追加
+        async function addReservation() {
+            const form = document.getElementById('addForm');
+            const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
+            
+            if (data.phone) {
+                data.customer_phone = data.phone;
+            }
             
             try {
                 const response = await fetch('/api/admin?action=create', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(data)
                 });
@@ -419,30 +749,58 @@
                 const result = await response.json();
                 
                 if (result.success) {
+                    closeModal('addModal');
+                    form.reset();
+                    calendar.refetchEvents();
                     alert('予約を追加しました');
-                    closeAddModal();
-                    // カレンダーをリロード
-                    location.reload();
                 } else {
-                    alert('エラー: ' + (result.error || '予約の追加に失敗しました'));
+                    alert('エラー: ' + (result.error || '追加に失敗しました'));
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('予約の追加中にエラーが発生しました');
+                alert('エラーが発生しました');
+            }
+        }
+        
+        // 予約削除
+        async function deleteReservation(id) {
+            if (!confirm('この予約を削除しますか？')) return;
+            
+            try {
+                const response = await fetch(`/api/admin/delete/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    closeModal('detailModal');
+                    calendar.refetchEvents();
+                    alert('予約を削除しました');
+                } else {
+                    alert('エラー: ' + (result.error || '削除に失敗しました'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('エラーが発生しました');
             }
         }
         
         // モーダル外クリックで閉じる
-        document.getElementById('addModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeAddModal();
-            }
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('show');
+                }
+            });
         });
         
         // ESCキーで閉じる
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
-                closeAddModal();
+                document.querySelectorAll('.modal.show').forEach(modal => {
+                    modal.classList.remove('show');
+                });
             }
         });
     </script>

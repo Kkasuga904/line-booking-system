@@ -1,0 +1,145 @@
+/* FullCalendar Critical CSS - 最小限必要なスタイル */
+.fc {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    font-size: 1em;
+}
+
+.fc-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5em;
+}
+
+.fc-toolbar-chunk {
+    display: flex;
+    align-items: center;
+}
+
+.fc-button {
+    background-color: #2C5282;
+    border: none;
+    color: white;
+    padding: 0.4em 0.65em;
+    margin: 0 0.1em;
+    cursor: pointer;
+    border-radius: 0.25em;
+}
+
+.fc-button:hover {
+    background-color: #2A4E7E;
+}
+
+.fc-button:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.fc-toolbar-title {
+    font-size: 1.75em;
+    margin: 0;
+}
+
+.fc-daygrid {
+    position: relative;
+    display: block;
+}
+
+.fc-scrollgrid {
+    position: relative;
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.fc-scrollgrid-section > * {
+    position: relative;
+    z-index: 3;
+}
+
+.fc-scrollgrid-section > td {
+    position: relative;
+}
+
+.fc-scrollgrid-section-sticky > * {
+    position: sticky;
+    z-index: 2;
+}
+
+.fc-daygrid-day-frame {
+    position: relative;
+    min-height: 100px;
+}
+
+.fc-daygrid-day-top {
+    display: flex;
+    flex-direction: row-reverse;
+    padding: 2px 3px;
+}
+
+.fc-daygrid-day-number {
+    position: relative;
+    z-index: 4;
+    padding: 4px;
+}
+
+.fc-daygrid-event {
+    position: relative;
+    white-space: nowrap;
+    border-radius: 3px;
+    padding: 1px;
+}
+
+.fc-event {
+    display: block;
+    font-size: 0.85em;
+    position: relative;
+    border-radius: 3px;
+}
+
+.fc-event-main {
+    display: flex;
+    padding: 2px 4px;
+}
+
+.fc-event-title {
+    font-weight: bold;
+}
+
+.fc-day-today {
+    background-color: #FFF7ED !important;
+}
+
+.fc-col-header-cell {
+    padding: 8px;
+    text-align: center;
+    background-color: #F7FAFC;
+}
+
+.fc-daygrid-day {
+    border: 1px solid #E2E8F0;
+}
+
+.fc-daygrid-day:hover {
+    background-color: #F7FAFC;
+    cursor: pointer;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .fc-toolbar {
+        flex-direction: column;
+    }
+    
+    .fc-toolbar-chunk {
+        margin: 0.3em 0;
+    }
+    
+    .fc-daygrid-day-frame {
+        min-height: 60px;
+    }
+}

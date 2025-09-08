@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔔 Notification Center | LINE予約システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .header {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .nav-btn {
+            padding: 12px 20px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 25px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .notification-panel {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .panel-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .notification-controls {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .control-btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .control-btn.primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .control-btn.secondary {
+            background: #f8f9fa;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .control-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .notification-filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .notification-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .notification-item {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .notification-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .notification-item.unread {
+            background: #f8f9ff;
+            border-left-color: #ff6b35;
+        }
+        
+        .notification-item.urgent {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .notification-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        
+        .notification-icon.booking {
+            background: linear-gradient(45deg, #06c755, #00b04f);
+            color: white;
+        }
+        
+        .notification-icon.cancellation {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+            color: white;
+        }
+        
+        .notification-icon.system {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .notification-content {
+            flex: 1;
+        }
+        
+        .notification-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .notification-message {
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+        
+        .notification-meta {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .notification-time {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .notification-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .action-btn.primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .action-btn.secondary {
+            background: #f8f9fa;
+            color: #667eea;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+        
+        .status-indicator {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff6b35;
+        }
+        
+        .status-indicator.read {
+            background: #28a745;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .notification-settings {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        
+        .setting-group {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .setting-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #333;
+        }
+        
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #ccc;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .toggle-switch.active {
+            background: #667eea;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+            
+            .panel-header {
+                flex-direction: column;
+                gap: 20px;
+                align-items: stretch;
+            }
+            
+            .notification-filters {
+                justify-content: center;
+            }
+            
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">🔔 Notification Center</div>
+            <nav class="nav-buttons">
+                <a href="/dashboard.html" class="nav-btn">📊 ダッシュボード</a>
+                <a href="/admin-calendar-v2.html" class="nav-btn">📅 カレンダー</a>
+                <a href="/admin" class="nav-btn">📋 予約一覧</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="notification-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">📬 通知一覧</h2>
+                <div class="notification-controls">
+                    <button class="control-btn secondary" onclick="markAllAsRead()">✅ すべて既読</button>
+                    <button class="control-btn secondary" onclick="clearAll()">🗑️ すべて削除</button>
+                    <button class="control-btn primary" onclick="refreshNotifications()">🔄 更新</button>
+                </div>
+            </div>
+
+            <div class="notification-filters">
+                <button class="filter-btn active" onclick="filterNotifications('all')">すべて</button>
+                <button class="filter-btn" onclick="filterNotifications('unread')">未読</button>
+                <button class="filter-btn" onclick="filterNotifications('booking')">予約関連</button>
+                <button class="filter-btn" onclick="filterNotifications('system')">システム</button>
+                <button class="filter-btn" onclick="filterNotifications('urgent')">重要</button>
+            </div>
+
+            <div class="notification-list" id="notificationList">
+                <!-- 通知がここに動的に追加される -->
+            </div>
+        </div>
+
+        <div class="notification-settings">
+            <div class="panel-header">
+                <h2 class="panel-title">⚙️ 通知設定</h2>
+            </div>
+
+            <div class="settings-grid">
+                <div class="setting-group">
+                    <h3 class="setting-title">📱 プッシュ通知</h3>
+                    <div class="setting-item">
+                        <span>新規予約</span>
+                        <div class="toggle-switch active" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <span>キャンセル</span>
+                        <div class="toggle-switch active" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <span>予約変更</span>
+                        <div class="toggle-switch active" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <h3 class="setting-title">📧 メール通知</h3>
+                    <div class="setting-item">
+                        <span>日次レポート</span>
+                        <div class="toggle-switch active" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <span>月次サマリー</span>
+                        <div class="toggle-switch active" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <span>システムメンテナンス</span>
+                        <div class="toggle-switch" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <h3 class="setting-title">🔔 LINE通知</h3>
+                    <div class="setting-item">
+                        <span>予約確認</span>
+                        <div class="toggle-switch active" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <span>リマインダー</span>
+                        <div class="toggle-switch active" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <span>アップデート情報</span>
+                        <div class="toggle-switch" onclick="toggleSetting(this)">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let notifications = [];
+        let currentFilter = 'all';
+
+        // サンプル通知データ
+        const sampleNotifications = [
+            {
+                id: 1,
+                type: 'booking',
+                title: '新しい予約が入りました',
+                message: '山田太郎さんから2025年8月28日 14:00の予約が入りました。',
+                time: '5分前',
+                unread: true,
+                urgent: false
+            },
+            {
+                id: 2,
+                type: 'cancellation',
+                title: '予約がキャンセルされました',
+                message: '田中花子さんの2025年8月29日 16:00の予約がキャンセルされました。',
+                time: '15分前',
+                unread: true,
+                urgent: true
+            },
+            {
+                id: 3,
+                type: 'system',
+                title: 'システムメンテナンス完了',
+                message: '予定されていたシステムメンテナンスが正常に完了しました。',
+                time: '1時間前',
+                unread: false,
+                urgent: false
+            },
+            {
+                id: 4,
+                type: 'booking',
+                title: '予約変更リクエスト',
+                message: '佐藤次郎さんから予約時間の変更リクエストがあります。',
+                time: '2時間前',
+                unread: false,
+                urgent: false
+            }
+        ];
+
+        function loadNotifications() {
+            notifications = sampleNotifications;
+            renderNotifications();
+        }
+
+        function renderNotifications() {
+            const container = document.getElementById('notificationList');
+            let filteredNotifications = notifications;
+
+            // フィルタリング
+            if (currentFilter !== 'all') {
+                filteredNotifications = notifications.filter(notification => {
+                    switch (currentFilter) {
+                        case 'unread':
+                            return notification.unread;
+                        case 'urgent':
+                            return notification.urgent;
+                        default:
+                            return notification.type === currentFilter;
+                    }
+                });
+            }
+
+            if (filteredNotifications.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <p>通知がありません</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredNotifications.map(notification => `
+                <div class="notification-item ${notification.unread ? 'unread' : ''} ${notification.urgent ? 'urgent' : ''}">
+                    <div class="notification-header">
+                        <div style="display: flex; align-items: center;">
+                            <div class="notification-icon ${notification.type}">
+                                ${getNotificationIcon(notification.type)}
+                            </div>
+                            <div class="notification-content">
+                                <div class="notification-title">${notification.title}</div>
+                                <div class="notification-message">${notification.message}</div>
+                            </div>
+                        </div>
+                        <div class="status-indicator ${notification.unread ? '' : 'read'}"></div>
+                    </div>
+                    <div class="notification-meta">
+                        <span class="notification-time">${notification.time}</span>
+                        <div class="notification-actions">
+                            ${notification.unread ? '<button class="action-btn secondary" onclick="markAsRead(' + notification.id + ')">既読</button>' : ''}
+                            <button class="action-btn primary" onclick="handleNotificationAction(' + notification.id + ')">詳細</button>
+                            <button class="action-btn secondary" onclick="deleteNotification(' + notification.id + ')">削除</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getNotificationIcon(type) {
+            switch (type) {
+                case 'booking':
+                    return '📅';
+                case 'cancellation':
+                    return '❌';
+                case 'system':
+                    return '⚙️';
+                default:
+                    return '🔔';
+            }
+        }
+
+        function filterNotifications(filter) {
+            currentFilter = filter;
+            
+            // フィルターボタンの見た目を更新
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            renderNotifications();
+        }
+
+        function markAsRead(id) {
+            const notification = notifications.find(n => n.id === id);
+            if (notification) {
+                notification.unread = false;
+                renderNotifications();
+            }
+        }
+
+        function markAllAsRead() {
+            notifications.forEach(notification => {
+                notification.unread = false;
+            });
+            renderNotifications();
+        }
+
+        function deleteNotification(id) {
+            notifications = notifications.filter(n => n.id !== id);
+            renderNotifications();
+        }
+
+        function clearAll() {
+            if (confirm('すべての通知を削除しますか？')) {
+                notifications = [];
+                renderNotifications();
+            }
+        }
+
+        function refreshNotifications() {
+            // リアルな実装では API から最新の通知を取得
+            console.log('通知を更新中...');
+            loadNotifications();
+        }
+
+        function handleNotificationAction(id) {
+            const notification = notifications.find(n => n.id === id);
+            if (notification) {
+                alert(`通知の詳細アクション: ${notification.title}`);
+            }
+        }
+
+        function toggleSetting(element) {
+            element.classList.toggle('active');
+        }
+
+        // リアルタイム通知のシミュレーション
+        function simulateRealtimeNotifications() {
+            setInterval(() => {
+                const types = ['booking', 'cancellation', 'system'];
+                const randomType = types[Math.floor(Math.random() * types.length)];
+                
+                const newNotification = {
+                    id: Date.now(),
+                    type: randomType,
+                    title: `新しい${randomType === 'booking' ? '予約' : randomType === 'cancellation' ? 'キャンセル' : 'システム'}通知`,
+                    message: 'これはリアルタイム通知のデモです。',
+                    time: 'たった今',
+                    unread: true,
+                    urgent: Math.random() > 0.7
+                };
+
+                notifications.unshift(newNotification);
+                
+                // 最大50件まで保持
+                if (notifications.length > 50) {
+                    notifications.pop();
+                }
+
+                if (currentFilter === 'all' || 
+                    (currentFilter === 'unread' && newNotification.unread) ||
+                    (currentFilter === randomType)) {
+                    renderNotifications();
+                }
+
+                // ブラウザ通知を表示（許可されている場合）
+                if (Notification.permission === 'granted') {
+                    new Notification(newNotification.title, {
+                        body: newNotification.message,
+                        icon: '/favicon.ico'
+                    });
+                }
+            }, 30000); // 30秒ごと
+        }
+
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadNotifications();
+            
+            // ブラウザ通知の許可を求める
+            if (Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+            
+            // リアルタイム通知のシミュレーションを開始（デモ用）
+            // simulateRealtimeNotifications();
+        });
+    </script>
+</body>
+</html>

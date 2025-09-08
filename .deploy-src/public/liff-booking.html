@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE予約システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px;
+            text-align: center;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .user-info {
+            background: rgba(255,255,255,0.2);
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .user-name {
+            flex: 1;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .content {
+            padding: 25px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-bottom: 25px;
+        }
+        
+        .weekday {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            padding: 8px;
+        }
+        
+        .day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f5f7;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .day:hover {
+            background: #e0e0e0;
+        }
+        
+        .day.selected {
+            background: #667eea;
+            color: white;
+        }
+        
+        .day.disabled {
+            background: #f0f0f0;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .time-slots {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        
+        .time-slot {
+            padding: 12px;
+            background: #f5f5f7;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .time-slot:hover {
+            background: #e0e0e0;
+        }
+        
+        .time-slot.selected {
+            background: #667eea;
+            color: white;
+        }
+        
+        .time-slot.disabled {
+            background: #f0f0f0;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .month-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .month-nav button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .month-nav button:hover {
+            background: #5a67d8;
+        }
+        
+        .month-nav .month-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 ご予約フォーム</h1>
+            <div class="user-info" id="userInfo" style="display: none;">
+                <div class="user-avatar" id="userAvatar">👤</div>
+                <div class="user-name" id="userName">読み込み中...</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div id="loading" class="loading">
+                <p>LINEプロフィールを取得中...</p>
+            </div>
+            
+            <div id="message"></div>
+            
+            <div id="bookingForm" style="display: none;">
+                <!-- Step 1: 日付選択 -->
+                <div id="step1">
+                    <div class="section-title">1. ご希望の日付を選択</div>
+                    
+                    <div class="month-nav">
+                        <button onclick="changeMonth(-1)">＜ 前月</button>
+                        <div class="month-title" id="monthTitle"></div>
+                        <button onclick="changeMonth(1)">次月 ＞</button>
+                    </div>
+                    
+                    <div class="calendar-grid" id="calendar">
+                        <div class="weekday">日</div>
+                        <div class="weekday">月</div>
+                        <div class="weekday">火</div>
+                        <div class="weekday">水</div>
+                        <div class="weekday">木</div>
+                        <div class="weekday">金</div>
+                        <div class="weekday">土</div>
+                    </div>
+                </div>
+                
+                <!-- Step 2: 時間選択 -->
+                <div id="step2" style="display: none;">
+                    <div class="section-title">2. ご希望の時間を選択</div>
+                    <div class="time-slots" id="timeSlots">
+                        <div class="time-slot" data-time="10:00">10:00</div>
+                        <div class="time-slot" data-time="11:00">11:00</div>
+                        <div class="time-slot" data-time="12:00">12:00</div>
+                        <div class="time-slot" data-time="13:00">13:00</div>
+                        <div class="time-slot" data-time="14:00">14:00</div>
+                        <div class="time-slot" data-time="15:00">15:00</div>
+                        <div class="time-slot" data-time="16:00">16:00</div>
+                        <div class="time-slot" data-time="17:00">17:00</div>
+                        <div class="time-slot" data-time="18:00">18:00</div>
+                        <div class="time-slot" data-time="19:00">19:00</div>
+                        <div class="time-slot" data-time="20:00">20:00</div>
+                        <div class="time-slot" data-time="21:00">21:00</div>
+                    </div>
+                </div>
+                
+                <!-- Step 3: 詳細入力 -->
+                <div id="step3" style="display: none;">
+                    <div class="section-title">3. ご予約詳細</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">お名前</label>
+                        <input type="text" class="form-input" id="customerName" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">人数</label>
+                        <select class="form-select" id="people">
+                            <option value="1">1名</option>
+                            <option value="2">2名</option>
+                            <option value="3">3名</option>
+                            <option value="4">4名</option>
+                            <option value="5">5名</option>
+                            <option value="6">6名</option>
+                            <option value="7">7名</option>
+                            <option value="8">8名</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">電話番号（任意）</label>
+                        <input type="tel" class="form-input" id="phone" placeholder="090-0000-0000">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">ご要望（任意）</label>
+                        <textarea class="form-textarea" id="message" rows="3" placeholder="アレルギーやご要望があればお書きください"></textarea>
+                    </div>
+                    
+                    <button class="submit-btn" id="submitBtn" onclick="submitReservation()">
+                        予約を確定する
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
+    
+    <script>
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        let selectedDate = null;
+        let selectedTime = null;
+        let userProfile = null;
+        let userId = null;
+        
+        // LIFF初期化
+        async function initializeLiff() {
+            try {
+                // LIFF IDを環境変数から取得（デプロイ時に設定）
+                const liffId = '2006487876-xd1A5qJB'; // Account 1のLIFF ID
+                
+                await liff.init({ liffId: liffId });
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+                
+                // LINEプロフィール情報を取得
+                userProfile = await liff.getProfile();
+                userId = userProfile.userId;
+                
+                // ユーザー情報を表示
+                document.getElementById('userInfo').style.display = 'flex';
+                document.getElementById('userName').textContent = userProfile.displayName;
+                document.getElementById('customerName').value = userProfile.displayName;
+                
+                // プロフィール画像があれば表示
+                if (userProfile.pictureUrl) {
+                    document.getElementById('userAvatar').innerHTML = 
+                        `<img src="${userProfile.pictureUrl}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                }
+                
+                // フォームを表示
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('bookingForm').style.display = 'block';
+                
+                // カレンダーを初期化
+                renderCalendar();
+                
+            } catch (error) {
+                console.error('LIFF初期化エラー:', error);
+                document.getElementById('loading').innerHTML = 
+                    '<div class="error">初期化に失敗しました。ページを再読み込みしてください。</div>';
+            }
+        }
+        
+        // カレンダー表示
+        function renderCalendar() {
+            const calendar = document.getElementById('calendar');
+            // 既存の日付をクリア
+            const days = calendar.querySelectorAll('.day');
+            days.forEach(day => day.remove());
+            
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+            const prevLastDay = new Date(currentYear, currentMonth, 0);
+            
+            const firstDayIndex = firstDay.getDay();
+            const lastDayIndex = lastDay.getDay();
+            const prevLastDayDate = prevLastDay.getDate();
+            const lastDayDate = lastDay.getDate();
+            
+            // 月タイトル更新
+            document.getElementById('monthTitle').textContent = 
+                `${currentYear}年${currentMonth + 1}月`;
+            
+            // 前月の残り日数
+            for (let i = firstDayIndex; i > 0; i--) {
+                const day = document.createElement('div');
+                day.className = 'day disabled';
+                day.textContent = prevLastDayDate - i + 1;
+                calendar.appendChild(day);
+            }
+            
+            // 当月の日付
+            const today = new Date();
+            for (let i = 1; i <= lastDayDate; i++) {
+                const day = document.createElement('div');
+                day.className = 'day';
+                day.textContent = i;
+                
+                const date = new Date(currentYear, currentMonth, i);
+                
+                // 過去の日付は選択不可
+                if (date < today.setHours(0,0,0,0)) {
+                    day.classList.add('disabled');
+                } else {
+                    day.onclick = () => selectDate(i);
+                }
+                
+                calendar.appendChild(day);
+            }
+            
+            // 次月の残り日数
+            const remainingDays = 42 - (firstDayIndex + lastDayDate);
+            for (let i = 1; i <= remainingDays; i++) {
+                const day = document.createElement('div');
+                day.className = 'day disabled';
+                day.textContent = i;
+                calendar.appendChild(day);
+            }
+        }
+        
+        // 月変更
+        function changeMonth(direction) {
+            currentMonth += direction;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            } else if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar();
+        }
+        
+        // 日付選択
+        function selectDate(day) {
+            // 選択状態をクリア
+            document.querySelectorAll('.day').forEach(d => {
+                d.classList.remove('selected');
+            });
+            
+            // 選択した日付をハイライト
+            event.target.classList.add('selected');
+            
+            // 日付を保存
+            const month = String(currentMonth + 1).padStart(2, '0');
+            const dayStr = String(day).padStart(2, '0');
+            selectedDate = `${currentYear}-${month}-${dayStr}`;
+            
+            // 時間選択を表示
+            document.getElementById('step2').style.display = 'block';
+            document.getElementById('step3').style.display = 'none';
+        }
+        
+        // 時間選択
+        document.querySelectorAll('.time-slot').forEach(slot => {
+            slot.onclick = function() {
+                // 選択状態をクリア
+                document.querySelectorAll('.time-slot').forEach(s => {
+                    s.classList.remove('selected');
+                });
+                
+                // 選択した時間をハイライト
+                this.classList.add('selected');
+                selectedTime = this.dataset.time;
+                
+                // 詳細入力を表示
+                document.getElementById('step3').style.display = 'block';
+            };
+        });
+        
+        // 予約送信
+        async function submitReservation() {
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '送信中...';
+            
+            try {
+                const reservationData = {
+                    store_id: 'restaurant-001', // Account 1のStore ID
+                    user_id: userId,
+                    customer_name: document.getElementById('customerName').value,
+                    date: selectedDate,
+                    time: selectedTime,
+                    people: parseInt(document.getElementById('people').value),
+                    phone: document.getElementById('phone').value || '',
+                    message: document.getElementById('message').value || '',
+                    status: 'pending',
+                    source: 'liff'
+                };
+                
+                // APIに送信
+                const response = await fetch('https://line-booking-system-seven.vercel.app/api/calendar-reservation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(reservationData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // 成功メッセージ
+                    document.getElementById('message').innerHTML = 
+                        `<div class="success">
+                            ✅ ご予約を承りました！<br>
+                            📅 ${selectedDate}<br>
+                            ⏰ ${selectedTime}<br>
+                            👤 ${reservationData.customer_name}様<br><br>
+                            確認のご連絡をお待ちください。
+                        </div>`;
+                    
+                    // LINEトークにメッセージ送信
+                    if (liff.isInClient()) {
+                        liff.sendMessages([{
+                            type: 'text',
+                            text: `✅ 予約完了\n\n📅 ${selectedDate}\n⏰ ${selectedTime}\n👥 ${reservationData.people}名\n\n確認のご連絡をお待ちください。`
+                        }]);
+                    }
+                    
+                    // 3秒後にLIFFを閉じる
+                    setTimeout(() => {
+                        liff.closeWindow();
+                    }, 3000);
+                    
+                } else {
+                    throw new Error(result.error || '予約の送信に失敗しました');
+                }
+                
+            } catch (error) {
+                console.error('予約エラー:', error);
+                document.getElementById('message').innerHTML = 
+                    `<div class="error">
+                        予約の送信に失敗しました。<br>
+                        もう一度お試しください。
+                    </div>`;
+                submitBtn.disabled = false;
+                submitBtn.textContent = '予約を確定する';
+            }
+        }
+        
+        // ページ読み込み時にLIFF初期化
+        window.addEventListener('DOMContentLoaded', initializeLiff);
+    </script>
+</body>
+</html>

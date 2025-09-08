@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>統一サイドバーシステム - 完全版</title>
+</head>
+<body>
+<h1>統一サイドバーシステム実装コード</h1>
+<p>以下のコードを admin-full-featured.html の既存パッチ部分と置き換えてください。</p>
+
+<hr>
+
+<!-- ==================== 統一サイドバーシステム ==================== -->
+<h2>完全な統一サイドバーシステム</h2>
+<pre><code>
+<!-- 1. 最小限の予防CSS（</head>の直前） -->
+<style id="unified-sidebar-css">
+/* 旧メニュー要素の完全非表示（予防措置） */
+[data-legacy-menu],
+[data-legacy-menu-target],
+.old-sidebar,
+.sidebar-menu:not(.c-sidebar__menu),
+.menu-renderer {
+    display: none !important;
+    visibility: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+}
+
+/* 統一サイドバーのみ有効 */
+#sidebar.c-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 300px;
+    height: 100vh;
+    background: #ffffff;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+    z-index: 999999;
+    transform: translateX(-100%);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s ease,
+                visibility 0.3s ease;
+    overflow-y: auto;
+    display: block !important; /* 常にblock */
+}
+
+#sidebar.c-sidebar.is-open {
+    transform: translateX(0);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* 統一オーバーレイ */
+#pageOverlay.c-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 999998;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    display: block !important;
+}
+
+#pageOverlay.c-overlay.is-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* 統一ハンバーガーボタン */
+#unifiedHamburger {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    width: 48px;
+    height: 48px;
+    background: #ffffff;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    cursor: pointer;
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+#unifiedHamburger:hover {
+    background: #f5f5f5;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transform: scale(1.05);
+}
+
+/* サイドバー内部スタイル */
+.c-sidebar__header {
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.c-sidebar__title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.c-sidebar__close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 4px 8px;
+    color: #666;
+}
+
+.c-sidebar__close:hover {
+    color: #333;
+}
+
+.c-sidebar__content {
+    padding: 20px;
+}
+
+.c-sidebar__menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.c-sidebar__menu-item {
+    margin-bottom: 4px;
+}
+
+.c-sidebar__menu-link {
+    display: block;
+    padding: 12px 16px;
+    color: #333;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.c-sidebar__menu-link:hover {
+    background: #f0f0f0;
+}
+
+.c-sidebar__menu-link.active {
+    background: #e8f4f8;
+    color: #0066cc;
+    font-weight: 500;
+}
+
+/* スクロールバー */
+#sidebar.c-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+#sidebar.c-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#sidebar.c-sidebar::-webkit-scrollbar-thumb {
+    background: #d0d0d0;
+    border-radius: 3px;
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+    #sidebar.c-sidebar {
+        width: 85%;
+        max-width: 300px;
+    }
+    
+    #unifiedHamburger {
+        top: 10px;
+        left: 10px;
+        width: 44px;
+        height: 44px;
+    }
+}
+</style>
+
+<!-- 2. 統一サイドバー初期化スクリプト（</body>の直前） -->
+<script id="unified-sidebar-controller">
+(function() {
+    'use strict';
+    
+    // 初期化済みチェック
+    if (window.__unifiedSidebarInitialized) {
+        console.log('[UnifiedSidebar] Already initialized');
+        return;
+    }
+    window.__unifiedSidebarInitialized = true;
+    
+    // ==================== DOM構造の確立 ====================
+    function ensureUnifiedStructure() {
+        // 旧メニューの完全削除
+        const legacySelectors = [
+            '[data-legacy-menu]',
+            '[data-legacy-menu-target]',
+            '.old-sidebar',
+            '.sidebar-menu:not(.c-sidebar__menu)',
+            '.menu-renderer',
+            '#sidebar:not(.c-sidebar)'
+        ];
+        
+        legacySelectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => {
+                console.warn('[UnifiedSidebar] Removing legacy element:', el);
+                el.remove();
+            });
+        });
+        
+        // 正しいサイドバーの確保
+        let sidebar = document.getElementById('sidebar');
+        if (!sidebar || !sidebar.classList.contains('c-sidebar')) {
+            if (sidebar) sidebar.remove();
+            
+            sidebar = document.createElement('aside');
+            sidebar.id = 'sidebar';
+            sidebar.className = 'c-sidebar';
+            sidebar.setAttribute('aria-hidden', 'true');
+            sidebar.setAttribute('role', 'navigation');
+            sidebar.innerHTML = `
+                <div class="c-sidebar__header">
+                    <h2 class="c-sidebar__title">メニュー</h2>
+                    <button class="c-sidebar__close" aria-label="閉じる">×</button>
+                </div>
+                <div class="c-sidebar__content">
+                    <nav class="c-sidebar__nav">
+                        <ul class="c-sidebar__menu">
+                            <li class="c-sidebar__menu-item">
+                                <a href="#" class="c-sidebar__menu-link active" data-action="calendar">
+                                    📅 カレンダー
+                                </a>
+                            </li>
+                            <li class="c-sidebar__menu-item">
+                                <a href="#" class="c-sidebar__menu-link" data-action="reservations">
+                                    📋 予約一覧
+                                </a>
+                            </li>
+                            <li class="c-sidebar__menu-item">
+                                <a href="#" class="c-sidebar__menu-link" data-action="capacity">
+                                    ⚙️ 予約枠管理
+                                </a>
+                            </li>
+                            <li class="c-sidebar__menu-item">
+                                <a href="#" class="c-sidebar__menu-link" data-action="notifications">
+                                    🔔 通知センター
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            `;
+            document.body.appendChild(sidebar);
+        }
+        
+        // body直下に移動
+        if (sidebar.parentElement !== document.body) {
+            document.body.appendChild(sidebar);
+        }
+        
+        // オーバーレイの確保
+        let overlay = document.getElementById('pageOverlay');
+        if (!overlay || !overlay.classList.contains('c-overlay')) {
+            if (overlay) overlay.remove();
+            
+            overlay = document.createElement('div');
+            overlay.id = 'pageOverlay';
+            overlay.className = 'c-overlay';
+            overlay.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(overlay);
+        }
+        
+        // 統一ハンバーガーボタンの確保
+        let hamburger = document.getElementById('unifiedHamburger');
+        if (!hamburger) {
+            // 既存のハンバーガーボタンを削除
+            document.querySelectorAll('.c-hamburger, #c-hamburger-btn, .hamburger-button').forEach(el => {
+                if (el.id !== 'unifiedHamburger') el.remove();
+            });
+            
+            hamburger = document.createElement('button');
+            hamburger.id = 'unifiedHamburger';
+            hamburger.setAttribute('aria-label', 'メニュー');
+            hamburger.setAttribute('aria-controls', 'sidebar');
+            hamburger.setAttribute('aria-expanded', 'false');
+            hamburger.innerHTML = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18"/>
+                </svg>
+            `;
+            document.body.appendChild(hamburger);
+        }
+        
+        return { sidebar, overlay, hamburger };
+    }
+    
+    // ==================== 統一コントローラー ====================
+    class UnifiedSidebarController {
+        constructor(elements) {
+            this.sidebar = elements.sidebar;
+            this.overlay = elements.overlay;
+            this.hamburger = elements.hamburger;
+            this.closeButton = this.sidebar.querySelector('.c-sidebar__close');
+            this.isOpen = false;
+            
+            this.init();
+        }
+        
+        init() {
+            // 初期状態を確実に設定
+            this.close();
+            
+            // イベントリスナー設定（重複防止）
+            this.hamburger.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggle();
+            };
+            
+            if (this.closeButton) {
+                this.closeButton.onclick = (e) => {
+                    e.preventDefault();
+                    this.close();
+                };
+            }
+            
+            this.overlay.onclick = () => this.close();
+            
+            // ESCキー対応
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && this.isOpen) {
+                    this.close();
+                }
+            });
+            
+            // メニューリンク
+            this.sidebar.querySelectorAll('[data-action]').forEach(link => {
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    this.handleAction(link.dataset.action);
+                    this.close();
+                };
+            });
+            
+            console.log('[UnifiedSidebar] Controller initialized');
+        }
+        
+        toggle() {
+            this.isOpen ? this.close() : this.open();
+        }
+        
+        open() {
+            if (this.isOpen) return;
+            
+            this.sidebar.classList.add('is-open');
+            this.overlay.classList.add('is-visible');
+            this.sidebar.setAttribute('aria-hidden', 'false');
+            this.hamburger.setAttribute('aria-expanded', 'true');
+            document.body.style.overflow = 'hidden';
+            this.isOpen = true;
+        }
+        
+        close() {
+            this.sidebar.classList.remove('is-open');
+            this.overlay.classList.remove('is-visible');
+            this.sidebar.setAttribute('aria-hidden', 'true');
+            this.hamburger.setAttribute('aria-expanded', 'false');
+            document.body.style.overflow = '';
+            this.isOpen = false;
+        }
+        
+        handleAction(action) {
+            // 既存の関数にマッピング
+            const actionMap = {
+                'calendar': () => {
+                    if (window.showCalendarView) window.showCalendarView();
+                },
+                'reservations': () => {
+                    if (window.showReservationListView) window.showReservationListView();
+                },
+                'capacity': () => {
+                    if (window.showCapacityControlsView) window.showCapacityControlsView();
+                },
+                'notifications': () => {
+                    if (window.showNotificationView) window.showNotificationView();
+                }
+            };
+            
+            const handler = actionMap[action];
+            if (handler) {
+                handler();
+            } else {
+                console.log('[UnifiedSidebar] Unknown action:', action);
+            }
+        }
+    }
+    
+    // ==================== 初期化実行 ====================
+    function initialize() {
+        const elements = ensureUnifiedStructure();
+        const controller = new UnifiedSidebarController(elements);
+        
+        // グローバル公開（互換性のため）
+        window.unifiedSidebarController = controller;
+        window.toggleSidebar = () => controller.toggle();
+        window.openSidebar = () => controller.open();
+        window.closeSidebar = () => controller.close();
+        
+        console.log('[UnifiedSidebar] System initialized');
+    }
+    
+    // DOM読み込み完了後に実行
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialize);
+    } else {
+        initialize();
+    }
+    
+    // ==================== 継続的な保護 ====================
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach(mutation => {
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType === 1) {
+                    // 旧メニューが追加されたら即削除
+                    if (node.matches && (
+                        node.matches('[data-legacy-menu]') ||
+                        node.matches('.old-sidebar') ||
+                        node.matches('.menu-renderer')
+                    )) {
+                        console.warn('[UnifiedSidebar] Blocked legacy menu:', node);
+                        node.remove();
+                    }
+                }
+            });
+        });
+    });
+    
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+})();
+</script>
+</code></pre>
+
+<hr>
+
+<h2>適用手順</h2>
+<ol>
+    <li><strong>旧コードの削除</strong>
+        <ul>
+            <li>1178-1229行の旧メニューHTML要素を削除済み</li>
+            <li>既存のサイドバー関連スクリプトを削除</li>
+        </ul>
+    </li>
+    <li><strong>新コードの追加</strong>
+        <ul>
+            <li>上記のCSSを &lt;/head&gt; の直前に追加</li>
+            <li>上記のスクリプトを &lt;/body&gt; の直前に追加</li>
+        </ul>
+    </li>
+    <li><strong>確認</strong>
+        <ul>
+            <li>ページリロード後、ハンバーガーボタンが1つだけ表示される</li>
+            <li>サイドバーが正しく開閉する</li>
+            <li>旧メニューが表示されない</li>
+        </ul>
+    </li>
+</ol>
+
+<h2>確認用コンソールコマンド</h2>
+<pre><code>
+// 1. DOM構造確認
+console.table({
+    'Unified Sidebar': !!document.querySelector('#sidebar.c-sidebar'),
+    'Unified Hamburger': !!document.getElementById('unifiedHamburger'),
+    'Legacy Menus': document.querySelectorAll('[data-legacy-menu], .old-sidebar, .menu-renderer').length,
+    'Total Sidebars': document.querySelectorAll('#sidebar').length
+});
+
+// 2. 動作テスト
+window.unifiedSidebarController?.toggle();
+</code></pre>
+
+</body>
+</html>

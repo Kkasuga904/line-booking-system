@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>LIFF Display Test</title>
+</head>
+<body>
+    <h1>LIFF Page Color Display Test</h1>
+    <p>Click the button to test if colors display on the LIFF page</p>
+    
+    <button onclick="testLiff()">Open LIFF Page and Select Date</button>
+    
+    <div id="results"></div>
+    
+    <iframe id="liffFrame" style="width: 100%; height: 600px; border: 1px solid #ccc; margin-top: 20px; display: none;"></iframe>
+    
+    <script>
+        function testLiff() {
+            const resultsDiv = document.getElementById('results');
+            const iframe = document.getElementById('liffFrame');
+            
+            // Load LIFF page in iframe
+            iframe.src = 'https://line-booking-api-116429620992.asia-northeast1.run.app/liff-booking-enhanced.html';
+            iframe.style.display = 'block';
+            
+            resultsDiv.innerHTML = `
+                <h2>Instructions:</h2>
+                <ol>
+                    <li>Click on today's date (${new Date().getDate()}) in the calendar</li>
+                    <li>Check if time slots appear with colors:
+                        <ul>
+                            <li>🟢 Green = Available (空席あり)</li>
+                            <li>🟠 Orange = Limited (残り1組 for 18:00-21:00)</li>
+                            <li>🔴 Red = Full (満席)</li>
+                        </ul>
+                    </li>
+                    <li>18:00-21:00 should show orange "残り1組" if capacity rule is active</li>
+                </ol>
+                
+                <h3>Direct Links:</h3>
+                <ul>
+                    <li><a href="https://line-booking-api-116429620992.asia-northeast1.run.app/liff-booking-enhanced.html" target="_blank">Open LIFF Page in New Tab</a></li>
+                    <li><a href="https://line-booking-api-116429620992.asia-northeast1.run.app/api/capacity-availability?store_id=default-store&date=2025-09-07" target="_blank">Check API Response</a></li>
+                </ul>
+            `;
+        }
+    </script>
+</body>
+</html>

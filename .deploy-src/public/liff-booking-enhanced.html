@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>LINE予約システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px;
+            text-align: center;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .user-info {
+            background: rgba(255,255,255,0.2);
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .returning-customer {
+            background: #4CAF50;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 15px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .returning-customer.show {
+            display: flex;
+        }
+        
+        .content {
+            padding: 25px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-number {
+            background: #667eea;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-bottom: 25px;
+        }
+        
+        .weekday {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            padding: 8px;
+        }
+        
+        .day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f5f7;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .day:hover:not(.disabled) {
+            background: #e5e5e7;
+        }
+        
+        .day.today {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+        }
+        
+        .day.selected {
+            background: #667eea;
+            color: white;
+        }
+        
+        .day.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .time-slots {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        
+        .time-slot {
+            padding: 12px;
+            background: #f5f5f7;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            position: relative;
+        }
+        
+        .time-slot:hover:not(.disabled):not(.full) {
+            background: #e5e5e7;
+        }
+        
+        .time-slot.selected {
+            background: #667eea;
+            color: white;
+        }
+        
+        .time-slot.full {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+            color: white;
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+        
+        .time-slot.limited {
+            background: linear-gradient(135deg, #ffd54f 0%, #ffb300 100%);
+            color: #333;
+        }
+        
+        .time-slot.available {
+            background: linear-gradient(135deg, #81c784 0%, #4caf50 100%);
+            color: white;
+        }
+        
+        .capacity-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff4444;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .required {
+            color: #ff4444;
+            font-size: 12px;
+            margin-left: 4px;
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e5e7;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-input.error {
+            border-color: #ff4444;
+        }
+        
+        .error-message {
+            color: #ff4444;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+        
+        .success-message {
+            background: #4CAF50;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px;
+        }
+        
+        .info-saved {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .info-saved.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍽️ レストラン予約</h1>
+            <div class="user-info" id="userInfo" style="display: none;">
+                <div class="user-avatar" id="userAvatar">👤</div>
+                <div class="user-name" id="userName">ゲスト</div>
+            </div>
+        </div>
+        
+        <div class="returning-customer" id="returningCustomer">
+            <span>✨ おかえりなさい！前回の情報を自動入力しました</span>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div>読み込み中...</div>
+        </div>
+        
+        <div class="content" id="bookingForm" style="display: none;">
+            <form id="reservationForm" onsubmit="return false;">
+                <!-- Step 1: 日付選択 -->
+                <div class="section-title">
+                    <span class="section-number">1</span>
+                    日付を選択
+                </div>
+                <div class="calendar-grid" id="calendar"></div>
+                <input type="hidden" id="selectedDate">
+                
+                <!-- Step 2: 時間選択 -->
+                <div class="section-title">
+                    <span class="section-number">2</span>
+                    時間を選択
+                </div>
+                <div class="time-slots" id="timeSlots"></div>
+                <input type="hidden" id="selectedTime">
+                
+                <!-- Step 3: お客様情報 -->
+                <div class="section-title">
+                    <span class="section-number">3</span>
+                    お客様情報
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        お名前 <span class="required">*必須</span>
+                    </label>
+                    <input type="text" class="form-input" id="customerName" placeholder="山田太郎" required>
+                    <div class="error-message" id="nameError">お名前を入力してください</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        電話番号 <span class="required">*必須</span>
+                    </label>
+                    <input type="tel" class="form-input" id="phone" placeholder="090-1234-5678" required pattern="[0-9\-\+]+">
+                    <div class="error-message" id="phoneError">電話番号を正しく入力してください</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">メールアドレス（任意）</label>
+                    <input type="email" class="form-input" id="email" placeholder="example@email.com">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        人数 <span class="required">*必須</span>
+                    </label>
+                    <select class="form-select" id="people" required>
+                        <option value="">選択してください</option>
+                        <option value="1">1名</option>
+                        <option value="2">2名</option>
+                        <option value="3">3名</option>
+                        <option value="4">4名</option>
+                        <option value="5">5名</option>
+                        <option value="6">6名</option>
+                        <option value="7">7名</option>
+                        <option value="8">8名</option>
+                    </select>
+                    <div class="error-message" id="peopleError">人数を選択してください</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">ご要望（任意）</label>
+                    <textarea class="form-textarea" id="message" rows="3" placeholder="アレルギーやご要望があればお書きください"></textarea>
+                </div>
+                
+                <div class="info-saved" id="infoSaved">
+                    ✅ お客様情報を記憶しました。次回は自動入力されます。
+                </div>
+                
+                <button type="button" class="submit-btn" id="submitBtn">
+                    予約を確定する
+                </button>
+            </form>
+        </div>
+        
+        <div class="success-message" id="successMessage" style="display: none;">
+            <h2>✅ ご予約完了</h2>
+            <p id="confirmationDetails"></p>
+            <p id="seatDetails" style="margin-top: 10px; font-weight: bold; color: #667eea;"></p>
+        </div>
+    </div>
+    
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script>
+        let userProfile = null;
+        let userId = null;
+        let selectedDate = null;
+        let selectedTime = null;
+        let capacityData = {};
+        let customerData = null;
+        
+        // 初期化
+        window.onload = function() {
+            initializeLiff();
+        };
+        
+        async function initializeLiff() {
+            try {
+                // LIFF初期化を試みる（失敗してもページは動作する）
+                const liffId = '2006487876-xd1A5qJB';
+                
+                // LIFFが利用可能か確認
+                if (typeof liff !== 'undefined') {
+                    try {
+                        await liff.init({ liffId: liffId });
+                        
+                        if (!liff.isLoggedIn()) {
+                            console.log('LINEログインが必要です');
+                            // ログインを強制せず、ゲストとして続行
+                        } else {
+                            // LINEプロフィール情報を取得
+                            userProfile = await liff.getProfile();
+                            userId = userProfile.userId;
+                            
+                            // ユーザー情報を表示
+                            document.getElementById('userInfo').style.display = 'flex';
+                            document.getElementById('userName').textContent = userProfile.displayName;
+                            
+                            // プロフィール画像があれば表示
+                            if (userProfile.pictureUrl) {
+                                document.getElementById('userAvatar').innerHTML = 
+                                    `<img src="${userProfile.pictureUrl}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                            }
+                            
+                            // 既存顧客情報を取得
+                            await loadCustomerInfo();
+                        }
+                    } catch (liffError) {
+                        console.error('LIFF初期化エラー（続行可能）:', liffError);
+                        // エラーを表示するが、ページは続行
+                        document.getElementById('userInfo').innerHTML = 
+                            '<div style="color: #ff9800;">LINEログインは利用できませんが、予約は可能です</div>';
+                    }
+                } else {
+                    console.log('LIFF SDKが利用できません（ゲストモード）');
+                    document.getElementById('userInfo').innerHTML = 
+                        '<div style="color: #2196F3;">ゲストとして予約</div>';
+                }
+                
+                // LIFF成功/失敗に関わらず、カレンダーを初期化
+                initializeCalendar();
+                
+                // フォームを表示
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('bookingForm').style.display = 'block';
+                
+            } catch (error) {
+                console.error('初期化エラー:', error);
+                // それでもカレンダーを表示
+                initializeCalendar();
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('bookingForm').style.display = 'block';
+            }
+        }
+        
+        // 既存顧客情報を読み込み
+        async function loadCustomerInfo() {
+            try {
+                // 現在のURLからベースURLを動的に取得
+                const currentUrl = window.location.href;
+                let baseUrl = 'https://line-booking-api-116429620992.asia-northeast1.run.app';
+                
+                // URLに基づいてベースURLを決定
+                if (currentUrl.includes('booking-account1')) {
+                    baseUrl = 'https://booking-account1-116429620992.asia-northeast1.run.app';
+                } else if (currentUrl.includes('booking-account2')) {
+                    baseUrl = 'https://booking-account2-116429620992.asia-northeast1.run.app';
+                }
+                
+                const response = await fetch(`${baseUrl}/api/customer-info?line_user_id=${userId}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.found) {
+                        customerData = data.customer;
+                        
+                        // フォームに自動入力
+                        document.getElementById('customerName').value = customerData.name;
+                        document.getElementById('phone').value = customerData.phone;
+                        if (customerData.email) {
+                            document.getElementById('email').value = customerData.email;
+                        }
+                        
+                        // リピーター表示
+                        document.getElementById('returningCustomer').classList.add('show');
+                        
+                        // 訪問回数表示
+                        if (customerData.visit_count > 1) {
+                            document.getElementById('returningCustomer').innerHTML = 
+                                `✨ おかえりなさい！${customerData.visit_count}回目のご利用ありがとうございます`;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('顧客情報取得エラー:', error);
+            }
+        }
+        
+        // カレンダー初期化
+        function initializeCalendar() {
+            const calendar = document.getElementById('calendar');
+            const today = new Date();
+            const currentMonth = today.getMonth();
+            const currentYear = today.getFullYear();
+            
+            // 曜日ヘッダー
+            const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+            weekdays.forEach(day => {
+                const weekdayEl = document.createElement('div');
+                weekdayEl.className = 'weekday';
+                weekdayEl.textContent = day;
+                calendar.appendChild(weekdayEl);
+            });
+            
+            // 月の最初の日と最後の日を取得
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate();
+            
+            // 空白を追加
+            for (let i = 0; i < firstDay; i++) {
+                const emptyEl = document.createElement('div');
+                calendar.appendChild(emptyEl);
+            }
+            
+            // 日付を追加
+            for (let day = 1; day <= lastDate; day++) {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'day';
+                dayEl.textContent = day;
+                
+                const date = new Date(currentYear, currentMonth, day);
+                const dateStr = formatDate(date);
+                
+                // 今日の日付をハイライト
+                if (day === today.getDate()) {
+                    dayEl.classList.add('today');
+                }
+                
+                // 過去の日付は無効化（当日は予約可能）
+                const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const currentDateObj = new Date(currentYear, currentMonth, day);
+                if (currentDateObj < todayStart) {
+                    dayEl.classList.add('disabled');
+                } else {
+                    dayEl.onclick = () => selectDate(dateStr, dayEl);
+                }
+                
+                calendar.appendChild(dayEl);
+            }
+        }
+        
+        // 日付選択
+        async function selectDate(date, element) {
+            // 選択状態をリセット
+            document.querySelectorAll('.day').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            element.classList.add('selected');
+            selectedDate = date;
+            document.getElementById('selectedDate').value = date;
+            
+            // 時間枠を取得して表示
+            await loadTimeSlots(date);
+        }
+        
+        // 時間枠を読み込み
+        async function loadTimeSlots(date) {
+            const timeSlotsContainer = document.getElementById('timeSlots');
+            timeSlotsContainer.innerHTML = '<div style="grid-column: 1/-1;">読み込み中...</div>';
+            
+            try {
+                // 現在のURLからベースURLを動的に取得
+                const currentUrl = window.location.href;
+                let baseUrl = 'https://line-booking-api-116429620992.asia-northeast1.run.app';
+                
+                // URLに基づいてベースURLを決定
+                if (currentUrl.includes('booking-account1')) {
+                    baseUrl = 'https://booking-account1-116429620992.asia-northeast1.run.app';
+                } else if (currentUrl.includes('booking-account2')) {
+                    baseUrl = 'https://booking-account2-116429620992.asia-northeast1.run.app';
+                }
+                
+                // サーバーから正しいstore_idを取得
+                const configResponse = await fetch(`${baseUrl}/api/config`);
+                const config = await configResponse.json();
+                const storeId = config.storeId || 'default-store';
+                
+                // 新しいAPIを使って予約状況を取得（データベースから制限を取得）
+                const response = await fetch(
+                    `${baseUrl}/api/capacity-availability?date=${date}&store_id=${storeId}&t=${Date.now()}`,
+                    { cache: 'no-cache' }
+                );
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to fetch availability');
+                }
+                
+                // デバッグ用: APIレスポンスをコンソールに出力
+                console.log('Capacity API Response:', data);
+                console.log('18:00 slot:', data.availability['18:00']);
+                console.log('19:00 slot:', data.availability['19:00']);
+                
+                // 時間枠を表示
+                const times = [
+                    '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00',
+                    '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00'
+                ];
+                timeSlotsContainer.innerHTML = '';
+                
+                times.forEach(time => {
+                    const slot = data.availability[time];
+                    if (!slot) return;
+                    
+                    // デバッグ: 制限がある時間のスロット情報を詳細に出力
+                    if (slot.status === 'limited' || slot.status === 'full') {
+                        console.log(`[DEBUG] ${time} slot:`, {
+                            status: slot.status,
+                            message: slot.message,
+                            remainingGroups: slot.remainingGroups,
+                            maxGroups: slot.maxGroups,
+                            currentGroups: slot.currentGroups,
+                            color: slot.color
+                        });
+                    }
+                    
+                    const timeSlot = document.createElement('div');
+                    
+                    // 状態に応じてクラスとスタイルを設定
+                    if (slot.status === 'full') {
+                        // 満席 - グレー表示
+                        timeSlot.className = 'time-slot';
+                        timeSlot.style.cssText = 'padding: 12px !important; background-color: #e0e0e0 !important; border-radius: 10px !important; text-align: center !important; color: #999 !important; pointer-events: none !important; cursor: not-allowed !important; opacity: 0.7 !important; border: 2px solid #bdbdbd !important;';
+                        timeSlot.innerHTML = `<div style="font-weight: 600; color: #999;">${time}</div><div style="font-size: 10px; margin-top: 4px; color: #666; font-weight: bold;">満席</div>`;
+                    } else if (slot.status === 'limited') {
+                        // もうすぐ満席 - 黄色表示
+                        timeSlot.className = 'time-slot';
+                        timeSlot.style.cssText = 'padding: 12px !important; background-color: #ffd54f !important; border-radius: 10px !important; text-align: center !important; color: #333 !important; cursor: pointer !important; border: 2px solid #ffb300 !important;';
+                        timeSlot.innerHTML = `<div style="font-weight: 600;">${time}</div><div style="font-size: 10px; margin-top: 4px; color: #ff6b00; font-weight: bold;">${slot.message}</div>`;
+                        if (slot.selectable) {
+                            timeSlot.onclick = () => selectTime(time, timeSlot);
+                        }
+                    } else if (slot.status === 'moderate') {
+                        // 中程度 - 薄い黄色表示
+                        timeSlot.className = 'time-slot';
+                        timeSlot.setAttribute('style', 'padding: 12px; background: #fff3cd !important; border-radius: 10px; text-align: center; color: #333 !important; cursor: pointer;');
+                        timeSlot.innerHTML = `<div style="font-weight: 600;">${time}</div><div style="font-size: 10px; margin-top: 4px; color: #856404;">空席あり</div>`;
+                        if (slot.selectable) {
+                            timeSlot.onclick = () => selectTime(time, timeSlot);
+                        }
+                    } else {
+                        // 空席あり - デフォルト表示
+                        timeSlot.className = 'time-slot';
+                        timeSlot.setAttribute('style', 'padding: 12px; background: #f5f5f7; border-radius: 10px; text-align: center; cursor: pointer; transition: all 0.3s;');
+                        timeSlot.innerHTML = `<div style="font-weight: 600;">${time}</div><div style="font-size: 10px; margin-top: 4px; color: #666;">空席あり</div>`;
+                        if (slot.selectable) {
+                            timeSlot.onclick = () => selectTime(time, timeSlot);
+                        }
+                    }
+                    
+                    timeSlotsContainer.appendChild(timeSlot);
+                });
+                
+            } catch (error) {
+                console.error('時間枠取得エラー:', error);
+                timeSlotsContainer.innerHTML = '<div style="grid-column: 1/-1; color: red;">エラーが発生しました</div>';
+            }
+        }
+        
+        // 時間選択
+        function selectTime(time, element) {
+            document.querySelectorAll('.time-slot').forEach(el => {
+                el.classList.remove('selected');
+                // 選択解除時のスタイルをリセット（満席や制限のある枠は除く）
+                if (!el.style.cssText.includes('e0e0e0') && !el.style.cssText.includes('ffd54f')) {
+                    el.style.border = '1px solid #e0e0e0';
+                    el.style.transform = 'scale(1)';
+                    el.style.boxShadow = 'none';
+                }
+            });
+            
+            element.classList.add('selected');
+            // 選択された時間枠を強調表示（既存のスタイルを保持しながら追加）
+            const currentStyle = element.style.cssText;
+            element.style.cssText = currentStyle + ' border: 3px solid #667eea !important; box-shadow: 0 0 15px rgba(102, 126, 234, 0.6) !important; transform: scale(1.05) !important;';
+            
+            selectedTime = time;
+            document.getElementById('selectedTime').value = time;
+            
+            // 選択された時間を表示
+            const timeDisplay = document.querySelector('.section-title:nth-of-type(2)');
+            if (timeDisplay) {
+                timeDisplay.innerHTML = `<span class="section-number">2</span>時間 <span style="color: #667eea; font-weight: bold;">（${time} 選択中）</span>`;
+            }
+        }
+        
+        // フォームバリデーション
+        function validateForm() {
+            let isValid = true;
+            
+            // 名前チェック
+            const name = document.getElementById('customerName').value.trim();
+            if (!name) {
+                document.getElementById('nameError').classList.add('show');
+                document.getElementById('customerName').classList.add('error');
+                isValid = false;
+            } else {
+                document.getElementById('nameError').classList.remove('show');
+                document.getElementById('customerName').classList.remove('error');
+            }
+            
+            // 電話番号チェック
+            const phone = document.getElementById('phone').value.trim();
+            if (!phone || !/^[0-9\-\+]+$/.test(phone)) {
+                document.getElementById('phoneError').classList.add('show');
+                document.getElementById('phone').classList.add('error');
+                isValid = false;
+            } else {
+                document.getElementById('phoneError').classList.remove('show');
+                document.getElementById('phone').classList.remove('error');
+            }
+            
+            // 人数チェック
+            const people = document.getElementById('people').value;
+            if (!people) {
+                document.getElementById('peopleError').classList.add('show');
+                document.getElementById('people').classList.add('error');
+                isValid = false;
+            } else {
+                document.getElementById('peopleError').classList.remove('show');
+                document.getElementById('people').classList.remove('error');
+            }
+            
+            // 日付と時間チェック
+            if (!selectedDate || !selectedTime) {
+                alert('日付と時間を選択してください');
+                isValid = false;
+            }
+            
+            return isValid;
+        }
+        
+        // 予約送信
+        async function submitReservation() {
+            if (!validateForm()) {
+                return;
+            }
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '送信中...';
+            
+            try {
+                // 必須要素の存在確認
+                const customerNameEl = document.getElementById('customerName');
+                const phoneEl = document.getElementById('phone');
+                const emailEl = document.getElementById('email');
+                const peopleEl = document.getElementById('people');
+                const messageEl = document.getElementById('message');
+                
+                if (!customerNameEl || !phoneEl || !peopleEl) {
+                    throw new Error('必須フォーム要素が見つかりません');
+                }
+                
+                // 現在のURLからベースURLを動的に取得
+                const currentUrl = window.location.href;
+                let baseUrl = 'https://line-booking-api-116429620992.asia-northeast1.run.app';
+                
+                // URLに基づいてベースURLを決定
+                if (currentUrl.includes('booking-account1')) {
+                    baseUrl = 'https://booking-account1-116429620992.asia-northeast1.run.app';
+                } else if (currentUrl.includes('booking-account2')) {
+                    baseUrl = 'https://booking-account2-116429620992.asia-northeast1.run.app';
+                }
+                
+                // サーバーから正しいstore_idを取得
+                const configResponse = await fetch(`${baseUrl}/api/config`);
+                const config = await configResponse.json();
+                
+                const reservationData = {
+                    store_id: config.storeId || 'default-store',
+                    user_id: userId || null,
+                    customer_name: customerNameEl.value.trim(),
+                    customer_phone: phoneEl.value.trim(),
+                    customer_email: emailEl ? emailEl.value.trim() : null,
+                    date: selectedDate,
+                    time: selectedTime,
+                    people: parseInt(peopleEl.value),
+                    numberOfPeople: parseInt(peopleEl.value), // サーバー側の両方のフィールド名に対応
+                    seat_preference: null, // 座席選択フィールドは存在しない
+                    message: messageEl ? messageEl.value.trim() : '',
+                    source: 'liff'
+                };
+                
+                // APIに送信
+                const response = await fetch(`${baseUrl}/api/reservation/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(reservationData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    // 成功画面を表示
+                    document.getElementById('bookingForm').style.display = 'none';
+                    document.getElementById('successMessage').style.display = 'block';
+                    document.getElementById('confirmationDetails').innerHTML = `
+                        📅 ${selectedDate}<br>
+                        ⏰ ${selectedTime}<br>
+                        👤 ${reservationData.customer_name}様<br>
+                        👥 ${reservationData.people}名様<br><br>
+                        予約番号: ${result.reservation_id.slice(0, 8).toUpperCase()}
+                    `;
+                    
+                    // 顧客情報保存表示
+                    if (!customerData) {
+                        document.getElementById('infoSaved').classList.add('show');
+                    }
+                    
+                    // 座席情報を取得して表示
+                    let seatInfo = '未割り当て';
+                    try {
+                        const seatResponse = await fetch(`/api/seat-assignments?reservation_id=${result.reservation_id}`);
+                        if (seatResponse.ok) {
+                            const seatData = await seatResponse.json();
+                            if (seatData && seatData.seat) {
+                                seatInfo = `${seatData.seat.name}`;
+                                document.getElementById('seatDetails').innerHTML = `🪑 座席: ${seatInfo}`;
+                            } else {
+                                document.getElementById('seatDetails').innerHTML = `🪑 座席: 到着時にご案内いたします`;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('座席情報取得エラー:', error);
+                        document.getElementById('seatDetails').innerHTML = `🪑 座席: 到着時にご案内いたします`;
+                    }
+                    
+                    // LINEトークにメッセージ送信
+                    if (liff.isInClient()) {
+                        liff.sendMessages([{
+                            type: 'text',
+                            text: `✅ 予約完了\n\n📅 ${selectedDate}\n⏰ ${selectedTime}\n👥 ${reservationData.people}名\n🪑 座席: ${seatInfo}\n\n予約番号: ${result.reservation_id.slice(0, 8).toUpperCase()}\n\n確認のご連絡をお待ちください。`
+                        }]);
+                    }
+                    
+                    // 3秒後にLIFFを閉じる
+                    setTimeout(() => {
+                        liff.closeWindow();
+                    }, 3000);
+                    
+                } else {
+                    throw new Error(result.message || '予約の作成に失敗しました');
+                }
+                
+            } catch (error) {
+                console.error('予約エラー:', error);
+                
+                // エラーメッセージを表示
+                let errorMessage = 'エラーが発生しました';
+                if (error.message) {
+                    errorMessage = error.message;
+                } else if (typeof error === 'string') {
+                    errorMessage = error;
+                }
+                
+                // エラー表示用のメッセージボックスを作成
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                    z-index: 10000;
+                    max-width: 300px;
+                    text-align: center;
+                `;
+                errorDiv.innerHTML = `
+                    <div style="color: #e74c3c; font-size: 18px; font-weight: bold; margin-bottom: 10px;">
+                        ⚠️ 予約エラー
+                    </div>
+                    <div style="color: #333; margin-bottom: 15px;">
+                        ${errorMessage}
+                    </div>
+                    <button onclick="this.parentElement.remove()" style="
+                        background: #667eea;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        font-size: 16px;
+                        cursor: pointer;
+                    ">閉じる</button>
+                `;
+                document.body.appendChild(errorDiv);
+                
+                // 5秒後に自動で消す
+                setTimeout(() => {
+                    if (errorDiv.parentElement) {
+                        errorDiv.remove();
+                    }
+                }, 5000);
+                
+                submitBtn.disabled = false;
+                submitBtn.textContent = '予約を確定する';
+            }
+        }
+        
+        // 日付フォーマット
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        // フォーム入力時のエラー解除
+        document.addEventListener('DOMContentLoaded', () => {
+            // 予約ボタンのイベントリスナー
+            document.getElementById('submitBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                submitReservation();
+            });
+            
+            document.getElementById('customerName').addEventListener('input', function() {
+                if (this.value.trim()) {
+                    document.getElementById('nameError').classList.remove('show');
+                    this.classList.remove('error');
+                }
+            });
+            
+            document.getElementById('phone').addEventListener('input', function() {
+                if (this.value.trim() && /^[0-9\-\+]+$/.test(this.value)) {
+                    document.getElementById('phoneError').classList.remove('show');
+                    this.classList.remove('error');
+                }
+            });
+            
+            document.getElementById('people').addEventListener('change', function() {
+                if (this.value) {
+                    document.getElementById('peopleError').classList.remove('show');
+                    this.classList.remove('error');
+                }
+            });
+        });
+    </script>
+    <!-- CSS読み込み -->
+    <link rel='stylesheet' href='/css/hamburger-left-fix.css'>
+    <link rel='stylesheet' href='/css/sidemenu-style.css'>
+    <!-- 共通ハンバーガーメニューJS -->
+    <!-- LIFF画面にはサイドバーメニュー不要 -->
+</body>
+</html>

@@ -3,13 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>予約制御設定 - リダイレクト中...</title>
-    <script>
-        // 正しい管理画面（admin-full-featured.html）にリダイレクト
-        console.log('Redirecting to admin-full-featured.html...');
-        window.location.replace('/admin-full-featured.html');
-    </script>
-    <link rel="stylesheet" href="/css/responsive-nav.css">
+    <title>予約制御設定</title>
+    <script src="/js/common-header.js"></script>
     <style>
         * {
             margin: 0;
@@ -24,155 +19,22 @@
         }
 
 
-        /* ヘッダー */
-        .header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 60px;
-            background: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            z-index: 999;
-        }
 
-        .page-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #333;
-            margin: 0;
-            text-align: center;
-            flex: 1;
-            cursor: pointer;
-            transition: color 0.3s;
-        }
-        
-        .page-title:hover {
-            color: #4a90e2;
-        }
-
-        /* ハンバーガーメニュー */
-        .hamburger-menu {
-            position: relative;
-            z-index: 1001;
-        }
-
-        .hamburger-icon {
-            width: 30px;
-            height: 24px;
-            position: relative;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .hamburger-icon span {
-            display: block;
-            height: 3px;
-            width: 100%;
-            background: #333;
-            border-radius: 3px;
-            transition: 0.3s;
-        }
-
-        /* サイドバー */
-        .sidebar {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 280px;
-            height: 100%;
-            background: white;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            z-index: 1000;
-            overflow-y: auto;
-        }
-
-        .sidebar.active {
-            display: block;
-        }
-
-        .sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid #e0e0e0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .sidebar-header h2 {
-            font-size: 18px;
-            margin: 0;
-            color: #333;
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #666;
-        }
-
-        .sidebar-nav {
-            padding: 20px 0;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            padding: 15px 20px;
-            color: #666;
-            text-decoration: none;
-            transition: 0.3s;
-        }
-
-        .nav-item:hover {
-            background: #f5f5f5;
-            color: #4a90e2;
-        }
-
-        .nav-item.active {
-            background: #e8f4fd;
-            color: #4a90e2;
-            border-left: 3px solid #4a90e2;
-        }
-
-        .nav-icon {
-            margin-right: 12px;
-            font-size: 18px;
-        }
-
-        /* オーバーレイ */
-        .overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 999;
-        }
-        
-        .overlay.active {
-            display: block;
-        }
-        
         /* メインコンテナ */
         .container {
             max-width: 1200px;
-            margin: 80px auto 30px;
-            padding: 0 20px;
-            padding-top: 60px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
-        /* カレンダービュー */
+        @media (min-width: 1025px) {
+            .container {
+                margin-left: 280px;
+                max-width: calc(100% - 300px);
+            }
+        }
+
+        /* カレンダー表示 */
         .calendar-view {
             background: white;
             border-radius: 12px;
@@ -190,187 +52,57 @@
 
         .calendar-nav {
             display: flex;
-            gap: 10px;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
-        }
-
-        .btn-secondary:hover {
-            background: #e0e0e0;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-
-        /* 日付モード選択のラジオボタンのスタイル */
-        .date-mode-selector input[type="radio"] {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border: 2px solid #4a90e2;
-            border-radius: 50%;
-            cursor: pointer;
-            position: relative;
-            background: white;
-            transition: all 0.3s;
-            display: inline-block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-
-        .date-mode-selector input[type="radio"]:checked {
-            background: #4a90e2;
-            transform: scale(1.1);
-        }
-
-        .date-mode-selector input[type="radio"]:checked::after {
-            content: '';
-            width: 8px;
-            height: 8px;
-            background: white;
-            border-radius: 50%;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-
-        .date-mode-selector input[type="radio"]:hover {
-            border-color: #2c5aa0;
-            box-shadow: 0 0 5px rgba(74, 144, 226, 0.5);
-        }
-
-        .date-mode-selector {
-            display: flex !important;
-            gap: 25px;
-            margin-bottom: 20px;
-            padding: 20px;
-            background: linear-gradient(135deg, #f8f9fa, #ffffff);
-            border-radius: 12px;
-            border: 2px solid #4a90e2;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-
-        .date-mode-label {
-            display: flex !important;
             align-items: center;
             gap: 10px;
-            cursor: pointer;
-            padding: 8px 15px;
-            border-radius: 8px;
-            transition: all 0.3s;
-            border: 1px solid transparent;
-            background: white;
         }
 
-        .date-mode-label:hover {
-            background: linear-gradient(135deg, #e8f0fe, #ffffff);
-            border-color: #4a90e2;
-            transform: translateY(-2px);
-            box-shadow: 0 2px 6px rgba(74, 144, 226, 0.2);
-        }
-
-        .date-mode-label input[type="radio"]:checked ~ span {
-            color: #2c5aa0;
-            font-weight: 700;
-            text-shadow: 0 0 1px rgba(44, 90, 160, 0.3);
-        }
-
-        /* 凡例 */
-        .legend {
-            display: flex;
-            gap: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-        }
-
-        .capacity-indicator {
-            width: 16px;
-            height: 16px;
-            border-radius: 4px;
-            border: 1px solid rgba(0,0,0,0.1);
-        }
-
-        .capacity-full { background: #e74c3c; }
-        .capacity-high { background: #f39c12; }
-        .capacity-medium { background: #f1c40f; }
-        .capacity-low { background: #3498db; }
-        .capacity-empty { background: #2ecc71; }
-
-        /* カレンダーグリッド */
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             gap: 10px;
+            margin-top: 20px;
         }
 
         .weekday-header {
-            font-weight: 600;
             text-align: center;
-            padding: 10px;
-            color: #666;
+            font-weight: 600;
             font-size: 14px;
+            padding: 10px 5px;
+            color: #666;
         }
 
-        .weekday-header.sunday { color: #e74c3c; }
-        .weekday-header.saturday { color: #3498db; }
+        .weekday-header.sunday {
+            color: #e74c3c;
+        }
+
+        .weekday-header.saturday {
+            color: #3498db;
+        }
 
         .calendar-day {
-            aspect-ratio: 1;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
+            min-height: 80px;
             padding: 8px;
-            position: relative;
-            transition: all 0.3s;
-            cursor: pointer;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
         }
 
         .calendar-day:hover {
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             transform: translateY(-2px);
         }
 
         .calendar-day.disabled {
             opacity: 0.3;
-            cursor: default;
+            cursor: not-allowed;
         }
 
-        .calendar-day.has-rule {
-            background: linear-gradient(135deg, #fff, #f0f7ff);
+        .calendar-day.today {
             border-color: #4a90e2;
+            background: linear-gradient(135deg, #ffffff, #e8f4fd);
         }
 
         .calendar-day.full {
@@ -407,76 +139,6 @@
         .calendar-day-content {
             font-size: 11px;
             color: #666;
-        }
-
-        /* カレンダーホバー詳細表示 */
-        .calendar-tooltip {
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            margin-top: 10px;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 12px;
-            padding: 20px;
-            width: 320px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-            z-index: 1000;
-            display: none;
-            pointer-events: none;
-        }
-
-        .calendar-day:hover .calendar-tooltip {
-            display: block;
-        }
-
-        .tooltip-header {
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .tooltip-header h3 {
-            margin: 0 0 5px 0;
-            font-size: 12px;
-            color: #666;
-            font-weight: normal;
-        }
-
-        .tooltip-date {
-            font-size: 16px;
-            font-weight: 500;
-            color: #333;
-        }
-
-        .tooltip-section {
-            margin-bottom: 12px;
-        }
-
-        .tooltip-section label {
-            display: block;
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 4px;
-        }
-
-        .tooltip-value {
-            font-size: 15px;
-            color: #333;
-            padding: 8px 12px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border: 1px solid #e0e0e0;
-        }
-
-        .tooltip-status {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #eee;
-            font-size: 13px;
-            color: #666;
-            text-align: center;
         }
 
         /* ルール設定パネル */
@@ -530,6 +192,175 @@
             gap: 20px;
         }
 
+        /* ラジオボタングループ */
+        .radio-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .radio-option {
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 60px;
+        }
+
+        .radio-option:hover {
+            border-color: #4a90e2;
+            background: #f0f7ff;
+        }
+
+        .radio-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .radio-option input[type="radio"]:checked + .radio-label {
+            color: white;
+        }
+
+        .radio-option input[type="radio"]:checked ~ .radio-label {
+            font-weight: 600;
+        }
+
+        .radio-option input[type="radio"]:checked + .radio-bg {
+            opacity: 1;
+        }
+
+        .radio-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            border-radius: 6px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1;
+        }
+
+        .radio-label {
+            position: relative;
+            z-index: 2;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            transition: all 0.3s;
+        }
+
+        .radio-option input[type="radio"]:checked ~ .radio-label {
+            color: white;
+        }
+
+        .form-input-with-radio {
+            margin-top: 10px;
+        }
+
+        /* チェックボックススタイル */
+        .form-label input[type="checkbox"] {
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+
+        .form-group.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .form-group.disabled .radio-group,
+        .form-group.disabled .form-input {
+            background: #f5f5f5;
+        }
+
+        /* ナビゲーションボタン */
+        .nav-btn {
+            text-decoration: none;
+            color: #333;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: #f5f5f7;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: #e0e0e2;
+            transform: translateY(-1px);
+        }
+
+        /* レスポンシブデザイン */
+        @media (max-width: 768px) {
+            .nav-buttons {
+                display: none !important;
+            }
+            
+            .header h1 {
+                font-size: 16px !important;
+            }
+            
+            .header h1 span {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .radio-group {
+                justify-content: space-between;
+            }
+
+            .radio-option {
+                flex: 1;
+                min-width: auto;
+                padding: 10px 8px;
+                font-size: 13px;
+            }
+
+            .control-panel {
+                padding: 20px;
+            }
+
+            .btn {
+                width: 100%;
+                padding: 14px;
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .calendar-grid {
+                grid-template-columns: repeat(7, 1fr);
+                gap: 2px;
+            }
+
+            .calendar-day {
+                min-height: 60px;
+                font-size: 11px;
+            }
+
+            .weekday-header {
+                font-size: 12px;
+                padding: 8px 2px;
+            }
+        }
+
         /* ルールカード */
         .rule-card {
             background: white;
@@ -537,6 +368,7 @@
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 15px;
+            position: relative;
             transition: all 0.3s;
         }
 
@@ -545,14 +377,16 @@
         }
 
         .rule-status-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
             padding: 6px 12px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
-            display: inline-flex;
+            display: flex;
             align-items: center;
             gap: 6px;
-            margin-bottom: 12px;
         }
 
         .rule-status-badge.full {
@@ -593,67 +427,146 @@
             color: #2c3e50;
         }
 
-        .edit-btn {
-            padding: 6px 12px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.3s;
-            white-space: nowrap;
-            flex-shrink: 0;
-            margin-right: 5px;
-        }
-        
-        .edit-btn:hover {
-            background: #5a67d8;
-            transform: translateY(-1px);
-        }
-        
-        .delete-btn {
-            padding: 6px 12px;
-            background: #e74c3c;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.3s;
-            white-space: nowrap;
-            flex-shrink: 0;
+        .rule-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
         }
 
-        .delete-btn:hover {
-            background: #c0392b;
-            transform: scale(1.05);
-        }
-
-        .rule-info {
+        .rule-detail-item {
             display: flex;
-            margin-bottom: 10px;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .rule-detail-label {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .rule-detail-value {
             font-size: 14px;
-        }
-
-        .info-label {
-            font-weight: 500;
-            color: #666;
-            min-width: 80px;
-        }
-
-        .info-value {
+            font-weight: 600;
             color: #333;
         }
 
-        .rule-tag {
-            display: inline-block;
-            padding: 4px 8px;
-            background: #e8f5e9;
-            color: #2e7d32;
-            border-radius: 4px;
+        .rule-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .rule-actions {
+                flex-direction: column;
+            }
+            
+            .rule-actions .btn {
+                width: 100%;
+            }
+            
+            .rule-status-badge {
+                position: static;
+                margin-bottom: 10px;
+                display: inline-flex;
+            }
+        }
+
+        /* ボタンスタイル */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f5f5f7;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e2;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+
+        .btn-small {
+            padding: 6px 12px;
             font-size: 12px;
-            margin-right: 8px;
+        }
+
+        /* 凡例 */
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .capacity-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid;
+        }
+
+        .capacity-indicator.capacity-full {
+            background: rgba(231, 76, 60, 0.2);
+            border-color: #e74c3c;
+        }
+
+        .capacity-indicator.capacity-high {
+            background: rgba(243, 156, 18, 0.2);
+            border-color: #f39c12;
+        }
+
+        .capacity-indicator.capacity-medium {
+            background: rgba(241, 196, 15, 0.2);
+            border-color: #f1c40f;
+        }
+
+        .capacity-indicator.capacity-low {
+            background: rgba(52, 152, 219, 0.2);
+            border-color: #3498db;
+        }
+
+        .capacity-indicator.capacity-empty {
+            background: rgba(46, 204, 113, 0.2);
+            border-color: #2ecc71;
         }
 
         /* モーダル */
@@ -682,6 +595,19 @@
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .modal-body {
+            margin-top: 20px;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
         }
 
         .modal-header {
@@ -746,87 +672,10 @@
     </style>
 </head>
 <body>
-
-    <!-- ヘッダー -->
-    <div class="header">
-        <div class="hamburger-menu" id="hamburgerMenu">
-            <div class="hamburger-icon" onclick="toggleMenu()">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </div>
-        <h1 class="page-title" onclick="window.location.href='/admin-full-featured.html'" style="cursor: pointer;">予約管理システム</h1>
-    </div>
-
-    <!-- オーバーレイ -->
-    <div class="overlay" id="overlay" onclick="closeMenu()"></div>
-    
-    <!-- サイドバー -->
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2>📋 管理メニュー</h2>
-        </div>
-        <nav class="sidebar-nav">
-            <div style="padding: 10px 20px; font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 1px;">メイン</div>
-            <a href="/admin-full-featured.html" class="nav-item">
-                <span class="nav-icon">📅</span>
-                <span>カレンダー</span>
-            </a>
-            <a href="/admin-list.html" class="nav-item">
-                <span class="nav-icon">📋</span>
-                <span>予約一覧</span>
-            </a>
-            <a href="/admin-analytics.html" class="nav-item">
-                <span class="nav-icon">📊</span>
-                <span>統計・分析</span>
-            </a>
-            <div style="padding: 10px 20px; font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px;">予約管理</div>
-            <a href="/capacity-control-enhanced.html" class="nav-item active">
-                <span class="nav-icon">🎯</span>
-                <span>予約制限設定</span>
-            </a>
-            <a href="/seats-management-enhanced.html" class="nav-item">
-                <span class="nav-icon">💺</span>
-                <span>席管理・割り当て</span>
-            </a>
-            <a href="/admin-settings.html" class="nav-item">
-                <span class="nav-icon">⏰</span>
-                <span>営業時間設定</span>
-            </a>
-            <a href="/admin-templates.html" class="nav-item">
-                <span class="nav-icon">📝</span>
-                <span>テンプレート管理</span>
-            </a>
-            <a href="/admin-customers.html" class="nav-item">
-                <span class="nav-icon">👥</span>
-                <span>顧客管理</span>
-            </a>
-            <div style="padding: 10px 20px; font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px;">高度な機能</div>
-            <a href="/admin-analytics.html" class="nav-item">
-                <span class="nav-icon">📊</span>
-                <span>詳細分析</span>
-            </a>
-            <a href="/admin-dashboard.html" class="nav-item">
-                <span class="nav-icon">🎯</span>
-                <span>ダッシュボード</span>
-            </a>
-            <a href="/admin-notifications.html" class="nav-item">
-                <span class="nav-icon">🔔</span>
-                <span>通知センター</span>
-            </a>
-            <a href="/admin-advanced.html" class="nav-item">
-                <span class="nav-icon">⚙️</span>
-                <span>詳細設定</span>
-            </a>
-        </ul>
-    </nav>
-
     <!-- メインコンテナ -->
-    <main id="appMain">
-        <div class="container">
-        <!-- カレンダービュー -->
-        <div class="calendar-view">
+    <div class="container">
+        <!-- カレンダービュー（一時的に非表示） -->
+        <!-- <div class="calendar-view">
             <div class="calendar-header">
                 <h2 class="panel-title">📅 ルールカレンダー表示</h2>
                 <div class="calendar-nav">
@@ -836,7 +685,6 @@
                 </div>
             </div>
             
-            <!-- 凡例 -->
             <div class="legend">
                 <div class="legend-item">
                     <span class="capacity-indicator capacity-full"></span>
@@ -860,7 +708,6 @@
                 </div>
             </div>
             
-            <!-- カレンダーグリッド -->
             <div class="calendar-grid">
                 <div class="weekday-header sunday">日</div>
                 <div class="weekday-header">月</div>
@@ -871,130 +718,148 @@
                 <div class="weekday-header saturday">土</div>
             </div>
             <div id="calendarGrid" class="calendar-grid">
-                <!-- 日付が動的に生成される -->
             </div>
-        </div>
+        </div> -->
 
         <!-- 新規ルール作成 -->
         <div class="control-panel">
             <h2 class="panel-title">新規制御ルール作成</h2>
             
-            <!-- 日付モード選択 -->
-            <div class="date-mode-selector">
-                <label class="date-mode-label">
-                    <input type="radio" name="dateMode" value="single" checked onchange="changeDateMode('single')">
-                    <span>📅 単日指定</span>
-                </label>
-                <label class="date-mode-label">
-                    <input type="radio" name="dateMode" value="range" onchange="changeDateMode('range')">
-                    <span>📆 期間指定</span>
-                </label>
-                <label class="date-mode-label">
-                    <input type="radio" name="dateMode" value="weekly" onchange="changeDateMode('weekly')">
-                    <span>🗓️ 曜日指定</span>
-                </label>
-            </div>
-            
-            <!-- 単日指定 -->
-            <div id="singleDateSection" class="form-row">
+            <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">📅 適用日</label>
                     <input type="date" class="form-input" id="ruleDate">
                 </div>
-            </div>
-            
-            <!-- 期間指定 -->
-            <div id="rangeDateSection" class="form-row" style="display: none;">
                 <div class="form-group">
-                    <label class="form-label">📅 開始日</label>
-                    <input type="date" class="form-input" id="startDate">
+                    <label class="form-label">⏰ 開始時間</label>
+                    <input type="time" class="form-input" id="startTime" value="18:00">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">📅 終了日</label>
-                    <input type="date" class="form-input" id="endDate">
+                    <label class="form-label">⏰ 終了時間</label>
+                    <input type="time" class="form-input" id="endTime" value="21:00">
                 </div>
             </div>
             
-            <!-- 曜日指定 -->
-            <div id="weeklySection" style="display: none; margin-bottom: 20px;">
-                <label class="form-label">🗓️ 適用する曜日</label>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap; padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 8px;">
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="checkbox" id="sun" value="0">
-                        <span>日曜日</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="checkbox" id="mon" value="1">
-                        <span>月曜日</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="checkbox" id="tue" value="2">
-                        <span>火曜日</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="checkbox" id="wed" value="3">
-                        <span>水曜日</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="checkbox" id="thu" value="4">
-                        <span>木曜日</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="checkbox" id="fri" value="5" checked>
-                        <span>金曜日</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="checkbox" id="sat" value="6" checked>
-                        <span>土曜日</span>
-                    </label>
-                </div>
-            </div>
-            
-            <!-- 時間設定 -->
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">⏰ 開始時間（24時間形式）</label>
-                    <input type="text" class="form-input" id="startTime" value="18:00" 
-                           pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" 
-                           placeholder="18:00" required>
+                    <label class="form-label">
+                        <input type="checkbox" id="enableMaxGroups" checked onchange="toggleRuleField('maxGroups')">
+                        👥 最大組数
+                    </label>
+                    <!-- プリセットボタン（一時的に非表示）
+                    <div class="radio-group" id="maxGroupsContainer">
+                        <label class="radio-option">
+                            <input type="radio" name="maxGroupsRadio" value="10" checked onchange="updateMaxGroups(10)">
+                            <div class="radio-bg"></div>
+                            <span class="radio-label">10</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="maxGroupsRadio" value="20" onchange="updateMaxGroups(20)">
+                            <div class="radio-bg"></div>
+                            <span class="radio-label">20</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="maxGroupsRadio" value="30" onchange="updateMaxGroups(30)">
+                            <div class="radio-bg"></div>
+                            <span class="radio-label">30</span>
+                        </label>
+                    </div> -->
+                    <select class="form-input form-input-with-radio" id="maxGroups">
+                        <option value="1">1組</option>
+                        <option value="2">2組</option>
+                        <option value="3">3組</option>
+                        <option value="4">4組</option>
+                        <option value="5">5組</option>
+                        <option value="6">6組</option>
+                        <option value="7">7組</option>
+                        <option value="8">8組</option>
+                        <option value="9">9組</option>
+                        <option value="10" selected>10組</option>
+                        <option value="15">15組</option>
+                        <option value="20">20組</option>
+                        <option value="25">25組</option>
+                        <option value="30">30組</option>
+                        <option value="40">40組</option>
+                        <option value="50">50組</option>
+                        <option value="60">60組</option>
+                        <option value="80">80組</option>
+                        <option value="100">100組</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">⏰ 終了時間（24時間形式）</label>
-                    <input type="text" class="form-input" id="endTime" value="21:00" 
-                           pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" 
-                           placeholder="21:00" required>
-                </div>
-            </div>
-            
-            <div class="form-row" style="gap: 15px;">
-                <div class="form-group" style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                        <input type="checkbox" id="enableMaxGroups" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: #6b46c1;" onchange="toggleField('maxGroups')">
-                        <label for="enableMaxGroups" style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; color: #333;">
-                            <span style="color: #6b46c1;">👥</span> 最大組数
+                    <label class="form-label">
+                        <input type="checkbox" id="enableMaxPeople" checked onchange="toggleRuleField('maxPeople')">
+                        👤 最大人数
+                    </label>
+                    <!-- プリセットボタン（一時的に非表示）
+                    <div class="radio-group" id="maxPeopleContainer">
+                        <label class="radio-option">
+                            <input type="radio" name="maxPeopleRadio" value="30" checked onchange="updateMaxPeople(30)">
+                            <div class="radio-bg"></div>
+                            <span class="radio-label">30</span>
                         </label>
-                    </div>
-                    <input type="number" class="form-input" id="maxGroups" value="10" min="1" placeholder="制限なし">
-                </div>
-                
-                <div class="form-group" style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                        <input type="checkbox" id="enableMaxPeople" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: #3b82f6;" onchange="toggleField('maxPeople')">
-                        <label for="enableMaxPeople" style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; color: #333;">
-                            <span style="color: #3b82f6;">👤</span> 最大人数
+                        <label class="radio-option">
+                            <input type="radio" name="maxPeopleRadio" value="50" onchange="updateMaxPeople(50)">
+                            <div class="radio-bg"></div>
+                            <span class="radio-label">50</span>
                         </label>
-                    </div>
-                    <input type="number" class="form-input" id="maxPeople" value="30" min="1" placeholder="制限なし">
-                </div>
-                
-                <div class="form-group" style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                        <input type="checkbox" id="enableMaxPerGroup" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444;" onchange="toggleField('maxPerGroup')">
-                        <label for="enableMaxPerGroup" style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; color: #333;">
-                            <span style="color: #ef4444;">🚶</span> 1組最大
+                        <label class="radio-option">
+                            <input type="radio" name="maxPeopleRadio" value="100" onchange="updateMaxPeople(100)">
+                            <div class="radio-bg"></div>
+                            <span class="radio-label">100</span>
                         </label>
-                    </div>
-                    <input type="number" class="form-input" id="maxPerGroup" value="6" min="1" placeholder="制限なし">
+                    </div> -->
+                    <select class="form-input form-input-with-radio" id="maxPeople">
+                        <option value="10">10人</option>
+                        <option value="20">20人</option>
+                        <option value="30" selected>30人</option>
+                        <option value="40">40人</option>
+                        <option value="50">50人</option>
+                        <option value="60">60人</option>
+                        <option value="80">80人</option>
+                        <option value="100">100人</option>
+                        <option value="150">150人</option>
+                        <option value="200">200人</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="enableMaxPerGroup" checked onchange="toggleRuleField('maxPerGroup')">
+                        🍽️ 1組あたり最大人数
+                    </label>
+                    <!-- プリセットボタン（一時的に非表示）
+                    <div class="radio-group" id="maxPerGroupContainer">
+                        <label class="radio-option">
+                            <input type="radio" name="maxPerGroupRadio" value="4" onchange="updateMaxPerGroup(4)">
+                            <div class="radio-bg"></div>
+                            <span class="radio-label">4</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="maxPerGroupRadio" value="6" checked onchange="updateMaxPerGroup(6)">
+                            <div class="radio-bg"></div>
+                            <span class="radio-label">6</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="maxPerGroupRadio" value="8" onchange="updateMaxPerGroup(8)">
+                            <div class="radio-bg"></div>
+                            <span class="radio-label">8</span>
+                        </label>
+                    </div> -->
+                    <select class="form-input form-input-with-radio" id="maxPerGroup">
+                        <option value="1">1人</option>
+                        <option value="2">2人</option>
+                        <option value="3">3人</option>
+                        <option value="4">4人</option>
+                        <option value="5">5人</option>
+                        <option value="6" selected>6人</option>
+                        <option value="7">7人</option>
+                        <option value="8">8人</option>
+                        <option value="9">9人</option>
+                        <option value="10">10人</option>
+                        <option value="12">12人</option>
+                        <option value="15">15人</option>
+                        <option value="20">20人</option>
+                    </select>
                 </div>
             </div>
             
@@ -1021,29 +886,189 @@
                 <!-- 詳細情報が表示される -->
             </div>
         </div>
-        </div>
-    </main>
+    </div>
 
-    <script type="module">
-        import { initNav } from '/js/nav.js';
-        initNav();
-    </script>
+    <!-- 編集モーダル -->
+    <div class="modal" id="editModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header" style="border-bottom: none; padding-bottom: 10px;">
+                <h2 class="modal-title" style="font-size: 20px; font-weight: 600;">新規制御ルール作成</h2>
+                <button class="modal-close" onclick="closeEditModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- 適用日 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                        <span style="font-size: 14px;">📅</span>
+                        <span style="font-size: 14px; color: #333;">適用日</span>
+                    </label>
+                    <input type="text" id="editDate" class="form-control" placeholder="mm/dd/yyyy" 
+                           style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                </div>
+                
+                <!-- 時間帯 -->
+                <div style="display: flex; gap: 20px; margin-bottom: 25px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <span style="font-size: 14px;">🕒</span>
+                            <span style="font-size: 14px; color: #e74c3c;">開始時間</span>
+                        </label>
+                        <input type="text" id="editStartTime" class="form-control" placeholder="06:00 PM" 
+                               style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <span style="font-size: 14px;">🕘</span>
+                            <span style="font-size: 14px; color: #e74c3c;">終了時間</span>
+                        </label>
+                        <input type="text" id="editEndTime" class="form-control" placeholder="09:00 PM" 
+                               style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                    </div>
+                </div>
+                
+                <!-- 最大組数 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                        <input type="checkbox" id="enableMaxGroups" checked onchange="toggleEditField('maxGroups')">
+                        <span style="font-size: 14px;">👥 最大組数</span>
+                    </label>
+                    <!-- プリセットボタン（一時的に非表示）
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button class="radio-btn" onclick="setEditValue('maxGroups', 10)">10</button>
+                        <button class="radio-btn" onclick="setEditValue('maxGroups', 20)">20</button>
+                        <button class="radio-btn" onclick="setEditValue('maxGroups', 30)">30</button>
+                    </div> -->
+                    <select id="editMaxGroups" class="form-control" style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                        <option value="1">1組</option>
+                        <option value="2">2組</option>
+                        <option value="3">3組</option>
+                        <option value="4">4組</option>
+                        <option value="5">5組</option>
+                        <option value="6">6組</option>
+                        <option value="7">7組</option>
+                        <option value="8">8組</option>
+                        <option value="9">9組</option>
+                        <option value="10">10組</option>
+                        <option value="15">15組</option>
+                        <option value="20">20組</option>
+                        <option value="25">25組</option>
+                        <option value="30">30組</option>
+                        <option value="40">40組</option>
+                        <option value="50">50組</option>
+                        <option value="60">60組</option>
+                        <option value="80">80組</option>
+                        <option value="100">100組</option>
+                    </select>
+                </div>
+                
+                <!-- 最大人数 -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                        <input type="checkbox" id="enableMaxPeople" checked onchange="toggleEditField('maxPeople')">
+                        <span style="font-size: 14px;">👤 最大人数</span>
+                    </label>
+                    <!-- プリセットボタン（一時的に非表示）
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button class="radio-btn" onclick="setEditValue('maxPeople', 30)">30</button>
+                        <button class="radio-btn" onclick="setEditValue('maxPeople', 50)">50</button>
+                        <button class="radio-btn" onclick="setEditValue('maxPeople', 100)">100</button>
+                    </div> -->
+                    <select id="editMaxPeople" class="form-control" style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                        <option value="10">10人</option>
+                        <option value="20">20人</option>
+                        <option value="30">30人</option>
+                        <option value="40">40人</option>
+                        <option value="50">50人</option>
+                        <option value="60">60人</option>
+                        <option value="80">80人</option>
+                        <option value="100">100人</option>
+                        <option value="150">150人</option>
+                        <option value="200">200人</option>
+                    </select>
+                </div>
+                
+                <!-- 1組あたり最大人数 -->
+                <div class="form-group" style="margin-bottom: 30px;">
+                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                        <input type="checkbox" id="enableMaxPerGroup" checked onchange="toggleEditField('maxPerGroup')">
+                        <span style="font-size: 14px;">👨‍👩‍👧‍👦 1組あたり最大人数</span>
+                    </label>
+                    <!-- プリセットボタン（一時的に非表示）
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button class="radio-btn" onclick="setEditValue('maxPerGroup', 4)">4</button>
+                        <button class="radio-btn active" onclick="setEditValue('maxPerGroup', 6)">6</button>
+                        <button class="radio-btn" onclick="setEditValue('maxPerGroup', 8)">8</button>
+                    </div> -->
+                    <select id="editMaxPerGroup" class="form-control" style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                        <option value="1">1人</option>
+                        <option value="2">2人</option>
+                        <option value="3">3人</option>
+                        <option value="4">4人</option>
+                        <option value="5">5人</option>
+                        <option value="6">6人</option>
+                        <option value="7">7人</option>
+                        <option value="8">8人</option>
+                        <option value="9">9人</option>
+                        <option value="10">10人</option>
+                        <option value="12">12人</option>
+                        <option value="15">15人</option>
+                        <option value="20">20人</option>
+                    </select>
+                </div>
+                
+                <!-- 保存ボタン -->
+                <button class="btn btn-primary" onclick="saveEditedRule()" 
+                        style="width: 100%; padding: 14px; font-size: 16px; font-weight: 600; 
+                               background: linear-gradient(135deg, #667eea, #764ba2); 
+                               border: none; border-radius: 8px; color: white; cursor: pointer;
+                               display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <span>💾</span>
+                    <span>ルールを保存</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const STORE_ID = new URLSearchParams(window.location.search).get('store_id') || 'default-store';
         let currentRules = [];
         let currentDate = new Date();
         let reservationData = {}; // 実際の予約データ
-        
-        // パフォーマンス最適化用キャッシュ
-        const rulesCache = new Map();
 
-        // デバウンス関数
-        function debounce(func, wait) {
-            let timeout;
-            return function(...args) {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => func.apply(this, args), wait);
-            };
+        // ラジオボタン関連の関数
+        function updateMaxGroups(value) {
+            document.getElementById('maxGroups').value = value;
+        }
+
+        function updateMaxPeople(value) {
+            document.getElementById('maxPeople').value = value;
+        }
+
+        function updateMaxPerGroup(value) {
+            document.getElementById('maxPerGroup').value = value;
+        }
+
+        function uncheckRadios(name) {
+            const radios = document.querySelectorAll(`input[name="${name}"]`);
+            radios.forEach(radio => radio.checked = false);
+        }
+
+        // ルールフィールドの有効/無効切り替え
+        function toggleRuleField(fieldId) {
+            const checkbox = document.getElementById(`enable${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`);
+            const container = document.getElementById(`${fieldId}Container`);
+            const input = document.getElementById(fieldId);
+            const formGroup = input.closest('.form-group');
+            
+            if (checkbox.checked) {
+                formGroup.classList.remove('disabled');
+                if (container) container.style.pointerEvents = 'auto';
+                input.disabled = false;
+            } else {
+                formGroup.classList.add('disabled');
+                if (container) container.style.pointerEvents = 'none';
+                input.disabled = true;
+            }
         }
 
         // 初期化
@@ -1051,81 +1076,14 @@
             loadSavedRules();
             loadReservationData();
             renderCalendar();
-            
-            // 時間入力の自動整形
-            setupTimeInputs();
         });
-        
-        // 24時間形式への変換関数
-        function to24h(hhmm) {
-            if (!hhmm) return '';
-            
-            // AM/PM形式を24時間形式に変換
-            const ampm = hhmm.match(/^\s*(\d{1,2}):(\d{2})\s*(AM|PM)\s*$/i);
-            if (ampm) {
-                let h = +ampm[1], m = ampm[2], ap = ampm[3].toUpperCase();
-                if (ap === 'PM' && h !== 12) h += 12;
-                if (ap === 'AM' && h === 12) h = 0;
-                return String(h).padStart(2,'0') + ':' + m;
-            }
-            
-            // 既に24時間形式の場合
-            const m = hhmm.match(/^\s*(\d{1,2}):?(\d{0,2})\s*$/);
-            if (!m) return '';
-            let h = +m[1], min = (m[2] || '00').padStart(2,'0');
-            if (h > 23) h = 23;
-            if (+min > 59) min = '59';
-            return String(h).padStart(2,'0') + ':' + min;
-        }
-        
-        // 時間入力フィールドのセットアップ
-        function setupTimeInputs() {
-            ['startTime', 'endTime'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    // フォーカスを外した時に自動整形
-                    el.addEventListener('blur', () => {
-                        el.value = to24h(el.value);
-                    });
-                    
-                    // 初期値も整形
-                    if (el.value) {
-                        el.value = to24h(el.value);
-                    }
-                }
-            });
-        }
 
-        // ハンバーガーメニューのトグル：サイドバーとオーバーレイの表示/非表示を切り替え
-        function toggleMenu() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('overlay');
-            const container = document.querySelector('.container');
-            const hamburger = document.querySelector('.hamburger-menu');
-            sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
-            container.classList.toggle('shifted');
-            if (hamburger) {
-                hamburger.style.display = sidebar.classList.contains('active') ? 'none' : 'block';
-            }
-        }
-        
-        // メニューを閉じる：サイドバーを閉じて通常表示に戻す
-        function closeMenu() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('overlay');
-            const container = document.querySelector('.container');
-            const hamburger = document.querySelector('.hamburger-menu');
-            sidebar.classList.remove('active');
-            overlay.classList.remove('active');
-            container.classList.remove('shifted');
-            if (hamburger) {
-                hamburger.style.display = 'block';
-            }
-        }
-
-        // ルール読み込み：LocalStorageとAPIから予約制限ルールを取得
+        // ルール読み込み
         async function loadSavedRules() {
+            if (typeof debugMode !== 'undefined' && debugMode) {
+                debugLog('容量ルール読み込み開始...');
+            }
+            
             const savedRules = localStorage.getItem(`capacity_control_rules_${STORE_ID}`);
             if (savedRules) {
                 currentRules = JSON.parse(savedRules);
@@ -1137,17 +1095,41 @@
                 const response = await fetch(`/api/admin?action=capacity&store_id=${STORE_ID}`);
                 if (response.ok) {
                     const data = await response.json();
+                    
+                    if (typeof debugMode !== 'undefined' && debugMode) {
+                        debugLog('容量ルール取得完了', data);
+                    }
+                    
                     if (data.settings && data.settings.rules) {
                         currentRules = data.settings.rules;
+                        
+                        if (typeof debugMode !== 'undefined' && debugMode) {
+                            debugLog(`ルール数: ${currentRules.length}`, currentRules);
+                            // 9月7日のルール確認
+                            const sep7Rule = currentRules.find(r => r.date === '2025-09-07');
+                            if (sep7Rule) {
+                                debugLog('✅ 9月7日のルールが存在:', sep7Rule);
+                            } else {
+                                debugLog('⚠️ 9月7日のルールが見つかりません');
+                            }
+                        }
+                        
                         displaySavedRules(currentRules);
+                    } else {
+                        if (typeof debugMode !== 'undefined' && debugMode) {
+                            debugLog('⚠️ ルールが空または取得失敗', data);
+                        }
                     }
                 }
             } catch (error) {
                 console.log('APIからの取得エラー:', error);
+                if (typeof debugMode !== 'undefined' && debugMode) {
+                    debugLog('❌ APIエラー', {error: error.message});
+                }
             }
         }
 
-        // 実際の予約データを読み込み：APIから予約情報を取得して日付ごとに集計
+        // 実際の予約データを読み込み
         async function loadReservationData() {
             try {
                 const response = await fetch(`/api/admin?action=list&store_id=${STORE_ID}`);
@@ -1177,7 +1159,7 @@
             }
         }
 
-        // カレンダー表示：月カレンダーを描画し予約制限と実際の予約状況を表示
+        // カレンダー表示
         function renderCalendar() {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
@@ -1203,88 +1185,98 @@
                 calendarGrid.appendChild(day);
             }
             
-            // 当月の日付
+            // 今月の日付
+            const today = new Date();
             for (let date = 1; date <= lastDate; date++) {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
-                const dayRules = getRulesForDate(dateStr);
-                const dayReservations = reservationData[dateStr] || { count: 0, people: 0 };
-                
                 const day = document.createElement('div');
-                day.className = 'calendar-day';
+                const currentDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
                 
-                if (dayRules.length > 0) {
-                    day.classList.add('has-rule');
-                    
-                    // 実際の予約状況に基づいて色付け
-                    const maxGroups = Math.max(...dayRules.map(r => r.maxGroups || 10));
-                    const maxPeople = Math.max(...dayRules.map(r => r.maxPeople || 30));
-                    
-                    const groupRate = dayReservations.count / maxGroups;
-                    const peopleRate = dayReservations.people / maxPeople;
-                    const rate = Math.max(groupRate, peopleRate);
-                    
-                    if (rate >= 0.9) day.classList.add('full');
-                    else if (rate >= 0.7) day.classList.add('high');
-                    else if (rate >= 0.5) day.classList.add('medium');
-                    else if (rate >= 0.3) day.classList.add('low');
-                    else day.classList.add('empty');
-                    
-                    // ホバー時の詳細表示を作成
-                    const tooltip = document.createElement('div');
-                    tooltip.className = 'calendar-tooltip';
-                    tooltip.innerHTML = `
-                        <div class="tooltip-header">
-                            <h3>日付</h3>
-                            <div class="tooltip-date">${currentDate.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', year: 'numeric' })}</div>
-                        </div>
-                        <div class="tooltip-section">
-                            <label>開始時間（24時間形式）</label>
-                            <div class="tooltip-value">${dayRules[0]?.startTime || '18:00'}</div>
-                        </div>
-                        <div class="tooltip-section">
-                            <label>終了時間（24時間形式）</label>
-                            <div class="tooltip-value">${dayRules[0]?.endTime || '21:00'}</div>
-                        </div>
-                        <div class="tooltip-section">
-                            <label>最大組数</label>
-                            <div class="tooltip-value">${maxGroups || '制限なし'}</div>
-                        </div>
-                        <div class="tooltip-section">
-                            <label>最大人数</label>
-                            <div class="tooltip-value">${maxPeople || '制限なし'}</div>
-                        </div>
-                        <div class="tooltip-section">
-                            <label>1組あたりの最大人数</label>
-                            <div class="tooltip-value">${dayRules[0]?.maxPerGroup || '制限なし'}</div>
-                        </div>
-                        <div class="tooltip-status">
-                            <div>現在の予約: ${dayReservations.count}組 / ${dayReservations.people}人</div>
-                        </div>
-                    `;
-                    
-                    day.innerHTML = `
-                        <div class="calendar-day-header">${date}</div>
-                        <div class="calendar-day-content">
-                            <div>📅 ルールあり</div>
-                            <div style="margin-top: 4px;">
-                                👥 ${dayReservations.count}/${maxGroups}組<br>
-                                👤 ${dayReservations.people}/${maxPeople}人
-                            </div>
-                        </div>
-                    `;
-                    
-                    day.appendChild(tooltip);
-                } else {
-                    day.innerHTML = `
-                        <div class="calendar-day-header">${date}</div>
-                        <div class="calendar-day-content">
-                            <div style="color: #ccc;">制限なし</div>
-                            ${dayReservations.count > 0 ? `<div>👥 ${dayReservations.count}組</div>` : ''}
-                        </div>
-                    `;
+                // 今日の日付チェック
+                if (year === today.getFullYear() && month === today.getMonth() && date === today.getDate()) {
+                    day.classList.add('today');
                 }
                 
-                day.onclick = () => showDateDetails(dateStr, dayRules, dayReservations);
+                // 予約データとルールから状態を計算
+                const rule = currentRules.find(r => r.date === currentDateStr);
+                const reservations = reservationData[currentDateStr];
+                
+                let statusClass = '';
+                let statusText = '';
+                
+                if (rule) {
+                    // ルールが存在する場合、まず色を設定
+                    statusClass = 'empty';  // デフォルトは空き十分
+                    
+                    if (reservations) {
+                        // 予約がある場合は利用率を計算
+                        // 有効な制限値のみを考慮
+                        let maxCapacity = 999;  // デフォルトは無制限
+                        
+                        if (rule.maxGroups !== null && rule.maxGroups !== undefined) {
+                            maxCapacity = Math.min(maxCapacity, rule.maxGroups);
+                        }
+                        if (rule.maxPeople !== null && rule.maxPeople !== undefined && rule.maxPerGroup) {
+                            maxCapacity = Math.min(maxCapacity, Math.floor(rule.maxPeople / rule.maxPerGroup));
+                        }
+                        
+                        const currentGroups = reservations.count;
+                        
+                        if (maxCapacity < 999) {
+                            const utilizationRate = (currentGroups / maxCapacity) * 100;
+                            
+                            if (utilizationRate >= 90) {
+                                statusClass = 'full';
+                                statusText = '満席';
+                            } else if (utilizationRate >= 70) {
+                                statusClass = 'high';
+                                statusText = '残りわずか';
+                            } else if (utilizationRate >= 50) {
+                                statusClass = 'medium';
+                                statusText = '半分以上';
+                            } else if (utilizationRate >= 30) {
+                                statusClass = 'low';
+                                statusText = '余裕あり';
+                            } else {
+                                statusClass = 'empty';
+                                statusText = '空き十分';
+                            }
+                        } else {
+                            statusText = '制限なし';
+                        }
+                        
+                        const capacityText = maxCapacity < 999 ? `${currentGroups}/${maxCapacity}組` : `${currentGroups}組`;
+                        day.innerHTML = `
+                            <div class="calendar-day-header">${date}</div>
+                            <div class="calendar-day-content">
+                                <div>${capacityText}</div>
+                                <div style="font-size: 10px; color: ${statusClass === 'full' ? '#e74c3c' : '#666'};">${statusText}</div>
+                            </div>
+                        `;
+                    } else {
+                        // 予約がない場合
+                        const maxGroupsText = rule.maxGroups !== null ? `${rule.maxGroups}組` : '制限なし';
+                        day.innerHTML = `
+                            <div class="calendar-day-header">${date}</div>
+                            <div class="calendar-day-content">
+                                <div>0/${maxGroupsText}</div>
+                                <div style="font-size: 10px;">ルール設定済み</div>
+                            </div>
+                        `;
+                    }
+                } else if (reservations) {
+                    day.innerHTML = `
+                        <div class="calendar-day-header">${date}</div>
+                        <div class="calendar-day-content">
+                            <div>${reservations.count}組</div>
+                            <div style="font-size: 10px;">ルール未設定</div>
+                        </div>
+                    `;
+                } else {
+                    day.innerHTML = `<div class="calendar-day-header">${date}</div>`;
+                }
+                
+                day.className = `calendar-day ${statusClass}`;
+                day.onclick = () => showDateDetails(currentDateStr);
                 calendarGrid.appendChild(day);
             }
             
@@ -1298,428 +1290,373 @@
             }
         }
 
-        // 日付のルール取得：指定日付に適用されるルールをフィルタリング
-        function getRulesForDate(dateStr) {
-            return currentRules.filter(rule => {
-                return rule.date === dateStr;
-            });
-        }
-
-        // 日付詳細表示：クリックされた日付のルールと予約状況をモーダルで表示
-        function showDateDetails(dateStr, rules, reservations) {
+        // 日付詳細表示
+        function showDateDetails(dateStr) {
             const modal = document.getElementById('dateModal');
             const modalTitle = document.getElementById('modalTitle');
             const modalBody = document.getElementById('modalBody');
             
-            const formattedDate = new Date(dateStr).toLocaleDateString('ja-JP', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                weekday: 'long'
-            });
+            modalTitle.textContent = `${dateStr} の詳細`;
             
-            modalTitle.textContent = formattedDate;
+            const rule = currentRules.find(r => r.date === dateStr);
+            const reservations = reservationData[dateStr];
             
-            let html = '';
+            let content = '';
             
-            if (rules.length > 0) {
-                html += '<h3>📋 設定されたルール</h3>';
-                rules.forEach((rule, i) => {
-                    html += `
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
-                            <div>⏰ 時間: ${rule.startTime || '18:00'} - ${rule.endTime || '21:00'}</div>
-                            <div>👥 上限: ${rule.maxGroups}組, ${rule.maxPeople}人, ${rule.maxPerGroup}人/組</div>
+            if (rule) {
+                content += `
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="font-size: 16px; margin-bottom: 10px;">ルール設定</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>時間帯: ${rule.startTime} - ${rule.endTime}</div>
+                            ${rule.maxGroups !== null ? `<div>最大組数: ${rule.maxGroups}</div>` : ''}
+                            ${rule.maxPeople !== null ? `<div>最大人数: ${rule.maxPeople}</div>` : ''}
+                            ${rule.maxPerGroup !== null ? `<div>1組最大: ${rule.maxPerGroup}人</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            if (reservations && reservations.reservations.length > 0) {
+                content += `
+                    <div>
+                        <h3 style="font-size: 16px; margin-bottom: 10px;">予約一覧 (${reservations.count}組 / ${reservations.people}人)</h3>
+                        <div style="max-height: 300px; overflow-y: auto;">
+                `;
+                
+                reservations.reservations.forEach(r => {
+                    content += `
+                        <div style="padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px;">
+                            <div style="font-weight: 600;">${r.userName || '名前未設定'}</div>
+                            <div style="font-size: 13px; color: #666;">
+                                ${r.time} / ${r.numberOfPeople}人 / ${r.phoneNumber || '電話番号なし'}
+                            </div>
                         </div>
                     `;
                 });
-            }
-            
-            if (reservations && reservations.count > 0) {
-                html += '<h3 style="margin-top: 20px;">📅 現在の予約状況</h3>';
-                html += `
-                    <div style="background: #e8f5e9; padding: 15px; border-radius: 8px;">
-                        <div>👥 予約組数: ${reservations.count}組</div>
-                        <div>👤 予約人数: ${reservations.people}人</div>
-                    </div>
-                `;
                 
-                if (rules.length > 0) {
-                    const maxGroups = Math.max(...rules.map(r => r.maxGroups || 10));
-                    const maxPeople = Math.max(...rules.map(r => r.maxPeople || 30));
-                    const remaining = {
-                        groups: maxGroups - reservations.count,
-                        people: maxPeople - reservations.people
-                    };
-                    
-                    html += `
-                        <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 10px;">
-                            <div>📊 残り枠</div>
-                            <div>👥 あと${remaining.groups}組まで予約可能</div>
-                            <div>👤 あと${remaining.people}人まで予約可能</div>
-                        </div>
-                    `;
-                }
+                content += `</div></div>`;
+            } else {
+                content += '<p style="color: #999;">この日の予約はありません。</p>';
             }
             
-            if (!rules.length && (!reservations || reservations.count === 0)) {
-                html = '<p style="text-align: center; color: #999;">この日の制限・予約はありません</p>';
-            }
-            
-            modalBody.innerHTML = html;
+            modalBody.innerHTML = content;
             modal.classList.add('active');
         }
 
-        // モーダルを閉じる：日付詳細モーダルを非表示にする
+        // モーダルを閉じる
         function closeModal() {
             document.getElementById('dateModal').classList.remove('active');
         }
 
-        // ルール保存：日付モードに応じて予約制限ルールを作成し保存
-        function saveRule() {
-            // キャッシュクリア
-            rulesCache.clear();
-            const dateMode = document.querySelector('input[name="dateMode"]:checked').value;
-            const rule = {
-                dateMode: dateMode,
-                startTime: document.getElementById('startTime').value,
-                endTime: document.getElementById('endTime').value,
-                maxGroups: document.getElementById('enableMaxGroups').checked ? parseInt(document.getElementById('maxGroups').value) : null,
-                maxPeople: document.getElementById('enableMaxPeople').checked ? parseInt(document.getElementById('maxPeople').value) : null,
-                maxPerGroup: document.getElementById('enableMaxPerGroup').checked ? parseInt(document.getElementById('maxPerGroup').value) : null
-            };
-            
-            // 日付モードに応じてデータを設定し、単一日形式に展開
-            const rulesToAdd = [];
-            
-            if (dateMode === 'single') {
-                rule.date = document.getElementById('ruleDate').value;
-                if (!rule.date) {
-                    showToast('日付を選択してください', 'error');
-                    return;
-                }
-                rulesToAdd.push(rule);
-            } else if (dateMode === 'range') {
-                const startDate = document.getElementById('startDate').value;
-                const endDate = document.getElementById('endDate').value;
-                if (!startDate || !endDate) {
-                    showToast('開始日と終了日を選択してください', 'error');
-                    return;
-                }
-                if (new Date(startDate) > new Date(endDate)) {
-                    showToast('終了日は開始日より後にしてください', 'error');
-                    return;
-                }
-                
-                // 期間内の各日付に対してルールを作成
-                const start = new Date(startDate);
-                const end = new Date(endDate);
-                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                    const dateStr = d.toISOString().split('T')[0];
-                    rulesToAdd.push({
-                        ...rule,
-                        date: dateStr,
-                        originalMode: 'range',
-                        rangeStart: startDate,
-                        rangeEnd: endDate
-                    });
-                }
-            } else if (dateMode === 'weekly') {
-                const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-                const selectedDays = [];
-                days.forEach((day, index) => {
-                    if (document.getElementById(day).checked) {
-                        selectedDays.push(index);
-                    }
-                });
-                if (selectedDays.length === 0) {
-                    showToast('少なくとも1つの曜日を選択してください', 'error');
-                    return;
-                }
-                
-                // 次の3ヶ月分の該当曜日に対してルールを作成
-                const today = new Date();
-                const endDate = new Date();
-                endDate.setMonth(endDate.getMonth() + 3);
-                
-                for (let d = new Date(today); d <= endDate; d.setDate(d.getDate() + 1)) {
-                    if (selectedDays.includes(d.getDay())) {
-                        const dateStr = d.toISOString().split('T')[0];
-                        rulesToAdd.push({
-                            ...rule,
-                            date: dateStr,
-                            originalMode: 'weekly',
-                            weekday: d.getDay()
-                        });
-                    }
-                }
-            }
-            
-            // 既存のルールと重複する日付を削除
-            currentRules = currentRules.filter(existingRule => {
-                return !rulesToAdd.some(newRule => newRule.date === existingRule.date);
-            });
-            
-            // 新しいルールを追加
-            currentRules.push(...rulesToAdd);
-            localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(currentRules));
-            
-            // APIに保存
-            saveToAPI();
-            
-            displaySavedRules(currentRules);
-            renderCalendar();
-            showToast('ルールを保存しました', 'success');
-            
-            // フォームをリセット
-            document.getElementById('ruleDate').value = '';
-        }
-
-        // APIに保存：予約制限ルールをサーバーに送信
-        async function saveToAPI() {
-            try {
-                await fetch('/api/admin?action=capacity', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        store_id: STORE_ID,
-                        rules: currentRules
-                    })
-                });
-            } catch (error) {
-                console.log('API保存エラー:', error);
-            }
-        }
-
-        // ルール表示：保存されたルールをカード形式で一覧表示
-        function displaySavedRules(rules) {
-            const container = document.getElementById('savedRules');
-            container.innerHTML = '';
-            
-            if (rules.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #999;">保存されたルールはありません</p>';
-                return;
-            }
-            
-            rules.forEach((rule, index) => {
-                const card = createRuleCard(rule, index);
-                container.appendChild(card);
-            });
-        }
-
-        // ルールカード作成：個別のルールをカードUIとして生成
-        function createRuleCard(rule, index) {
-            const dateReservations = reservationData[rule.date] || { count: 0, people: 0 };
-            const groupRate = dateReservations.count / (rule.maxGroups || 10);
-            const peopleRate = dateReservations.people / (rule.maxPeople || 30);
-            const rate = Math.max(groupRate, peopleRate);
-            
-            let statusClass = '';
-            let statusText = '';
-            let statusIcon = '';
-            
-            if (rate >= 0.9) {
-                statusClass = 'full';
-                statusText = '満席';
-                statusIcon = '🔴';
-            } else if (rate >= 0.7) {
-                statusClass = 'high';
-                statusText = '残りわずか';
-                statusIcon = '🟠';
-            } else if (rate >= 0.5) {
-                statusClass = 'medium';
-                statusText = '半分以上';
-                statusIcon = '🟡';
-            } else if (rate >= 0.3) {
-                statusClass = 'low';
-                statusText = '余裕あり';
-                statusIcon = '🔵';
-            } else {
-                statusClass = 'empty';
-                statusText = '空き十分';
-                statusIcon = '🟢';
-            }
-            
-            const card = document.createElement('div');
-            card.className = 'rule-card';
-            
-            card.innerHTML = `
-                <div class="rule-status-badge ${statusClass}">
-                    <span>${statusIcon}</span>
-                    <span>${statusText}</span>
-                </div>
-                <div class="rule-header">
-                    <div class="rule-title">📅 ${rule.date}</div>
-                    <div>
-                        <button class="edit-btn" onclick="editRule(${index})" style="margin-right: 5px;">編集</button>
-                        <button class="delete-btn" onclick="deleteRule(${index})">削除</button>
-                    </div>
-                </div>
-                <div class="rule-info">
-                    <span class="info-label">時間帯:</span>
-                    <span class="info-value">⏰ ${rule.startTime || '18:00'} - ${rule.endTime || '21:00'}</span>
-                </div>
-                <div class="rule-info">
-                    <span class="info-label">上限:</span>
-                    <span class="info-value">
-                        <span class="rule-tag">👥 ${rule.maxGroups}組</span>
-                        <span class="rule-tag">👤 ${rule.maxPeople}人</span>
-                        <span class="rule-tag">🍽️ ${rule.maxPerGroup}人/組</span>
-                    </span>
-                </div>
-                <div class="rule-info" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0;">
-                    <span class="info-label">現在の予約:</span>
-                    <span class="info-value">
-                        <span style="color: #666;">👥 ${dateReservations.count}/${rule.maxGroups}組</span>
-                        <span style="color: #666; margin-left: 10px;">👤 ${dateReservations.people}/${rule.maxPeople}人</span>
-                    </span>
-                </div>
-            `;
-            
-            return card;
-        }
-
-        // ルール編集
-        function editRule(index) {
-            const rule = currentRules[index];
-            
-            // 編集モーダルを作成
-            const modal = document.createElement('div');
-            modal.className = 'modal active';
-            modal.id = 'editRuleModal';
-            modal.innerHTML = `
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h2 class="modal-title">予約制限設定の編集</h2>
-                        <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
-                    </div>
-                    <form onsubmit="updateRule(event, ${index}); return false;">
-                        <div class="form-group">
-                            <label class="form-label">日付</label>
-                            <input type="date" class="form-input" value="${rule.date}" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">開始時間（24時間形式）</label>
-                            <input type="text" class="form-input" id="editStartTime" value="${rule.startTime || '18:00'}" 
-                                   pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" 
-                                   placeholder="18:00" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">終了時間（24時間形式）</label>
-                            <input type="text" class="form-input" id="editEndTime" value="${rule.endTime || '21:00'}" 
-                                   pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" 
-                                   placeholder="21:00" required>
-                        </div>
-                        <div class="form-group">
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                <input type="checkbox" id="editEnableMaxGroups" ${rule.maxGroups ? 'checked' : ''} 
-                                       style="width: 18px; height: 18px; cursor: pointer; accent-color: #6b46c1;" 
-                                       onchange="toggleEditField('MaxGroups')">
-                                <label for="editEnableMaxGroups" style="cursor: pointer; font-weight: 500;">最大組数</label>
-                            </div>
-                            <input type="number" class="form-input" id="editMaxGroups" value="${rule.maxGroups || ''}" 
-                                   min="1" placeholder="制限なし" ${!rule.maxGroups ? 'disabled style="background: #f5f5f5;"' : ''}>
-                        </div>
-                        <div class="form-group">
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                <input type="checkbox" id="editEnableMaxPeople" ${rule.maxPeople ? 'checked' : ''} 
-                                       style="width: 18px; height: 18px; cursor: pointer; accent-color: #3b82f6;" 
-                                       onchange="toggleEditField('MaxPeople')">
-                                <label for="editEnableMaxPeople" style="cursor: pointer; font-weight: 500;">最大人数</label>
-                            </div>
-                            <input type="number" class="form-input" id="editMaxPeople" value="${rule.maxPeople || ''}" 
-                                   min="1" placeholder="制限なし" ${!rule.maxPeople ? 'disabled style="background: #f5f5f5;"' : ''}>
-                        </div>
-                        <div class="form-group">
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                <input type="checkbox" id="editEnableMaxPerGroup" ${rule.maxPerGroup ? 'checked' : ''} 
-                                       style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444;" 
-                                       onchange="toggleEditField('MaxPerGroup')">
-                                <label for="editEnableMaxPerGroup" style="cursor: pointer; font-weight: 500;">1組あたりの最大人数</label>
-                            </div>
-                            <input type="number" class="form-input" id="editMaxPerGroup" value="${rule.maxPerGroup || ''}" 
-                                   min="1" placeholder="制限なし" ${!rule.maxPerGroup ? 'disabled style="background: #f5f5f5;"' : ''}>
-                        </div>
-                        <div class="form-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                            <button type="button" class="btn secondary" onclick="this.closest('.modal').remove()">キャンセル</button>
-                            <button type="submit" class="btn primary">保存</button>
-                        </div>
-                    </form>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-        
-        // 編集フィールドのトグル
-        function toggleEditField(fieldName) {
-            const checkbox = document.getElementById('editEnable' + fieldName);
-            const input = document.getElementById('edit' + fieldName);
-            
-            if (checkbox.checked) {
-                input.disabled = false;
-                input.style.background = 'white';
-                if (!input.value) {
-                    // デフォルト値を設定
-                    if (fieldName === 'MaxGroups') input.value = '10';
-                    else if (fieldName === 'MaxPeople') input.value = '30';
-                    else if (fieldName === 'MaxPerGroup') input.value = '6';
-                }
-            } else {
-                input.disabled = true;
-                input.style.background = '#f5f5f5';
-                input.value = '';
-            }
-        }
-        
-        // ルール更新
-        function updateRule(event, index) {
-            event.preventDefault();
-            const rule = currentRules[index];
-            
-            // 更新値を取得
-            rule.startTime = document.getElementById('editStartTime').value;
-            rule.endTime = document.getElementById('editEndTime').value;
-            rule.maxGroups = document.getElementById('editEnableMaxGroups').checked ? parseInt(document.getElementById('editMaxGroups').value) : null;
-            rule.maxPeople = document.getElementById('editEnableMaxPeople').checked ? parseInt(document.getElementById('editMaxPeople').value) : null;
-            rule.maxPerGroup = document.getElementById('editEnableMaxPerGroup').checked ? parseInt(document.getElementById('editMaxPerGroup').value) : null;
-            
-            // 保存
-            localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(currentRules));
-            saveToAPI();
-            displaySavedRules(currentRules);
-            renderCalendar();
-            
-            // モーダルを閉じる
-            document.getElementById('editRuleModal').remove();
-            showToast('ルールを更新しました', 'success');
-        }
-        
-        // ルール削除
-        function deleteRule(index) {
-            if (confirm('このルールを削除しますか？')) {
-                currentRules.splice(index, 1);
-                localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(currentRules));
-                saveToAPI();
-                displaySavedRules(currentRules);
-                renderCalendar();
-                showToast('ルールを削除しました', 'success');
-            }
-        }
-
-        // カレンダーナビゲーション
+        // 前月へ
         function previousMonth() {
             currentDate.setMonth(currentDate.getMonth() - 1);
             renderCalendar();
         }
 
+        // 次月へ
         function nextMonth() {
             currentDate.setMonth(currentDate.getMonth() + 1);
             renderCalendar();
         }
 
-        // トースト通知
+        // ルール保存
+        function saveRule() {
+            const ruleDate = document.getElementById('ruleDate').value;
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+            
+            // チェックボックスの状態を確認
+            const enableMaxGroups = document.getElementById('enableMaxGroups').checked;
+            const enableMaxPeople = document.getElementById('enableMaxPeople').checked;
+            const enableMaxPerGroup = document.getElementById('enableMaxPerGroup').checked;
+            
+            const maxGroups = enableMaxGroups ? parseInt(document.getElementById('maxGroups').value) : null;
+            const maxPeople = enableMaxPeople ? parseInt(document.getElementById('maxPeople').value) : null;
+            const maxPerGroup = enableMaxPerGroup ? parseInt(document.getElementById('maxPerGroup').value) : null;
+            
+            if (!ruleDate || !startTime || !endTime) {
+                showToast('日付と時間を入力してください', 'error');
+                return;
+            }
+            
+            const newRule = {
+                id: Date.now(),
+                date: ruleDate,
+                startTime,
+                endTime,
+                maxGroups,
+                maxPeople,
+                maxPerGroup,
+                createdAt: new Date().toISOString()
+            };
+            
+            // 既存のルールをチェック
+            const existingIndex = currentRules.findIndex(r => r.date === ruleDate && r.startTime === startTime);
+            if (existingIndex >= 0) {
+                currentRules[existingIndex] = newRule;
+            } else {
+                currentRules.push(newRule);
+            }
+            
+            // ローカルストレージに保存
+            localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(currentRules));
+            
+            // APIへも送信を試みる
+            saveToAPI(currentRules);
+            
+            displaySavedRules(currentRules);
+            renderCalendar();
+            showToast('ルールを保存しました', 'success');
+        }
+
+        // APIへ保存
+        async function saveToAPI(rules) {
+            try {
+                console.log('DBへの保存を実行中...', rules);
+                const response = await fetch('/api/admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': 'admin-key-123'  // 仮のAPIキー
+                    },
+                    body: JSON.stringify({
+                        action: 'saveCapacity',
+                        store_id: STORE_ID,
+                        settings: { rules }
+                    })
+                });
+                
+                // レスポンスのテキストを取得
+                const responseText = await response.text();
+                console.log('レスポンステキスト:', responseText);
+                
+                // JSONとしてパース
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('❌ JSONパースエラー:', parseError);
+                    console.error('レスポンス内容:', responseText);
+                    showToast('サーバーエラー: レスポンスが不正です', 'error');
+                    return;
+                }
+                
+                if (response.ok && data.success) {
+                    console.log('✅ DBへの保存成功:', data);
+                    showToast('データベースに保存しました', 'success');
+                } else {
+                    console.error('❌ DB保存エラー:', data);
+                    showToast('DB保存エラー: ' + (data.error || '不明なエラー'), 'error');
+                }
+            } catch (error) {
+                console.error('❌ API通信エラー:', error);
+                showToast('通信エラー: ' + error.message, 'error');
+            }
+        }
+
+        // 保存済みルール表示
+        function displaySavedRules(rules) {
+            const container = document.getElementById('savedRules');
+            
+            if (rules.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center;">保存済みのルールはありません</p>';
+                return;
+            }
+            
+            // 日付でソート
+            const sortedRules = [...rules].sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            container.innerHTML = sortedRules.map(rule => {
+                const reservations = reservationData[rule.date];
+                let statusBadge = '';
+                
+                if (reservations && rule.maxGroups !== null) {
+                    const utilizationRate = (reservations.count / rule.maxGroups) * 100;
+                    let statusClass = '';
+                    let statusText = '';
+                    
+                    if (utilizationRate >= 90) {
+                        statusClass = 'full';
+                        statusText = '満席';
+                    } else if (utilizationRate >= 70) {
+                        statusClass = 'high';
+                        statusText = '残りわずか';
+                    } else if (utilizationRate >= 50) {
+                        statusClass = 'medium';
+                        statusText = '半分以上';
+                    } else if (utilizationRate >= 30) {
+                        statusClass = 'low';
+                        statusText = '余裕あり';
+                    } else {
+                        statusClass = 'empty';
+                        statusText = '空き十分';
+                    }
+                    
+                    statusBadge = `<div class="rule-status-badge ${statusClass}">${statusText}</div>`;
+                }
+                
+                return `
+                    <div class="rule-card">
+                        ${statusBadge}
+                        <div class="rule-header">
+                            <div class="rule-title">${rule.date}</div>
+                        </div>
+                        <div class="rule-details">
+                            <div class="rule-detail-item">
+                                <span class="rule-detail-label">時間帯</span>
+                                <span class="rule-detail-value">${rule.startTime} - ${rule.endTime}</span>
+                            </div>
+                            ${rule.maxGroups !== null ? `
+                            <div class="rule-detail-item">
+                                <span class="rule-detail-label">最大組数</span>
+                                <span class="rule-detail-value">${rule.maxGroups}組</span>
+                            </div>` : ''}
+                            ${rule.maxPeople !== null ? `
+                            <div class="rule-detail-item">
+                                <span class="rule-detail-label">最大人数</span>
+                                <span class="rule-detail-value">${rule.maxPeople}人</span>
+                            </div>` : ''}
+                            ${rule.maxPerGroup !== null ? `
+                            <div class="rule-detail-item">
+                                <span class="rule-detail-label">1組あたり</span>
+                                <span class="rule-detail-value">最大${rule.maxPerGroup}人</span>
+                            </div>` : ''}
+                        </div>
+                        ${reservations ? `
+                            <div style="padding: 10px; background: #f5f5f7; border-radius: 8px; margin: 15px 0;">
+                                <div style="font-size: 13px; color: #666;">現在の予約状況</div>
+                                <div style="font-size: 16px; font-weight: 600; color: #333;">
+                                    ${reservations.count}/${rule.maxGroups !== null ? rule.maxGroups + '組' : '制限なし'} (${reservations.people}人)
+                                </div>
+                            </div>
+                        ` : ''}
+                        <div class="rule-actions">
+                            <button class="btn btn-secondary btn-small" onclick="editRule(${rule.id})">✏️ 編集</button>
+                            <button class="btn btn-danger btn-small" onclick="deleteRule(${rule.id})">🗑️ 削除</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 編集するルール情報を保持
+        let editingRuleId = null;
+        let editingRuleIndex = null;
+
+        // ルール編集
+        function editRule(id) {
+            const ruleIndex = currentRules.findIndex(r => r.id === id);
+            if (ruleIndex === -1) return;
+            
+            const rule = currentRules[ruleIndex];
+            editingRuleId = id;
+            editingRuleIndex = ruleIndex;
+            
+            // モーダルに値をセット
+            document.getElementById('editDate').value = rule.date;
+            document.getElementById('editStartTime').value = rule.startTime || '18:00';
+            document.getElementById('editEndTime').value = rule.endTime || '21:00';
+            document.getElementById('editMaxGroups').value = rule.maxGroups || 1;
+            
+            // モーダルを表示
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        // 編集モーダルを閉じる
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+            editingRuleId = null;
+            editingRuleIndex = null;
+        }
+
+        // 編集したルールを保存
+        async function saveEditedRule() {
+            if (editingRuleIndex === null) return;
+            
+            const startTime = document.getElementById('editStartTime').value;
+            const endTime = document.getElementById('editEndTime').value;
+            const maxGroups = parseInt(document.getElementById('editMaxGroups').value);
+            
+            // 検証
+            if (!startTime || !endTime) {
+                showToast('時間帯を入力してください', 'error');
+                return;
+            }
+            
+            if (startTime >= endTime) {
+                showToast('終了時間は開始時間より後にしてください', 'error');
+                return;
+            }
+            
+            // ルールを更新
+            currentRules[editingRuleIndex] = {
+                ...currentRules[editingRuleIndex],
+                startTime: startTime,
+                endTime: endTime,
+                maxGroups: maxGroups,
+                maxPeople: null,
+                maxPerGroup: null
+            };
+            
+            // サーバーに保存
+            localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(currentRules));
+            await saveToAPI(currentRules);
+            displaySavedRules(currentRules);
+            renderCalendar();
+            
+            closeEditModal();
+            showToast('ルールを更新しました', 'success');
+        }
+
+        // ラジオボタン更新
+        function updateRadioButtons(name, value) {
+            const radios = document.querySelectorAll(`input[name="${name}"]`);
+            let matched = false;
+            radios.forEach(radio => {
+                if (parseInt(radio.value) === value) {
+                    radio.checked = true;
+                    matched = true;
+                } else {
+                    radio.checked = false;
+                }
+            });
+            if (!matched) {
+                radios.forEach(radio => radio.checked = false);
+            }
+        }
+
+        // ルール削除
+        function deleteRule(id) {
+            // モーダルから呼ばれた場合
+            if (id === undefined && editingRuleId !== null) {
+                id = editingRuleId;
+            }
+            
+            if (!confirm('このルールを削除しますか？')) return;
+            
+            currentRules = currentRules.filter(r => r.id !== id);
+            localStorage.setItem(`capacity_control_rules_${STORE_ID}`, JSON.stringify(currentRules));
+            saveToAPI(currentRules);
+            displaySavedRules(currentRules);
+            renderCalendar();
+            
+            // モーダルが開いていたら閉じる
+            if (document.getElementById('editModal').classList.contains('active')) {
+                closeEditModal();
+            }
+            
+            showToast('ルールを削除しました', 'success');
+        }
+
+        // トースト表示
         function showToast(message, type = 'success') {
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
             toast.innerHTML = `
@@ -1732,52 +1669,6 @@
                 toast.remove();
             }, 3000);
         }
-        
-        // ルールタイトル取得
-        function getRuleTitle(rule) {
-            if (rule.dateMode === 'single' || rule.date) {
-                return `📅 ${rule.date}`;
-            } else if (rule.dateMode === 'range') {
-                return `📆 ${rule.startDate} 〜 ${rule.endDate}`;
-            } else if (rule.dateMode === 'weekly') {
-                const days = ['日', '月', '火', '水', '木', '金', '土'];
-                const selected = [];
-                Object.keys(rule.weekdays || {}).forEach(key => {
-                    if (rule.weekdays[key]) selected.push(days[key]);
-                });
-                return `🗓️ 毎週 ${selected.join('・')}曜日`;
-            }
-            return '📅 不明';
-        }
-        
-        // 日付モード切り替え
-        function changeDateMode(mode) {
-            document.getElementById('singleDateSection').style.display = mode === 'single' ? 'flex' : 'none';
-            document.getElementById('rangeDateSection').style.display = mode === 'range' ? 'flex' : 'none';
-            document.getElementById('weeklySection').style.display = mode === 'weekly' ? 'block' : 'none';
-        }
-        
-        // チェックボックスによるフィールドの有効/無効切り替え
-        function toggleField(fieldId) {
-            const checkbox = document.getElementById('enable' + fieldId.charAt(0).toUpperCase() + fieldId.slice(1));
-            const input = document.getElementById(fieldId);
-            
-            if (checkbox.checked) {
-                input.disabled = false;
-                input.style.background = 'white';
-                if (!input.value) {
-                    // デフォルト値を設定
-                    if (fieldId === 'maxGroups') input.value = '10';
-                    else if (fieldId === 'maxPeople') input.value = '30';
-                    else if (fieldId === 'maxPerGroup') input.value = '6';
-                }
-            } else {
-                input.disabled = true;
-                input.style.background = '#f5f5f5';
-                input.value = '';
-            }
-        }
     </script>
-    <script src='/time-select-dropdown.js'></script>
 </body>
 </html>

@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約管理画面（セキュア版）| LINE予約システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        /* ログイン画面のスタイル */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .login-box {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .login-box h2 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .login-subtitle {
+            color: #666;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        #loginForm {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #passwordInput {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        
+        #loginForm button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        #loginForm button:hover {
+            background: #5a67d8;
+        }
+        
+        .error-message {
+            color: #e53e3e;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        /* 管理画面のスタイル */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-left {
+            flex: 1;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .logout-btn {
+            background: #e53e3e;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background: #c53030;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .stat-value {
+            color: #333;
+            font-size: 36px;
+            font-weight: bold;
+        }
+        
+        .main-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        select {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            background: #5a67d8;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th {
+            background: #f7f7f7;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .status-pending {
+            background: #48bb78;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            display: inline-block;
+        }
+        
+        .status-confirmed {
+            background: #4299e1;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            display: inline-block;
+        }
+        
+        .status-cancelled {
+            background: #f56565;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            display: inline-block;
+        }
+        
+        .loading, .error, .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .error {
+            color: #e53e3e;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-group {
+                flex-direction: column;
+            }
+            
+            select, button {
+                width: 100%;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .logout-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ログイン画面 -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <h2>🔐 管理画面ログイン</h2>
+            <p class="login-subtitle">パスワードを入力してください</p>
+            <form id="loginForm">
+                <input type="password" id="passwordInput" placeholder="パスワード" required>
+                <button type="submit">ログイン</button>
+                <p id="loginError" class="error-message"></p>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 管理画面本体（初期状態は非表示） -->
+    <div class="container" id="adminPanel" style="display: none;">
+        <div class="header">
+            <div class="header-left">
+                <h1>🗓️ 予約管理画面</h1>
+                <div class="subtitle">
+                    <span id="storeName">レストラン</span> | 
+                    最終更新: <span id="lastUpdate">-</span>
+                </div>
+            </div>
+            <button onclick="logout()" class="logout-btn">ログアウト</button>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">本日の予約</div>
+                <div class="stat-value" id="todayCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">明日の予約</div>
+                <div class="stat-value" id="tomorrowCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">今週の予約</div>
+                <div class="stat-value" id="weekCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">全予約数</div>
+                <div class="stat-value" id="totalCount">0</div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="controls">
+                <div class="filter-group">
+                    <select id="dateFilter">
+                        <option value="all">全期間</option>
+                        <option value="today">今日</option>
+                        <option value="tomorrow">明日</option>
+                        <option value="week">今週</option>
+                        <option value="month">今月</option>
+                    </select>
+                    <select id="statusFilter">
+                        <option value="all">全ステータス</option>
+                        <option value="pending">予約確定</option>
+                        <option value="confirmed">確認済み</option>
+                        <option value="cancelled">キャンセル</option>
+                    </select>
+                </div>
+                <button class="refresh-btn" onclick="loadReservations()">
+                    🔄 更新
+                </button>
+            </div>
+            
+            <div class="table-wrapper">
+                <div id="loading" class="loading" style="display:none;">
+                    読み込み中...
+                </div>
+                <div id="error" class="error" style="display:none;"></div>
+                <table id="reservationsTable" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>予約ID</th>
+                            <th>お名前</th>
+                            <th>日付</th>
+                            <th>時間</th>
+                            <th>人数</th>
+                            <th>メッセージ</th>
+                            <th>ステータス</th>
+                            <th>作成日時</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reservationsBody">
+                    </tbody>
+                </table>
+                <div id="noData" class="no-data" style="display:none;">
+                    予約データがありません
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 認証トークン管理
+        let authToken = localStorage.getItem('adminToken');
+        
+        // ログインフォーム処理
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const password = document.getElementById('passwordInput').value;
+            const errorElement = document.getElementById('loginError');
+            
+            try {
+                const response = await fetch('/api/admin?action=auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // トークンを保存
+                    authToken = data.token;
+                    localStorage.setItem('adminToken', authToken);
+                    
+                    // 管理画面を表示
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('adminPanel').style.display = 'block';
+                    
+                    // 予約データを読み込み
+                    loadReservations();
+                } else {
+                    errorElement.textContent = data.error || 'ログインに失敗しました';
+                }
+            } catch (error) {
+                errorElement.textContent = 'ネットワークエラーが発生しました';
+            }
+        });
+        
+        // ログアウト処理
+        function logout() {
+            authToken = null;
+            localStorage.removeItem('adminToken');
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('loginError').textContent = '';
+        }
+        
+        // ページ読み込み時の認証チェック
+        window.addEventListener('DOMContentLoaded', () => {
+            if (authToken) {
+                // トークンがある場合は直接管理画面を表示
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+                loadReservations();
+            }
+        });
+        
+        // グローバル変数：全予約データを保持
+        let allReservations = [];
+        
+        // 日付フォーマット関数
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            if (dateStr === today.toISOString().split('T')[0]) {
+                return '今日';
+            } else if (dateStr === tomorrow.toISOString().split('T')[0]) {
+                return '明日';
+            }
+            
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+            const weekDay = weekDays[date.getDay()];
+            return `${month}/${day}(${weekDay})`;
+        }
+        
+        // 時間フォーマット関数
+        function formatTime(timeStr) {
+            if (!timeStr) return '-';
+            return timeStr.substring(0, 5);
+        }
+        
+        // 日時フォーマット関数
+        function formatDateTime(dateTimeStr) {
+            const date = new Date(dateTimeStr);
+            return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+        }
+        
+        // ステータスバッジ生成関数
+        function getStatusBadge(status) {
+            const statusMap = {
+                'pending': '<span class="status-pending">予約確定</span>',
+                'confirmed': '<span class="status-confirmed">確認済み</span>',
+                'cancelled': '<span class="status-cancelled">キャンセル</span>'
+            };
+            return statusMap[status] || status;
+        }
+        
+        // APIベースURL取得
+        function getApiBaseUrl() {
+            const hostname = window.location.hostname;
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                return 'http://localhost:3000';
+            }
+            return '';
+        }
+        
+        // 予約データ読み込み
+        async function loadReservations() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const table = document.getElementById('reservationsTable');
+            const noData = document.getElementById('noData');
+            
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            table.style.display = 'none';
+            noData.style.display = 'none';
+            
+            try {
+                const apiUrl = getApiBaseUrl() + '/api/reservations';
+                const response = await fetch(apiUrl, {
+                    headers: {
+                        'Authorization': authToken ? `Bearer ${authToken}` : ''
+                    }
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        logout();
+                        return;
+                    }
+                    throw new Error('Failed to fetch reservations');
+                }
+                
+                const data = await response.json();
+                allReservations = data;
+                
+                applyFilters();
+                updateStats();
+                
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                
+            } catch (err) {
+                error.textContent = 'データの読み込みに失敗しました: ' + err.message;
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+        
+        // 統計情報更新
+        function updateStats() {
+            const today = new Date().toISOString().split('T')[0];
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = tomorrow.toISOString().split('T')[0];
+            
+            const todayReservations = allReservations.filter(r => 
+                r.date === today && r.status !== 'cancelled'
+            );
+            
+            const tomorrowReservations = allReservations.filter(r => 
+                r.date === tomorrowStr && r.status !== 'cancelled'
+            );
+            
+            const weekStart = new Date();
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 7);
+            
+            const weekReservations = allReservations.filter(r => {
+                const rDate = new Date(r.date);
+                return rDate >= weekStart && rDate < weekEnd && r.status !== 'cancelled';
+            });
+            
+            document.getElementById('todayCount').textContent = todayReservations.length;
+            document.getElementById('tomorrowCount').textContent = tomorrowReservations.length;
+            document.getElementById('weekCount').textContent = weekReservations.length;
+            document.getElementById('totalCount').textContent = allReservations.length;
+        }
+        
+        // フィルター適用
+        function applyFilters() {
+            const dateFilter = document.getElementById('dateFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            let filtered = [...allReservations];
+            
+            // 日付フィルター
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = tomorrow.toISOString().split('T')[0];
+            
+            if (dateFilter === 'today') {
+                filtered = filtered.filter(r => r.date === todayStr);
+            } else if (dateFilter === 'tomorrow') {
+                filtered = filtered.filter(r => r.date === tomorrowStr);
+            } else if (dateFilter === 'week') {
+                const weekStart = new Date();
+                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 7);
+                filtered = filtered.filter(r => {
+                    const rDate = new Date(r.date);
+                    return rDate >= weekStart && rDate < weekEnd;
+                });
+            } else if (dateFilter === 'month') {
+                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                filtered = filtered.filter(r => {
+                    const rDate = new Date(r.date);
+                    return rDate >= monthStart && rDate <= monthEnd;
+                });
+            }
+            
+            // ステータスフィルター
+            if (statusFilter !== 'all') {
+                filtered = filtered.filter(r => r.status === statusFilter);
+            }
+            
+            // 日付と時間でソート
+            filtered.sort((a, b) => {
+                if (a.date === b.date) {
+                    return (a.time || '').localeCompare(b.time || '');
+                }
+                return a.date.localeCompare(b.date);
+            });
+            
+            displayReservations(filtered);
+        }
+        
+        // 予約データ表示
+        function displayReservations(reservations) {
+            const tbody = document.getElementById('reservationsBody');
+            const table = document.getElementById('reservationsTable');
+            const noData = document.getElementById('noData');
+            
+            tbody.innerHTML = '';
+            
+            if (reservations.length === 0) {
+                table.style.display = 'none';
+                noData.style.display = 'block';
+                return;
+            }
+            
+            table.style.display = 'table';
+            noData.style.display = 'none';
+            
+            reservations.forEach(reservation => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>#${reservation.id}</td>
+                    <td>${reservation.customer_name || 'ゲスト'}</td>
+                    <td>${formatDate(reservation.date)}</td>
+                    <td>${formatTime(reservation.time)}</td>
+                    <td>${reservation.people}名</td>
+                    <td>${reservation.message || '-'}</td>
+                    <td>${getStatusBadge(reservation.status)}</td>
+                    <td>${formatDateTime(reservation.created_at)}</td>
+                `;
+            });
+        }
+        
+        // フィルター変更時のイベント
+        document.getElementById('dateFilter').addEventListener('change', applyFilters);
+        document.getElementById('statusFilter').addEventListener('change', applyFilters);
+        
+        // 30秒ごとに自動更新（認証済みの場合のみ）
+        setInterval(() => {
+            if (authToken && document.getElementById('adminPanel').style.display !== 'none') {
+                loadReservations();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

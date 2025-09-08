@@ -13,11 +13,11 @@ const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 8080;
 const NODE_ENV = process.env.NODE_ENV || 'production';
 
-// Supabase初期化
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+// Supabase初期化（環境変数のフォールバック付き）
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://faenvzzeguvlconvrqgp.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZW52enplZ3V2bGNvbnZycWdwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxNzQyOTgsImV4cCI6MjA3MTc1MDI5OH0.U_v82IYSDM3waCFfFr4e7MpbTQmZFRPCNaA-2u5R3d8';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Expressアプリケーション
 const app = express();
@@ -66,6 +66,195 @@ app.get('/api/version', (req, res) => {
 });
 
 // ==========================================
+// 2. 認証なし管理画面API（/api/admin-noauth）
+// ==========================================
+app.get('/api/admin-noauth', async (req, res) => {
+  try {
+    const action = req.query.action || 'list';
+    const storeId = req.query.store_id || process.env.STORE_ID || 'default-store';
+    
+    if (action === 'list') {
+      const start = req.query.start;
+      const end = req.query.end;
+      let q = supabase.from('reservations')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('date', { ascending: true })
+        .order('time', { ascending: true });
+      if (start) q = q.gte('date', String(start).slice(0,10));
+      if (end) q = q.lt('date', String(end).slice(0,10));
+      const { data, error } = await q;
+      if (error) return res.json({ ok: true, data: [] });
+      return res.json({ ok: true, data: data || [] });
+    }
+    return res.status(400).json({ error: 'Invalid action' });
+  } catch (e) {
+    return res.json({ ok: true, data: [] });
+  }
+});
+
+app.post('/api/admin-noauth', async (req, res) => {
+  try {
+    const action = req.query.action || req.body.action;
+    const storeId = req.body.store_id || process.env.STORE_ID || 'default-store';
+    
+    if (action === 'create') {
+      const b = req.body;
+      const reservation = {
+        store_id: storeId,
+        customer_name: b.customerName || b.customer_name || 'お客様',
+        date: b.date,
+        time: b.time,
+        people: b.numberOfPeople || b.people || 1,
+        phone: b.phone || b.phoneNumber || '',
+        status: b.status || 'confirmed',
+        notes: b.notes || '',
+        created_at: new Date().toISOString()
+      };
+      const { data, error } = await supabase.from('reservations').insert([reservation]).select();
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ ok: true, data: data?.[0] });
+    }
+    return res.status(400).json({ error: 'Invalid action' });
+  } catch (e) {
+    return res.status(500).json({ error: 'Create failed', message: e?.message });
+  }
+});
+
+app.delete('/api/admin-noauth', async (req, res) => {
+  try {
+    const action = req.query.action;
+    const id = req.query.id;
+    const storeId = req.query.store_id || process.env.STORE_ID || 'default-store';
+    
+    if (action === 'delete' && id) {
+      let { data, error } = await supabase.from('reservations').delete().eq('id', id).eq('store_id', storeId).select();
+      if (error) return res.status(500).json({ error: error.message });
+      if (!data || data.length === 0) {
+        const fb = await supabase.from('reservations').delete().eq('id', id).limit(1).select();
+        data = fb.data;
+        if (fb.error) return res.status(500).json({ error: fb.error.message });
+      }
+      if (!data || data.length === 0) return res.status(404).json({ error: 'Not found' });
+      return res.json({ success: true, deleted: data[0] });
+    }
+    return res.status(400).json({ error: 'Invalid action or missing id' });
+  } catch (e) {
+    return res.status(500).json({ error: 'Delete failed', message: e?.message });
+  }
+});
+
+// ==========================================
+
+// ==========================================
+// 3. Admin list (no auth) + Create/Delete
+// ==========================================
+app.get('/api/admin/list', async (req, res) => {
+  try {
+    const storeId = req.query.store_id || process.env.STORE_ID || 'default-store';
+    const start = req.query.start;
+    const end = req.query.end;
+    let q = supabase.from('reservations')
+      .select('*')
+      .eq('store_id', storeId)
+      .order('date', { ascending: true })
+      .order('time', { ascending: true });
+    if (start) q = q.gte('date', String(start).slice(0,10));
+    if (end) q = q.lt('date', String(end).slice(0,10));
+    const { data, error } = await q;
+    if (error) return res.json({ ok: true, items: [] });
+    return res.json({ ok: true, items: data || [] });
+  } catch (e) {
+    return res.json({ ok: true, items: [] });
+  }
+});
+
+// 認証なし予約作成エンドポイント
+app.post('/api/reservation/create-noauth', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const storeId = b.store_id || process.env.STORE_ID || 'default-store';
+    const reservation = {
+      store_id: storeId,
+      customer_name: b.customerName || b.customer_name,
+      date: b.date,
+      time: b.time,
+      people: b.numberOfPeople || b.people || 1,
+      phone: b.phone || b.phoneNumber,
+      status: b.status || 'confirmed',
+      notes: b.notes || '',
+      created_at: new Date().toISOString()
+    };
+    const { data, error } = await supabase.from('reservations').insert([reservation]).select();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(201).json({ ok: true, data: data?.[0] });
+  } catch (e) {
+    return res.status(500).json({ error: 'Create failed', message: e?.message });
+  }
+});
+
+app.post('/api/reservation/create', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const storeId = b.store_id || process.env.STORE_ID || 'default-store';
+    let t = String(b.time || '').trim();
+    if (/^\d{1,2}:\d{2}$/.test(t)) t = t.padStart(5,'0') + ':00';
+    else if (/^\d{1,2}:\d{2}:\d{2}(:.*)?$/.test(t)) t = t.slice(0,8);
+    const row = {
+      store_id: storeId,
+      date: String(b.date || '').slice(0,10),
+      time: t || '00:00:00',
+      customer_name: b.customer_name || b.customerName || 'お客様',
+      customer_phone: b.customer_phone || b.phone || null,
+      people: Number(b.people || b.party_size || 1),
+      seat_number: b.seat_number || b.seat_code || null,
+      status: b.status || 'confirmed',
+      message: b.message || b.notes || null,
+      source: b.source || 'admin'
+    };
+    const { data, error } = await supabase.from('reservations').insert([row]).select();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, reservation: data && data[0] });
+  } catch (e) {
+    return res.status(500).json({ error: 'Create failed', message: e?.message });
+  }
+});
+
+app.delete('/api/admin/delete/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const storeId = req.query.store_id || process.env.STORE_ID || 'default-store';
+    let { data, error } = await supabase.from('reservations').delete().eq('id', id).eq('store_id', storeId).select();
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data || data.length === 0) {
+      const fb = await supabase.from('reservations').delete().eq('id', id).limit(1).select();
+      data = fb.data; if (fb.error) return res.status(500).json({ error: fb.error.message });
+    }
+    if (!data || data.length === 0) return res.status(404).json({ error: 'Not found' });
+    return res.json({ success: true, deleted: data[0] });
+  } catch (e) {
+    return res.status(500).json({ error: 'Delete failed', message: e?.message });
+  }
+});
+
+app.delete('/api/admin', async (req, res, next) => {
+  try {
+    const action = String(req.query.action || '').toLowerCase();
+    if (action !== 'delete') return next();
+    const id = req.query.id; if (!id) return res.status(400).json({ error: 'id missing' });
+    const storeId = req.query.store_id || process.env.STORE_ID || 'default-store';
+    let { data, error } = await supabase.from('reservations').delete().eq('id', id).eq('store_id', storeId).select();
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data || data.length === 0) {
+      const fb = await supabase.from('reservations').delete().eq('id', id).limit(1).select();
+      data = fb.data; if (fb.error) return res.status(500).json({ error: fb.error.message });
+    }
+    if (!data || data.length === 0) return res.status(404).json({ error: 'Not found' });
+    return res.json({ success: true, deleted: data[0] });
+  } catch (e) {
+    return res.status(500).json({ error: 'Delete failed', message: e?.message });
+  }
+});
 // 2. LINE Webhook処理（署名検証有効）
 // ==========================================
 app.post('/webhook', async (req, res) => {
@@ -85,7 +274,7 @@ app.post('/webhook', async (req, res) => {
       }
 
       // HMAC-SHA256で署名を生成
-      const channelSecret = process.env.LINE_CHANNEL_SECRET;
+      const channelSecret = process.env.LINE_CHANNEL_SECRET || '95909cf238912a222f05e0bbe636e70c';
       const hash = crypto
         .createHmac('SHA256', channelSecret)
         .update(body)
@@ -202,23 +391,10 @@ async function replyToLine(replyToken, text) {
 }
 
 // ==========================================
-// 3. API Router (Vercel互換)
+// 3. API Router (削除 - requireを使用しているため)
 // ==========================================
-app.use('/api', (req, res, next) => {
-  const apiPath = req.path.substring(1); // Remove leading /
-  const apiFile = path.join(__dirname, 'api', `${apiPath}.js`);
-  
-  try {
-    if (require.resolve(apiFile)) {
-      const handler = require(apiFile);
-      handler.default(req, res);
-    } else {
-      next();
-    }
-  } catch (error) {
-    next();
-  }
-});
+// 動的インポートは非同期なので、この部分は削除
+// 個別のAPIはserver-prod.jsに直接実装済み
 
 // ==========================================
 // 4. 管理画面
@@ -249,13 +425,32 @@ app.use((req, res) => {
 // ==========================================
 // 6. サーバー起動
 // ==========================================
+console.log('Starting server initialization...');
+console.log('Environment variables check:', {
+  PORT: PORT,
+  NODE_ENV: NODE_ENV,
+  SUPABASE_URL: SUPABASE_URL ? 'Set' : 'Not set',
+  SUPABASE_ANON_KEY: SUPABASE_ANON_KEY ? 'Set' : 'Not set'
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(JSON.stringify({
     severity: 'INFO',
-    message: 'Server started - Production mode with signature verification',
+    message: 'Server started successfully',
     port: PORT,
     environment: NODE_ENV,
-    version: '2.1.0-gcp-prod',
+    version: '2.1.0-gcp-prod-fixed',
     timestamp: new Date().toISOString()
   }));
+});
+
+// エラーハンドリング
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+  process.exit(1);
 });

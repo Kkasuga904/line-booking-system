@@ -191,3 +191,20 @@ store-settings/
 *.企業名.*
 *.顧客.*
 .env*.local
+.env.yaml.*
+*.env.yaml
+
+# SQLファイル（個人情報保護）
+create_capacity_rules_table*.sql
+create_system_settings_table.sql
+run_create_*.bat
+PGPASSWORD*
+
+# バッチファイル（セキュリティ）
+*.bat
+!example.bat
+
+# デプロイ時の一時ファイル
+.gcloudignore
+app.yaml
+cloudbuild.yaml

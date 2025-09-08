@@ -5,17 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LINE予約管理システム</title>
     <script>
-        // 緊急：alert(1)を即座にブロック
-        (function() {
-            const _alert = window.alert;
-            window.alert = function(msg) {
-                if (msg === '1' || msg === 1) {
-                    console.warn('Alert "1" blocked');
-                    return;
-                }
-                console.log('Alert:', msg);
-            };
-        })();
+        // 管理画面へ自動リダイレクト
+        window.location.href = '/admin-full-featured.html';
     </script>
     <style>
         * {
@@ -221,6 +212,28 @@
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
         }
     </style>
+    <script>
+      // 認証ヘッダー自動付与（管理系APIにアクセスするUI用）
+      (function(){
+        const orig = window.fetch;
+        const getKey = () => (window.STORE_CONFIG && window.STORE_CONFIG.adminToken) || localStorage.getItem('ADMIN_API_KEY') || '';
+        window.fetch = function(input, init){
+          try{
+            const url = (typeof input === 'string') ? input : (input && input.url) || '';
+            if (url.startsWith('/api/')){
+              const key = getKey();
+              if (key){
+                const h = new Headers((init && init.headers) || (typeof input !== 'string' ? input.headers : undefined) || {});
+                h.set('x-api-key', key);
+                h.set('Authorization', `Bearer ${key}`);
+                init = Object.assign({}, init, { headers: h });
+              }
+            }
+          } catch(e){}
+          return orig.call(this, input, init);
+        };
+      })();
+    </script>
 </head>
 <body>
     <div class="container">
@@ -230,8 +243,8 @@
             </div>
             <div style="display: flex; align-items: center;">
                 <div class="nav-buttons">
-                    <button class="nav-btn" onclick="window.location.href='/admin-calendar'">📊 カレンダー</button>
-                    <button class="nav-btn" onclick="window.location.href='/admin'">📋 管理画面</button>
+                    <button class="nav-btn" onclick="window.location.href='/admin-full-featured.html'">📊 カレンダー</button>
+                    <button class="nav-btn" onclick="window.location.href='/admin-full-featured.html'">📋 管理画面</button>
                     <button class="nav-btn" onclick="window.location.href='/seats'">🪑 席管理</button>
                 </div>
                 <span class="update-time">自動更新: 30秒</span>

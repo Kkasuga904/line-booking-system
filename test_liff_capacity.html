@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>LIFF Capacity Test</title>
+</head>
+<body>
+    <h1>LIFF Capacity Color Test</h1>
+    <p>Open Console to see results</p>
+    
+    <script>
+        // Test the capacity API directly
+        async function testCapacity() {
+            const url = 'https://line-booking-api-116429620992.asia-northeast1.run.app/api/capacity-availability?store_id=default-store&date=2025-09-07';
+            
+            console.log('Fetching capacity data...');
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            console.log('API Response:', data);
+            
+            if (data.slots) {
+                console.log('\n18:00-21:00 Slots:');
+                Object.entries(data.slots)
+                    .filter(([time]) => time >= '18:00' && time <= '21:00')
+                    .forEach(([time, info]) => {
+                        console.log(`  ${time}: limit=${info.limit}, status=${info.status}`);
+                    });
+            }
+            
+            // Now test if LIFF page can access the slots
+            console.log('\nTesting LIFF page...');
+            const liffUrl = 'https://line-booking-api-116429620992.asia-northeast1.run.app/liff-booking-enhanced.html';
+            console.log('LIFF URL:', liffUrl);
+            console.log('\nTo test in LIFF page console:');
+            console.log('1. Open the LIFF page');
+            console.log('2. Run: refreshCapacityColors("2025-09-07")');
+            console.log('3. Check: __latestCapacitySlots');
+            console.log('4. Check time nodes: document.querySelectorAll("[data-time]")');
+        }
+        
+        testCapacity();
+    </script>
+</body>
+</html>

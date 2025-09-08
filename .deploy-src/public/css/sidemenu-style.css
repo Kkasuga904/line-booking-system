@@ -1,0 +1,102 @@
+/* サイドメニューのスタイル */
+
+/* メニューアイテムのスタイル */
+.side-menu .menu-item,
+#sideMenu .menu-item {
+  display: block !important;
+  padding: 15px 20px !important;
+  margin: 8px 15px !important;
+  color: #ffffff !important;
+  text-decoration: none !important;
+  border-radius: 10px !important;
+  transition: all 0.3s ease !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(10px) !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.side-menu .menu-item:hover,
+#sideMenu .menu-item:hover {
+  background: rgba(255, 255, 255, 0.25) !important;
+  transform: translateX(5px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.side-menu .menu-item.active,
+#sideMenu .menu-item.active {
+  background: rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* メニューヘッダー */
+.side-menu .menu-header,
+#sideMenu .menu-header {
+  padding: 20px 25px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+  margin-bottom: 15px !important;
+}
+
+.side-menu .menu-header h3,
+#sideMenu .menu-header h3 {
+  margin: 0 !important;
+  font-size: 20px !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  letter-spacing: 1px !important;
+}
+
+/* メニューセクション */
+.side-menu .menu-section,
+#sideMenu .menu-section {
+  padding: 15px 10px !important;
+}
+
+.side-menu .menu-title,
+#sideMenu .menu-title {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  padding: 0 20px !important;
+  margin: 20px 0 10px 0 !important;
+}
+
+/* 区切り線 */
+.side-menu hr,
+#sideMenu hr {
+  border: none !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
+  margin: 20px 15px !important;
+}
+
+/* アイコンスタイル */
+.side-menu .menu-item .icon,
+#sideMenu .menu-item .icon {
+  margin-right: 10px !important;
+  font-size: 18px !important;
+}
+
+/* スクロールバー */
+.side-menu::-webkit-scrollbar,
+#sideMenu::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.side-menu::-webkit-scrollbar-track,
+#sideMenu::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.side-menu::-webkit-scrollbar-thumb,
+#sideMenu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-radius: 3px !important;
+}
+
+.side-menu::-webkit-scrollbar-thumb:hover,
+#sideMenu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5) !important;
+}

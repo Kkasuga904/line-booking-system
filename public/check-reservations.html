@@ -107,6 +107,28 @@
             background: #05a647;
         }
     </style>
+    <script>
+      // 認証ヘッダー自動付与
+      (function(){
+        const orig = window.fetch;
+        const getKey = () => (window.STORE_CONFIG && window.STORE_CONFIG.adminToken) || localStorage.getItem('ADMIN_API_KEY') || '';
+        window.fetch = function(input, init){
+          try{
+            const url = (typeof input === 'string') ? input : (input && input.url) || '';
+            if (url.startsWith('/api/')){
+              const key = getKey();
+              if (key){
+                const h = new Headers((init && init.headers) || (typeof input !== 'string' ? input.headers : undefined) || {});
+                h.set('x-api-key', key);
+                h.set('Authorization', `Bearer ${key}`);
+                init = Object.assign({}, init, { headers: h });
+              }
+            }
+          } catch(e){}
+          return orig.call(this, input, init);
+        };
+      })();
+    </script>
 </head>
 <body>
     <div class="container">
