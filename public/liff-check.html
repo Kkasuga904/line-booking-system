@@ -1,0 +1,58 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LIFF設定チェック</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 24px; background: #f5f6f7; color: #111; }
+    h1 { margin-bottom: 16px; font-size: 24px; }
+    section { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+    .id { font-size: 20px; font-weight: 600; color: #06c755; word-break: break-all; }
+    .buttons { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+    a.button { display: inline-flex; align-items: center; justify-content: center; padding: 12px 20px; border-radius: 8px; background: #06c755; color: #fff; text-decoration: none; font-weight: 600; }
+    a.button.secondary { background: #1d4ed8; }
+    .qr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+    .qr-card { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px; text-align: center; }
+    .qr-card img { width: 160px; height: 160px; object-fit: contain; background: #fff; border-radius: 12px; }
+    ol { padding-left: 20px; }
+    code { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; }
+    footer { font-size: 12px; color: #4b5563; margin-top: 24px; }
+  </style>
+  <script src="/js/liff-check.js" defer></script>
+</head>
+<body>
+  <h1>LIFF 設定チェック</h1>
+  <section>
+    <h2>現在の SoT (/api/config)</h2>
+    <p id="status">読み込み中…</p>
+    <p class="id" id="liff-id"></p>
+    <div class="buttons">
+      <a id="open-liff" class="button" href="#" target="_blank" rel="noopener">LIFF を開く</a>
+      <a id="open-entry" class="button secondary" href="/liff-booking.html" target="_blank" rel="noopener">エントリーページを開く</a>
+    </div>
+    <div class="qr-grid">
+      <div class="qr-card">
+        <h3>LIFF URL</h3>
+        <img id="qr-liff" alt="LIFF URL QR Code" />
+        <p class="small" id="liff-url"></p>
+      </div>
+      <div class="qr-card">
+        <h3>エントリーページ</h3>
+        <img id="qr-entry" alt="liff-booking.html QR Code" />
+        <p class="small">https://line-booking-api-116429620992.asia-northeast1.run.app/liff-booking.html</p>
+      </div>
+    </div>
+  </section>
+  <section>
+    <h2>設定チェックリスト</h2>
+    <ol>
+      <li>LIFF アプリの <strong>Endpoint URL</strong> を <code>https://line-booking-api-116429620992.asia-northeast1.run.app/liff-booking.html</code> に設定し、保存後に <strong>Publish/公開</strong> を押す。</li>
+      <li>同じチャネルの <strong>LINE Login → 許可済みリダイレクトURL</strong> に同じ URL を登録して保存 → 再公開。</li>
+      <li>利用しているリンクが <code>https://liff.line.me/&lt;LIFF_ID&gt;</code>（上に表示される SoT と同一）になっているか確認。古い LIFF ID へのリンクは削除。</li>
+      <li>公開後数分待ち、上のボタンや QR から遷移テストを行う。</li>
+    </ol>
+  </section>
+  <footer>このページはデバッグ用途です。追加のヘルプが必要な場合は /debug/liff の値とコンソールのスクリーンショットを共有してください。</footer>
+</body>
+</html>
