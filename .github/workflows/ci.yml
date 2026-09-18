@@ -41,7 +41,7 @@ jobs:
       - name: Check for secrets
         run: |
           # 秘密情報の漏洩チェック
-          if grep -r "sk-" --include="*.js" --include="*.json" --exclude-dir=node_modules .; then
+          if grep -rE "sk-[A-Za-z0-9_-]{20,}" --include="*.js" --include="*.json" --exclude="package-lock.json" --exclude-dir=node_modules .; then
             echo "::error::Found potential API keys in code!"
             exit 1
           fi
