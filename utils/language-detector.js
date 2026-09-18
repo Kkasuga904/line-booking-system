@@ -49,7 +49,7 @@ export const messages = {
     system: {
       welcome: '友達追加ありがとうございます！🎉\n\nこちらは高機能予約システムです。',
       reservationMenu: '📅 予約メニュー',
-      reservationPrompt: '以下のボタンから予約画面を開いてください',
+      reservationPrompt: '下の「LINEで予約を開く」ボタンから最新の予約ページを開いてください。開けない場合は「ブラウザで予約」をお試しください。',
       confirmPrompt: '予約をキャンセルしますか？「はい」または「いいえ」でお答えください。',
       noReservation: '予約が見つかりませんでした。',
       availableCommands: '「予約」「確認」「キャンセル」「メニュー」のいずれかを入力してください。',
@@ -78,7 +78,7 @@ export const messages = {
     system: {
       welcome: 'Thank you for adding us! 🎉\n\nThis is an advanced reservation system.',
       reservationMenu: '📅 Reservation Menu',
-      reservationPrompt: 'Please open the reservation screen from the button below',
+      reservationPrompt: 'Use the "Open in LINE" button below to launch the latest booking page. If it fails, tap "Open in Browser".',
       confirmPrompt: 'Do you want to cancel your reservation? Please answer "yes" or "no".',
       noReservation: 'No reservations found.',
       availableCommands: 'Please enter "reservation", "confirm", "cancel", or "menu".',
@@ -107,7 +107,7 @@ export const messages = {
     system: {
       welcome: '친구 추가 감사합니다! 🎉\n\n고급 예약 시스템입니다.',
       reservationMenu: '📅 예약 메뉴',
-      reservationPrompt: '아래 버튼에서 예약 화면을 열어주세요',
+      reservationPrompt: '아래의 "LINE에서 예약 열기" 버튼으로 최신 예약 페이지를 열어주세요. 열리지 않으면 "브라우저에서 열기"를 눌러 주세요.',
       confirmPrompt: '예약을 취소하시겠습니까? "예" 또는 "아니오"로 답해주세요.',
       noReservation: '예약을 찾을 수 없습니다.',
       availableCommands: '"예약", "확인", "취소", "메뉴" 중 하나를 입력해주세요.',
@@ -136,7 +136,7 @@ export const messages = {
     system: {
       welcome: '感谢添加好友！🎉\n\n这是高级预约系统。',
       reservationMenu: '📅 预约菜单',
-      reservationPrompt: '请从下面的按钮打开预约画面',
+      reservationPrompt: '请点击下方的“LINE 中打开预约”按钮进入最新的预约页面。如无法打开，请选择“在浏览器中打开”。',
       confirmPrompt: '您要取消预约吗？请回答"是"或"否"。',
       noReservation: '未找到预约。',
       availableCommands: '请输入"预约"、"确认"、"取消"或"菜单"。',

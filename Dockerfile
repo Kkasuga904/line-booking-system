@@ -1,23 +1,16 @@
-FROM node:20-slim
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files if they exist
 COPY package*.json ./
+RUN npm ci --omit=dev
 
-# Initialize package.json if it doesn't exist and install dependencies
-RUN if [ ! -f package.json ]; then npm init -y; fi && \
-    npm install express @supabase/supabase-js
+COPY server_cjs_min.js ./
+COPY public/ /app/public/
 
-# Copy all public files and server code
-COPY public ./public
-COPY deploy.js ./server.js
-
-# Set environment variable
+ENV NODE_ENV=production
 ENV PORT=8080
 
-# Expose port
 EXPOSE 8080
 
-# Start the server
-CMD ["node", "server.js"]
+CMD ["node", "server_cjs_min.js"]
