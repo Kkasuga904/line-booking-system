@@ -45,7 +45,7 @@ jobs:
     
     # テスト結果をアーティファクトとして保存（7日間無料保存）
     - name: Upload coverage
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: coverage-report
