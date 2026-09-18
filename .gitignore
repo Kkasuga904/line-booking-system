@@ -6,10 +6,12 @@
 # 環境変数（API keys, secrets）
 .env
 .env.*
+!.env.example
 .env.local
 .env.production
 .env.development
 *.env
+!*.env.example
 .env.store*
 .env-store*
 
@@ -199,6 +201,14 @@ create_capacity_rules_table*.sql
 create_system_settings_table.sql
 run_create_*.bat
 PGPASSWORD*
+
+# Terraform local state and secret variable files
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
 
 # バッチファイル（セキュリティ）
 *.bat
